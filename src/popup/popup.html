@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=320">
+  <title>帰ってきたDarkBlueテーマ</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup">
+    <header class="header">
+      <div class="header-title">
+        <span class="header-icon">🌙</span>
+        <h1>帰ってきたDarkBlueテーマ</h1>
+      </div>
+      <p class="subtitle">X のダークテーマを DarkBlue に</p>
+    </header>
+
+    <section class="card toggle-section">
+      <span class="toggle-label" id="toggleLabel">有効</span>
+      <label class="toggle">
+        <input type="checkbox" id="toggleSwitch">
+        <span class="toggle-track">
+          <span class="toggle-thumb"></span>
+        </span>
+      </label>
+    </section>
+
+    <section class="card status-section">
+      <div class="status-indicator">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-message" id="statusMessage">状態を確認中...</span>
+      </div>
+    </section>
+
+    <section class="card palette-section">
+      <p class="palette-title">カラーパレット</p>
+      <div class="palette-swatches">
+        <div class="swatch" style="background-color: #15202B;" title="メイン背景"></div>
+        <div class="swatch" style="background-color: #192734;" title="カード背景"></div>
+        <div class="swatch" style="background-color: #38444D;" title="ボーダー"></div>
+        <div class="swatch" style="background-color: #1D9BF0;" title="アクセント"></div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span class="version">v1.0.0</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

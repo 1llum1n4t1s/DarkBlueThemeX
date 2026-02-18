@@ -1,0 +1,607 @@
+/*
+ * DarkBlueThemeX - DarkBlue (Dim) テーマ CSS
+ *
+ * すべてのルールは html.darkbluethemex-active ガードクラスでスコープされる。
+ * content.js がこのクラスを <html> に付与/除去することでテーマを切り替える。
+ *
+ * 戦略:
+ *   1. CSS で data-testid / role / 構造セレクタによる背景色を上書き
+ *   2. CSS で [style*="..."] 属性セレクタでインラインスタイルをキャッチ
+ *   3. content.js の MutationObserver でCSSクラス由来の背景色をインラインに置換
+ *
+ * カラーパレット:
+ *   背景メイン:     #15202B  rgb(21, 32, 43)
+ *   背景カード:     #192734  rgb(25, 39, 52)
+ *   背景ホバー:     #22303C  rgb(34, 48, 60)
+ *   ボーダー:       #38444D  rgb(56, 68, 77)
+ *   テキストメイン: #F7F9F9  rgb(247, 249, 249)
+ *   テキストサブ:   #8B98A5  rgb(139, 152, 165)
+ *   アクセント:     #1D9BF0
+ */
+
+/* ============================================================
+   1. グローバル背景・ルート
+   ============================================================ */
+
+html.darkbluethemex-active {
+  color-scheme: dark !important;
+}
+
+html.darkbluethemex-active body {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active #react-root {
+  background-color: #15202B !important;
+}
+
+/* React root 直下のラッパー */
+html.darkbluethemex-active #react-root > div {
+  background-color: #15202B !important;
+}
+
+/* ============================================================
+   2. 純黒背景 → #15202B (インラインスタイルキャッチ)
+   空白のバリエーションもカバー
+   ============================================================ */
+
+html.darkbluethemex-active [style*="background-color: rgb(0, 0, 0)"],
+html.darkbluethemex-active [style*="background-color: rgb(0,0,0)"],
+html.darkbluethemex-active [style*="background-color:#000"],
+html.darkbluethemex-active [style*="background-color: #000"] {
+  background-color: #15202B !important;
+}
+
+/* ============================================================
+   3. 近黒サーフェス → カード/ホバー背景
+   X が使う様々な近黒色
+   ============================================================ */
+
+/* カード背景系 → #192734 */
+html.darkbluethemex-active [style*="background-color: rgb(22, 24, 28)"],
+html.darkbluethemex-active [style*="background-color: rgb(22,24,28)"],
+html.darkbluethemex-active [style*="background-color: rgb(25, 25, 25)"],
+html.darkbluethemex-active [style*="background-color: rgb(16, 16, 16)"],
+html.darkbluethemex-active [style*="background-color: rgb(21, 24, 28)"],
+html.darkbluethemex-active [style*="background-color: rgb(15, 15, 15)"] {
+  background-color: #192734 !important;
+}
+
+/* ホバー/elevated → #22303C */
+html.darkbluethemex-active [style*="background-color: rgb(32, 35, 39)"],
+html.darkbluethemex-active [style*="background-color: rgb(32,35,39)"],
+html.darkbluethemex-active [style*="background-color: rgb(39, 44, 48)"],
+html.darkbluethemex-active [style*="background-color: rgb(26, 29, 33)"] {
+  background-color: #22303C !important;
+}
+
+/* ============================================================
+   4. ボーダー色
+   X の黒テーマ: rgb(47, 51, 54) → DarkBlue: #38444D
+   ============================================================ */
+
+html.darkbluethemex-active [style*="border-color: rgb(47, 51, 54)"],
+html.darkbluethemex-active [style*="border-color: rgb(47,51,54)"] {
+  border-color: #38444D !important;
+}
+
+html.darkbluethemex-active [style*="border-bottom-color: rgb(47, 51, 54)"],
+html.darkbluethemex-active [style*="border-bottom-color: rgb(47,51,54)"] {
+  border-bottom-color: #38444D !important;
+}
+
+html.darkbluethemex-active [style*="border-top-color: rgb(47, 51, 54)"],
+html.darkbluethemex-active [style*="border-top-color: rgb(47,51,54)"] {
+  border-top-color: #38444D !important;
+}
+
+html.darkbluethemex-active [style*="border-right-color: rgb(47, 51, 54)"],
+html.darkbluethemex-active [style*="border-left-color: rgb(47, 51, 54)"] {
+  border-right-color: #38444D !important;
+  border-left-color: #38444D !important;
+}
+
+/* ============================================================
+   5. テキスト色
+   サブテキスト rgb(113, 118, 123) → #8B98A5
+   ============================================================ */
+
+html.darkbluethemex-active [style*="color: rgb(113, 118, 123)"],
+html.darkbluethemex-active [style*="color: rgb(113,118,123)"] {
+  color: #8B98A5 !important;
+}
+
+/* ============================================================
+   6. ナビゲーション・ヘッダー
+   ============================================================ */
+
+html.darkbluethemex-active header[role="banner"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active header[role="banner"] > div {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active nav[role="navigation"] {
+  background-color: #15202B !important;
+}
+
+/* サイドナビのリンクホバー */
+html.darkbluethemex-active nav[role="navigation"] a:hover > div {
+  background-color: #22303C !important;
+}
+
+/* サイドナビの「ポストする」ボタン — 青を維持 */
+html.darkbluethemex-active [data-testid="SideNav_NewTweet_Button"] {
+  background-color: #1D9BF0 !important;
+  color: #FFFFFF !important;
+}
+
+/* ============================================================
+   7. メインカラム・サイドバー
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid="primaryColumn"] {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
+}
+
+html.darkbluethemex-active [data-testid="primaryColumn"] > div {
+  border-color: #38444D !important;
+}
+
+html.darkbluethemex-active [data-testid="sidebarColumn"] {
+  background-color: #15202B !important;
+}
+
+/* サイドバー内のウィジェット（トレンド、おすすめ等） */
+html.darkbluethemex-active [data-testid="sidebarColumn"] section {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
+}
+
+html.darkbluethemex-active [data-testid="sidebarColumn"] aside {
+  background-color: #15202B !important;
+}
+
+/* 検索バーコンテナ — form自体は透明にし、内側の角丸DIVに色を付ける */
+html.darkbluethemex-active [data-testid="sidebarColumn"] form {
+  background-color: transparent !important;
+}
+
+/* 検索バー外枠のfixedコンテナに余白を設け、角丸ボーダーが端で切れないようにする */
+html.darkbluethemex-active [data-testid="sidebarColumn"] div:has(> div > div > div > form) {
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  box-sizing: border-box !important;
+}
+
+/* 検索バーの角丸DIVのボーダー色をDarkBlueに合わせ、幅を1pxに統一
+   border-style: solid で右辺ボーダーが消える問題を防止 */
+html.darkbluethemex-active [data-testid="sidebarColumn"] form > div > div {
+  border-color: #38444D !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+/* 検索ページ（/search）の検索バーも同様にボーダーを確保 */
+html.darkbluethemex-active [data-testid="SearchBox_Search_Input_row"] {
+  border-color: #38444D !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+/* ============================================================
+   8. ツイート・タイムライン
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid="tweet"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [data-testid="cellInnerDiv"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [data-testid="cellInnerDiv"] > div {
+  background-color: inherit !important;
+}
+
+/* ツイートのセパレータ */
+html.darkbluethemex-active [data-testid="cellInnerDiv"] > div[style*="border-bottom"] {
+  border-bottom-color: #38444D !important;
+}
+
+/* article (各ポスト) */
+html.darkbluethemex-active article[role="article"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active article[role="article"]:hover {
+  background-color: #22303C !important;
+}
+
+/* ============================================================
+   9. タブバー（ホーム/おすすめ/フォロー中）
+   ============================================================ */
+
+html.darkbluethemex-active [role="tablist"] {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
+}
+
+html.darkbluethemex-active [role="tab"] {
+  background-color: transparent !important;
+}
+
+html.darkbluethemex-active [role="tab"]:hover {
+  background-color: #22303C !important;
+}
+
+html.darkbluethemex-active [role="tab"] > div {
+  background-color: transparent !important;
+}
+
+/* ============================================================
+   10. モーダル・ダイアログ・オーバーレイ
+   ============================================================ */
+
+html.darkbluethemex-active [aria-modal="true"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [role="dialog"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [role="dialog"] > div {
+  background-color: #15202B !important;
+}
+
+/* 半透明オーバーレイ背景 */
+html.darkbluethemex-active [style*="background-color: rgba(91, 112, 131"] {
+  background-color: rgba(91, 112, 131, 0.4) !important;
+}
+
+/* ============================================================
+   11. ドロップダウン・メニュー・ポップオーバー
+   ============================================================ */
+
+html.darkbluethemex-active [role="menu"] {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
+  box-shadow: 0 0 15px rgba(21, 32, 43, 0.8), 0 0 3px rgba(56, 68, 77, 0.4) !important;
+}
+
+html.darkbluethemex-active [role="menuitem"]:hover {
+  background-color: #22303C !important;
+}
+
+html.darkbluethemex-active [role="listbox"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [role="option"]:hover {
+  background-color: #22303C !important;
+}
+
+html.darkbluethemex-active [role="tooltip"] {
+  background-color: #192734 !important;
+  color: #F7F9F9 !important;
+}
+
+/* ============================================================
+   12. 検索バー
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid="SearchBox_Search_Input"] {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
+  color: #F7F9F9 !important;
+}
+
+html.darkbluethemex-active [data-testid="SearchBox_Search_Input"]:focus {
+  background-color: #15202B !important;
+  border-color: #1D9BF0 !important;
+}
+
+html.darkbluethemex-active [data-testid="typeaheadDropdown"] {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
+  box-shadow: 0 0 15px rgba(21, 32, 43, 0.8) !important;
+}
+
+/* 検索候補のホバー */
+html.darkbluethemex-active [data-testid="typeaheadResult"]:hover {
+  background-color: #22303C !important;
+}
+
+/* 検索バーの角丸コンテナ — ページ内どこでもボーダー全辺を確保
+   form > div > div が角丸コンテナの一般的なパス */
+html.darkbluethemex-active form:has([data-testid="SearchBox_Search_Input"]) > div > div {
+  border-color: #38444D !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+/* フォーカス時は青ボーダー */
+html.darkbluethemex-active form:has([data-testid="SearchBox_Search_Input"]:focus-within) > div > div {
+  border-color: #1D9BF0 !important;
+}
+
+/* ============================================================
+   13. DM（ダイレクトメッセージ）
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid="DMDrawer"] {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
+}
+
+html.darkbluethemex-active [data-testid="DMConversation"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [data-testid="DMActivity"] {
+  background-color: #15202B !important;
+}
+
+/* チャット画面の「すべて/リクエスト」タブ — 色をDarkBlueに合わせる */
+html.darkbluethemex-active [data-testid="dm-inbox-tab-all"],
+html.darkbluethemex-active [data-testid="dm-inbox-tab-requests"] {
+  background-color: transparent !important;
+  border-color: #38444D !important;
+}
+
+/* アクティブタブ — 白テキスト + 白ボーダー */
+html.darkbluethemex-active [data-testid="dm-inbox-tab-all"][aria-selected="true"],
+html.darkbluethemex-active [data-testid="dm-inbox-tab-requests"][aria-selected="true"] {
+  color: #F7F9F9 !important;
+  border-color: #F7F9F9 !important;
+}
+
+/* 非アクティブタブ — サブテキスト色 */
+html.darkbluethemex-active [data-testid="dm-inbox-tab-all"][aria-selected="false"],
+html.darkbluethemex-active [data-testid="dm-inbox-tab-requests"][aria-selected="false"] {
+  color: #8B98A5 !important;
+  border-color: #38444D !important;
+}
+
+/* チャットタブ左右のスクロールフェードグラデーション
+   Tailwind の from-background が黒(hsl(0 0% 0%))を参照するため DarkBlue に上書き */
+html.darkbluethemex-active [data-testid="dm-inbox-tabs-container"] > div:first-child {
+  background-image: linear-gradient(to right, #15202B, transparent) !important;
+}
+html.darkbluethemex-active [data-testid="dm-inbox-tabs-container"] > div:last-child {
+  background-image: linear-gradient(to left, #15202B, transparent) !important;
+}
+
+/* DM入力エリア */
+html.darkbluethemex-active [data-testid="dmComposerTextInput"] {
+  background-color: #192734 !important;
+  border-color: #38444D !important;
+}
+
+/* ============================================================
+   14. ツイート作成エリア
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid="tweetTextarea_0"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [data-testid="toolBar"] {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
+}
+
+/* 「ポストする」ボタンのある下部バー */
+html.darkbluethemex-active [data-testid="tweetButtonInline"] {
+  background-color: #1D9BF0 !important;
+}
+
+/* ============================================================
+   15. ユーザーカード・プロフィール
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid="UserCell"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [data-testid="UserCell"]:hover {
+  background-color: #22303C !important;
+}
+
+html.darkbluethemex-active [data-testid="UserProfileHeader_Items"] {
+  background-color: #15202B !important;
+}
+
+/* ホバーカード（ユーザーポップアップ） */
+html.darkbluethemex-active [data-testid="HoverCard"] {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
+  box-shadow: 0 0 15px rgba(21, 32, 43, 0.8) !important;
+}
+
+/* ============================================================
+   16. 通知
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid="toast"] {
+  background-color: #1D9BF0 !important;
+}
+
+/* ============================================================
+   17. スクロールバー
+   ============================================================ */
+
+html.darkbluethemex-active ::-webkit-scrollbar {
+  width: 10px;
+}
+
+html.darkbluethemex-active ::-webkit-scrollbar-track {
+  background: #15202B;
+}
+
+html.darkbluethemex-active ::-webkit-scrollbar-thumb {
+  background: #38444D;
+  border-radius: 5px;
+}
+
+html.darkbluethemex-active ::-webkit-scrollbar-thumb:hover {
+  background: #8B98A5;
+}
+
+/* ============================================================
+   18. ワイルドカード: 全要素の構造セレクタによる背景キャッチ
+   data-testid で拾えない要素を構造的にカバー
+   ============================================================ */
+
+/* メインコンテンツ */
+html.darkbluethemex-active [role="main"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [role="region"] {
+  background-color: #15202B !important;
+}
+
+/* リスト・グループ */
+html.darkbluethemex-active [role="list"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [role="group"] {
+  background-color: #15202B !important;
+}
+
+/* リンクのホバーカード等 */
+html.darkbluethemex-active [role="link"]:hover {
+  background-color: #22303C !important;
+}
+
+/* コンプリメンタリ（サイドバー） */
+html.darkbluethemex-active [role="complementary"] {
+  background-color: #15202B !important;
+}
+
+/* ============================================================
+   19. 設定ページ
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid="settingsDetail"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active [data-testid="settingsDetail"] > div {
+  background-color: #15202B !important;
+}
+
+/* ============================================================
+   20. 画像/動画ビューア
+   ============================================================ */
+
+/* ライトボックス背景 */
+html.darkbluethemex-active [aria-label="Image"] {
+  background-color: rgba(21, 32, 43, 0.95) !important;
+}
+
+/* ============================================================
+   21. "もっと見る" ドロワー / ポップアップレイヤー
+   ============================================================ */
+
+html.darkbluethemex-active #layers > div > div {
+  background-color: transparent !important;
+}
+
+html.darkbluethemex-active #layers [role="menu"] {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active #layers [role="dialog"] {
+  background-color: #15202B !important;
+}
+
+/* ============================================================
+   22. サイドバーウィジェット（プレミアム案内、トレンド等）
+   個別のカード/モジュールのみ #192734 にする（ラッパーは除外）
+   ============================================================ */
+
+/* 個別ウィジェット（renew-subscription-module 等） */
+html.darkbluethemex-active [data-testid="sidebarColumn"] [data-testid="renew-subscription-module"] {
+  background-color: #15202B !important;
+}
+
+/* ニュースサイドバー記事 */
+html.darkbluethemex-active [data-testid="sidebarColumn"] [data-testid*="news_sidebar"] {
+  background-color: #15202B !important;
+}
+
+/* ============================================================
+   23. ツイート作成エリア全体
+   ============================================================ */
+
+/* ツイート入力欄のコンテナ */
+html.darkbluethemex-active [data-testid="primaryColumn"] > div > div:first-child > div > div {
+  background-color: #15202B !important;
+}
+
+/* ツールバーを含む祖先DIV — :has() で親要素をキャッチ（1〜3レベル上） */
+html.darkbluethemex-active div:has(> [data-testid="toolBar"]) {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active div:has(> div > [data-testid="toolBar"]) {
+  background-color: #15202B !important;
+}
+
+html.darkbluethemex-active div:has(> div > div > [data-testid="toolBar"]) {
+  background-color: #15202B !important;
+}
+
+/* ============================================================
+   23b. タイムラインのアクションバー（リプライ/リポスト等）のホバー
+   article:hover 時にアクションバー背景も追従
+   ============================================================ */
+
+html.darkbluethemex-active article[role="article"]:hover [role="group"] {
+  background-color: #22303C !important;
+}
+
+/* ============================================================
+   24. 「ポストする」ボタン（インライン＆サイドナビ共通）
+   Xは黒テーマでこれらを rgb(239,243,244) にする場合がある
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid="tweetButtonInline"],
+html.darkbluethemex-active [data-testid="SideNav_NewTweet_Button"] {
+  background-color: #1D9BF0 !important;
+  color: #FFFFFF !important;
+}
+
+/* フォローボタンも白→青にならないよう除外 */
+
+/* ============================================================
+   25. アバター背景の黒を除去
+   プロフィール画像コンテナが純黒になる問題
+   ============================================================ */
+
+html.darkbluethemex-active [data-testid*="UserAvatar"] {
+  background-color: transparent !important;
+}
+
+/* 「いま」を見つけよう等のサイドバーセクション */
+html.darkbluethemex-active [data-testid="sidebarColumn"] [role="heading"] {
+  background-color: transparent !important;
+}
+
+/* ============================================================
+   26. ページヘッダーの半透明背景（プロフィール、ブックマーク等）
+   X の黒テーマでは rgba(0,0,0,0.65) + backdrop-filter:blur(12px) が使われる。
+   r-5zmot = background-color: rgba(0,0,0,0.65)
+   ============================================================ */
+
+html.darkbluethemex-active .r-5zmot {
+  background-color: rgba(21, 32, 43, 0.65) !important;
+}

@@ -1,0 +1,9 @@
+# Generated files
+DarkBlueThemeX.zip
+temp-build/
+
+# OS files
+.DS_Store
+*.swp
+*~
+Thumbs.db
