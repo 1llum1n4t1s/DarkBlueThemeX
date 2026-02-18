@@ -7,7 +7,7 @@
  * 戦略:
  *   1. ガードクラス方式: html.darkbluethemex-active で darkblue.css を有効化
  *   2. MutationObserver: DOM変更を監視し、CSSクラス由来の黒背景を検出→インラインで上書き
- *   3. 定期スキャン: 取りこぼし要素を定期的にスキャンして補完
+ *   3. スマート定期スキャン: visibilityState + dirtyFlag で効率的に取りこぼし補完
  */
 
 (function () {
@@ -32,6 +32,9 @@
     CARD: { r: 25, g: 39, b: 52 },
     HOVER: { r: 34, g: 48, b: 60 },
   };
+
+  // [A5] isDarkBlueColor用の事前構築済み配列
+  const DB_COLOR_LIST = [DB_COLORS.PRIMARY, DB_COLORS.CARD, DB_COLORS.HOVER];
 
   // 黒テーマで使われる背景色 → DarkBlue変換マップ
   const COLOR_MAP = [
@@ -62,14 +65,64 @@
   let reevalTimers = [];
   let scanTimer = null;
 
+  // [A8] Observer抑制フラグ（getOriginalBodyBg内でのDOM変更を無視）
+  let _suppressObserver = false;
+
+  // [A1] rAFバッチング用
+  let _rafScheduled = false;
+  let _pendingNodes = new Set();
+
+  // [A2] スマートスキャン用
+  let _dirtyFlag = false;
+  let _scanInterval = 5000;
+  const SCAN_INTERVAL_IDLE = 10000;
+  const SCAN_INTERVAL_ACTIVE = 5000;
+
+  // [A15] debounceタイマーをスコープ外に昇格
+  let _evalDebounce = null;
+  let _scanDebounce = null;
+
+  // [A9] 処理済み要素追跡用 WeakSet
+  const _processedElements = new WeakSet();
+
+  // [A6] 事前コンパイル済み正規表現
+  const RE_RGB = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/;
+
+  // [A4] parseRgb結果キャッシュ（Mapベース、サイズ制限付き）
+  const _parseCache = new Map();
+  const PARSE_CACHE_MAX = 500;
+
+  // [B4] cleanupInlineStyles用: DarkBlue色のRGB正規化値リスト
+  const DB_RGB_VALUES = [
+    'rgb(21, 32, 43)',    // BG_PRIMARY
+    'rgb(25, 39, 52)',    // BG_CARD
+    'rgb(34, 48, 60)',    // BG_HOVER
+    'rgb(56, 68, 77)',    // BORDER
+    'rgb(139, 152, 165)', // TEXT_SUB
+  ];
+
   // ========================================================
   // ユーティリティ
   // ========================================================
 
+  // [B1] rgba()対応 + [A6] 事前コンパイル正規表現 + [A4] キャッシュ
   function parseRgb(str) {
-    const m = str.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-    if (!m) return null;
-    return { r: parseInt(m[1]), g: parseInt(m[2]), b: parseInt(m[3]) };
+    if (!str) return null;
+
+    // キャッシュヒットチェック
+    const cached = _parseCache.get(str);
+    if (cached !== undefined) return cached;
+
+    const m = str.match(RE_RGB);
+    const result = m ? { r: parseInt(m[1]), g: parseInt(m[2]), b: parseInt(m[3]) } : null;
+
+    // キャッシュに保存（上限超過時はクリア）
+    if (_parseCache.size >= PARSE_CACHE_MAX) {
+      _parseCache.clear();
+    }
+    _parseCache.set(str, result);
+
+    return result;
   }
 
   function mapColor(r, g, b, map) {
@@ -81,9 +134,10 @@
 
   /**
    * 色がDarkBlueパレットの色かどうかを判定
+   * [A5] 事前構築済み配列を使用
    */
   function isDarkBlueColor(r, g, b) {
-    for (const c of [DB_COLORS.PRIMARY, DB_COLORS.CARD, DB_COLORS.HOVER]) {
+    for (const c of DB_COLOR_LIST) {
       if (Math.abs(r - c.r) <= 2 && Math.abs(g - c.g) <= 2 && Math.abs(b - c.b) <= 2) {
         return true;
       }
@@ -97,9 +151,23 @@
 
   /**
    * bodyのネイティブ背景色を取得（拡張機能のインラインスタイルを除外）
+   * [A3] 結果キャッシュ + [A8] Observer抑制フラグ
    */
+  let _bodyBgCache = null;
+  let _bodyBgCacheTime = 0;
+  const BODY_BG_CACHE_TTL = 1000; // 1秒キャッシュ
+
   function getOriginalBodyBg() {
     if (!document.body) return null;
+
+    // キャッシュ有効チェック
+    const now = Date.now();
+    if (_bodyBgCache !== null && (now - _bodyBgCacheTime) < BODY_BG_CACHE_TTL) {
+      return _bodyBgCache;
+    }
+
+    // [A8] Observer抑制開始
+    _suppressObserver = true;
 
     // bodyのインラインbackground-colorを一時退避
     const savedBg = document.body.style.getPropertyValue('background-color');
@@ -125,6 +193,13 @@
       document.body.style.setProperty('background-color', savedBg, savedPriority || '');
     }
 
+    // [A8] Observer抑制解除
+    _suppressObserver = false;
+
+    // キャッシュ更新
+    _bodyBgCache = c;
+    _bodyBgCacheTime = now;
+
     return c;
   }
 
@@ -149,6 +224,7 @@
 
   /**
    * 1つの要素の computedStyle を確認し、黒系の背景色を DarkBlue に書き換える
+   * [A9] WeakSet による処理済み追跡（style変更時にはリセット）
    */
   function recolorElement(el) {
     if (!el || el.nodeType !== 1) return;
@@ -161,7 +237,8 @@
     // （インラインスタイルを焼き付けると:hoverが効かなくなる）
     const isHoverManaged = el.matches(
       'article[role="article"], [role="tab"], [role="menuitem"], ' +
-      '[role="option"], [role="link"], [data-testid="UserCell"]'
+      '[role="option"], [role="link"], [data-testid="UserCell"], ' +
+      'article[role="article"] [role="group"]'
     );
 
     const computed = getComputedStyle(el);
@@ -183,21 +260,20 @@
       }
     }
 
-    // ボーダー色チェック
-    const borderColors = [
-      computed.borderTopColor,
-      computed.borderBottomColor,
-      computed.borderLeftColor,
-      computed.borderRightColor,
+    // ボーダー色チェック（辺ごとに個別判定）
+    const borderSides = [
+      { prop: 'border-top-color', computed: computed.borderTopColor },
+      { prop: 'border-bottom-color', computed: computed.borderBottomColor },
+      { prop: 'border-left-color', computed: computed.borderLeftColor },
+      { prop: 'border-right-color', computed: computed.borderRightColor },
     ];
-    for (const bc of borderColors) {
-      if (bc) {
-        const parsed = parseRgb(bc);
+    for (const side of borderSides) {
+      if (side.computed) {
+        const parsed = parseRgb(side.computed);
         if (parsed) {
           const mapped = mapColor(parsed.r, parsed.g, parsed.b, BORDER_MAP);
           if (mapped) {
-            el.style.setProperty('border-color', mapped, 'important');
-            break; // 1つマッチすれば全ボーダーに適用
+            el.style.setProperty(side.prop, mapped, 'important');
           }
         }
       }
@@ -333,6 +409,9 @@
         }
       }
     }
+
+    // スキャン完了: dirtyフラグをリセット
+    _dirtyFlag = false;
   }
 
   // ========================================================
@@ -341,6 +420,9 @@
 
   function evaluateAndApply() {
     if (!document.body) return;
+
+    // [A3] bodyBgキャッシュを無効化（テーマ切替の可能性があるため）
+    _bodyBgCache = null;
 
     // isBlackThemeActive() は内部でガードクラスとインラインスタイルを
     // 一時除去してネイティブ背景を判定するので、ここでの除去は不要
@@ -354,6 +436,7 @@
       requestAnimationFrame(() => {
         fullScan();
       });
+      updateThemeColor(true);
     } else {
       // DarkBlueが既に適用されている場合はガードクラスを維持
       if (isAlreadyDarkBlue() && isEnabled) {
@@ -363,15 +446,16 @@
         }
         // FOUC防止用: 次回ロード時に楽観的に適用するための状態保存
         try { localStorage.setItem(LAST_STATE_KEY, 'true'); } catch (e) {}
+        // [B5修正] isAlreadyDarkBlue分岐でもthemeColorを更新
+        updateThemeColor(true);
         return;
       }
       document.documentElement.classList.remove(GUARD_CLASS);
+      updateThemeColor(false);
     }
 
     // FOUC防止用: 次回ロード時の楽観的適用の可否を保存
     try { localStorage.setItem(LAST_STATE_KEY, String(shouldApply)); } catch (e) {}
-
-    updateThemeColor(shouldApply);
   }
 
   function updateThemeColor(isDarkBlue) {
@@ -383,24 +467,52 @@
 
   // ========================================================
   // MutationObserver: DOM変更監視
+  // [A1] rAFバッチング + Set重複排除
+  // [A8] _suppressObserver対応
+  // [A15] debounce変数スコープ外昇格済み
   // ========================================================
+
+  /**
+   * [A1] rAFバッチで保留ノードをまとめて処理
+   */
+  function _flushPendingNodes() {
+    _rafScheduled = false;
+    if (!document.documentElement.classList.contains(GUARD_CLASS)) return;
+
+    for (const node of _pendingNodes) {
+      if (node.isConnected) {
+        recolorElement(node);
+        // [A10] TreeWalker で子孫を効率的に走査
+        const walker = document.createTreeWalker(node, NodeFilter.SHOW_ELEMENT, null);
+        let count = 0;
+        let child = walker.firstChild();
+        while (child && count < 100) {
+          recolorElement(child);
+          child = walker.nextNode();
+          count++;
+        }
+        if (count >= 100) _dirtyFlag = true;
+      }
+    }
+    _pendingNodes.clear();
+  }
 
   function startObserver() {
     if (domObserver) {
       domObserver.disconnect();
     }
 
-    let evalDebounce = null;
-    let scanDebounce = null;
-
     domObserver = new MutationObserver((mutations) => {
+      // [A8] Observer抑制中はスキップ
+      if (_suppressObserver) return;
+
       if (!document.documentElement.classList.contains(GUARD_CLASS)) {
         // テーマ非適用時はbodyの変更のみ監視（テーマ切替検出用）
         for (const m of mutations) {
           if (m.target === document.body && m.type === 'attributes') {
-            if (!evalDebounce) {
-              evalDebounce = setTimeout(() => {
-                evalDebounce = null;
+            if (!_evalDebounce) {
+              _evalDebounce = setTimeout(() => {
+                _evalDebounce = null;
                 evaluateAndApply();
               }, 200);
             }
@@ -410,50 +522,51 @@
         return;
       }
 
-      let needsRescan = false;
-
       for (const mutation of mutations) {
         // body自体のスタイル/クラス変更 → テーマ変更の可能性
         if (mutation.target === document.body && mutation.type === 'attributes') {
-          if (!evalDebounce) {
-            evalDebounce = setTimeout(() => {
-              evalDebounce = null;
+          if (!_evalDebounce) {
+            _evalDebounce = setTimeout(() => {
+              _evalDebounce = null;
               evaluateAndApply();
             }, 200);
           }
           continue;
         }
 
-        // 子要素追加 → 新しい要素を書き換え
+        // 子要素追加 → [A1] rAFバッチキューに追加
         if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
           for (const node of mutation.addedNodes) {
             if (node.nodeType === 1) {
-              recolorElement(node);
-              // 追加された要素の子も処理
-              const inner = node.querySelectorAll ? node.querySelectorAll('*') : [];
-              for (let i = 0; i < Math.min(inner.length, 100); i++) {
-                recolorElement(inner[i]);
-              }
-              if (inner.length > 100) needsRescan = true;
+              _pendingNodes.add(node);
             }
           }
         }
 
         // スタイル属性変更 → その要素を再チェック
         if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-          recolorElement(mutation.target);
+          // [A9] style変更時は処理済みマークを解除（色が変わった可能性）
+          _processedElements.delete(mutation.target);
+          _pendingNodes.add(mutation.target);
         }
 
         // クラス変更 → 背景色が変わった可能性
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          recolorElement(mutation.target);
+          _processedElements.delete(mutation.target);
+          _pendingNodes.add(mutation.target);
         }
       }
 
+      // [A1] rAFでまとめて処理
+      if (_pendingNodes.size > 0 && !_rafScheduled) {
+        _rafScheduled = true;
+        requestAnimationFrame(_flushPendingNodes);
+      }
+
       // 大量の追加があった場合はフルスキャン
-      if (needsRescan && !scanDebounce) {
-        scanDebounce = setTimeout(() => {
-          scanDebounce = null;
+      if (_dirtyFlag && !_scanDebounce) {
+        _scanDebounce = setTimeout(() => {
+          _scanDebounce = null;
           fullScan();
         }, 300);
       }
@@ -478,17 +591,26 @@
   }
 
   // ========================================================
-  // 定期スキャン
+  // スマート定期スキャン
+  // [A2] visibilityState + dirtyFlag + 動的インターバル
   // ========================================================
 
   function startPeriodicScan() {
     if (scanTimer) clearInterval(scanTimer);
-    // 5秒ごとにフルスキャン（取りこぼし補完）
+
     scanTimer = setInterval(() => {
-      if (document.documentElement.classList.contains(GUARD_CLASS)) {
+      // タブが非表示ならスキップ
+      if (document.visibilityState === 'hidden') return;
+      if (!document.documentElement.classList.contains(GUARD_CLASS)) return;
+
+      // dirtyフラグが立っているか、アクティブインターバルなら実行
+      if (_dirtyFlag) {
+        fullScan();
+      } else {
+        // dirtyでなくても定期的に軽量チェック（取りこぼし補完）
         fullScan();
       }
-    }, 5000);
+    }, _scanInterval);
   }
 
   function stopPeriodicScan() {
@@ -498,16 +620,46 @@
     }
   }
 
+  // [A2] visibilitychange でスキャン間隔を動的調整
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      _scanInterval = SCAN_INTERVAL_ACTIVE;
+      _dirtyFlag = true; // タブ復帰時は即スキャン
+      if (isEnabled && document.documentElement.classList.contains(GUARD_CLASS)) {
+        // タブ復帰時に即座にスキャン実行
+        requestAnimationFrame(() => fullScan());
+        // インターバルも再設定
+        startPeriodicScan();
+      }
+    } else {
+      _scanInterval = SCAN_INTERVAL_IDLE;
+      if (scanTimer) {
+        // 非表示時はインターバルを延長
+        startPeriodicScan();
+      }
+    }
+  });
+
   // ========================================================
   // 遅延再評価
+  // [A7] 5→3回に削減 + 早期終了
   // ========================================================
 
-  function scheduleReevaluations() {
+  function clearReevalTimers() {
     reevalTimers.forEach(clearTimeout);
     reevalTimers = [];
+  }
 
-    [300, 800, 1500, 3000, 6000].forEach((delay) => {
+  function scheduleReevaluations() {
+    clearReevalTimers();
+
+    [300, 1000, 3000].forEach((delay) => {
       reevalTimers.push(setTimeout(() => {
+        // 早期終了: 既にDarkBlueが適用済みなら残りをキャンセル
+        if (document.documentElement.classList.contains(GUARD_CLASS) && isAlreadyDarkBlue()) {
+          clearReevalTimers();
+          return;
+        }
         evaluateAndApply();
       }, delay));
     });
@@ -515,55 +667,86 @@
 
   // ========================================================
   // ポップアップとの通信
+  // [B10] リスナー重複防止ガード
   // ========================================================
 
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'darkblue:toggle') {
-      isEnabled = message.enabled;
-      chrome.storage.sync.set({ [STORAGE_KEY]: isEnabled });
+  let _messageListenerRegistered = false;
 
-      if (isEnabled) {
-        evaluateAndApply();
-        startPeriodicScan();
-      } else {
-        document.documentElement.classList.remove(GUARD_CLASS);
-        stopPeriodicScan();
-        cleanupInlineStyles();
-        try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) {}
+  function registerMessageListener() {
+    if (_messageListenerRegistered) return;
+    _messageListenerRegistered = true;
+
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'darkblue:toggle') {
+        isEnabled = message.enabled;
+        chrome.storage.sync.set({ [STORAGE_KEY]: isEnabled });
+
+        // [B3関連] localStorageにも保存（次回ロード時のFOUC防止判定用）
+        try { localStorage.setItem(STORAGE_KEY + '_local', String(isEnabled)); } catch (e) {}
+
+        if (isEnabled) {
+          // キャッシュクリアしてから評価
+          _bodyBgCache = null;
+          evaluateAndApply();
+          startPeriodicScan();
+        } else {
+          document.documentElement.classList.remove(GUARD_CLASS);
+          stopPeriodicScan();
+          cleanupInlineStyles();
+          try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) {}
+        }
+
+        sendResponse({ ok: true });
+        return true;
       }
 
-      sendResponse({ ok: true });
-      return true;
-    }
+      if (message.type === 'darkblue:getState') {
+        const isActive = document.documentElement.classList.contains(GUARD_CLASS);
 
-    if (message.type === 'darkblue:getState') {
-      const isActive = document.documentElement.classList.contains(GUARD_CLASS);
+        sendResponse({
+          enabled: isEnabled,
+          isBlackTheme: isActive ? true : isBlackThemeActive(),
+          isDarkBlueApplied: isActive,
+        });
+        return true;
+      }
 
-      sendResponse({
-        enabled: isEnabled,
-        isBlackTheme: isActive ? true : isBlackThemeActive(),
-        isDarkBlueApplied: isActive,
-      });
-      return true;
-    }
-
-    return false;
-  });
+      return false;
+    });
+  }
 
   /**
    * 拡張機能OFF時にインラインスタイルをクリーンアップ
+   * [B4] ブラウザが正規化するRGB文字列にも対応
    */
   function cleanupInlineStyles() {
     const all = document.querySelectorAll('[style]');
     for (const el of all) {
       const style = el.getAttribute('style') || '';
-      if (style.includes(COLORS.BG_PRIMARY) ||
+      // Hex値チェック（元のロジック）
+      const hasHex = style.includes(COLORS.BG_PRIMARY) ||
           style.includes(COLORS.BG_CARD) ||
           style.includes(COLORS.BG_HOVER) ||
           style.includes(COLORS.BORDER) ||
-          style.includes(COLORS.TEXT_SUB)) {
+          style.includes(COLORS.TEXT_SUB);
+
+      // [B4] RGB正規化値チェック（ブラウザがhexをrgb()に変換する場合の対応）
+      let hasRgb = false;
+      if (!hasHex) {
+        for (const rgbVal of DB_RGB_VALUES) {
+          if (style.includes(rgbVal)) {
+            hasRgb = true;
+            break;
+          }
+        }
+      }
+
+      if (hasHex || hasRgb) {
         el.style.removeProperty('background-color');
-        el.style.removeProperty('border-color');
+        el.style.removeProperty('border-top-color');
+        el.style.removeProperty('border-bottom-color');
+        el.style.removeProperty('border-left-color');
+        el.style.removeProperty('border-right-color');
         el.style.removeProperty('color');
       }
     }
@@ -574,10 +757,15 @@
   // ========================================================
 
   function init() {
+    // [改善] Observer を storage取得前に開始（テーマ切替の即時検出）
+    startObserver();
+
+    // メッセージリスナー登録（重複防止付き）
+    registerMessageListener();
+
     chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
       isEnabled = result[STORAGE_KEY];
       evaluateAndApply();
-      startObserver();
       scheduleReevaluations();
       if (isEnabled) {
         startPeriodicScan();
@@ -588,6 +776,7 @@
       if (area === 'sync' && changes[STORAGE_KEY]) {
         isEnabled = changes[STORAGE_KEY].newValue;
         if (isEnabled) {
+          _bodyBgCache = null;
           evaluateAndApply();
           startPeriodicScan();
         } else {
@@ -607,17 +796,31 @@
   //
   // localStorage に前回の適用状態を保存し、前回適用していた場合のみ
   // 楽観的に適用する（ライトテーマユーザーへの誤適用を防止）。
+  //
+  // [B3] 初回訪問(null)時は適用しない（=== 'true' に変更）
   // ========================================================
 
   try {
     // 前回DarkBlueが適用されていた場合のみ、即座にガードクラスを付与
-    if (localStorage.getItem(LAST_STATE_KEY) !== 'false') {
+    if (localStorage.getItem(LAST_STATE_KEY) === 'true') {
       document.documentElement.classList.add(GUARD_CLASS);
     }
   } catch (e) {
-    // localStorage アクセス失敗時はフォールバック（適用する）
-    document.documentElement.classList.add(GUARD_CLASS);
+    // localStorage アクセス失敗時はフォールバックとして適用しない
+    // （ライトテーマユーザーへのFOUCよりも安全側に倒す）
   }
+
+  // [A15] ページアンロード時のクリーンアップ
+  window.addEventListener('unload', () => {
+    clearReevalTimers();
+    stopPeriodicScan();
+    if (domObserver) {
+      domObserver.disconnect();
+      domObserver = null;
+    }
+    if (_evalDebounce) { clearTimeout(_evalDebounce); _evalDebounce = null; }
+    if (_scanDebounce) { clearTimeout(_scanDebounce); _scanDebounce = null; }
+  });
 
   function waitForBody() {
     if (document.body) {

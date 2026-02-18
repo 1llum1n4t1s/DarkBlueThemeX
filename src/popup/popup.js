@@ -2,15 +2,26 @@
 
 const STORAGE_KEY = 'darkblue_enabled';
 
-const toggleSwitch = () => document.getElementById('toggleSwitch');
-const toggleLabel  = () => document.getElementById('toggleLabel');
-const statusDot    = () => document.getElementById('statusDot');
-const statusMsg    = () => document.getElementById('statusMessage');
+// [A11] DOM要素キャッシュ（関数getterからconst変数に変更）
+let _toggleSwitch = null;
+let _toggleLabel = null;
+let _statusDot = null;
+let _statusMsg = null;
+
+function cacheElements() {
+  _toggleSwitch = document.getElementById('toggleSwitch');
+  _toggleLabel = document.getElementById('toggleLabel');
+  _statusDot = document.getElementById('statusDot');
+  _statusMsg = document.getElementById('statusMessage');
+}
 
 /* --------------------------------------------------
    Initialise popup
    -------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
+  // DOM要素をキャッシュ
+  cacheElements();
+
   // Load saved toggle state (default: enabled)
   chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
     const enabled = result[STORAGE_KEY];
@@ -18,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Listen for toggle changes
-  toggleSwitch().addEventListener('change', onToggleChange);
+  _toggleSwitch.addEventListener('change', onToggleChange);
 
   // Query the active tab for current state
   queryTabState();
@@ -28,18 +39,18 @@ document.addEventListener('DOMContentLoaded', () => {
    Toggle handling
    -------------------------------------------------- */
 function applyToggleUI(enabled) {
-  toggleSwitch().checked = enabled;
-  toggleLabel().textContent = enabled ? '有効' : '無効';
+  _toggleSwitch.checked = enabled;
+  _toggleLabel.textContent = enabled ? '有効' : '無効';
 }
 
 function onToggleChange() {
-  const enabled = toggleSwitch().checked;
+  const enabled = _toggleSwitch.checked;
 
   // Persist
   chrome.storage.sync.set({ [STORAGE_KEY]: enabled });
 
-  // Update label
-  toggleLabel().textContent = enabled ? '有効' : '無効';
+  // Update label (applyToggleUI と統合)
+  applyToggleUI(enabled);
 
   // Notify the active tab
   getActiveTab((tab) => {
@@ -96,6 +107,10 @@ function queryTabState() {
   });
 }
 
+/**
+ * [B5] handleStateResponse のロジックギャップ修正
+ * isBlackTheme=true && enabled=true && isDarkBlueApplied=false のケースを追加
+ */
 function handleStateResponse(response) {
   const { isBlackTheme, isDarkBlueApplied, enabled } = response;
 
@@ -105,6 +120,9 @@ function handleStateResponse(response) {
   } else if (isBlackTheme && !enabled) {
     // Black dark theme detected but extension is disabled
     setStatus('info', '黒テーマを検出（無効中）');
+  } else if (isBlackTheme && enabled) {
+    // [B5] Black theme detected, enabled, but not yet applied (e.g. during transition)
+    setStatus('info', 'DarkBlue テーマを適用中...');
   } else if (!isBlackTheme) {
     // Page is not using a dark theme at all
     setStatus('info', 'ダークテーマではありません');
@@ -117,14 +135,11 @@ function handleStateResponse(response) {
    Helpers
    -------------------------------------------------- */
 function setStatus(type, message) {
-  const dot = statusDot();
-  const msg = statusMsg();
-
   // Reset classes
-  dot.classList.remove('active', 'info', 'inactive');
-  dot.classList.add(type);
+  _statusDot.classList.remove('active', 'info', 'inactive');
+  _statusDot.classList.add(type);
 
-  msg.textContent = message;
+  _statusMsg.textContent = message;
 }
 
 function getActiveTab(callback) {

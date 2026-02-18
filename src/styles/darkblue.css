@@ -96,8 +96,12 @@ html.darkbluethemex-active [style*="border-top-color: rgb(47,51,54)"] {
 }
 
 html.darkbluethemex-active [style*="border-right-color: rgb(47, 51, 54)"],
-html.darkbluethemex-active [style*="border-left-color: rgb(47, 51, 54)"] {
+html.darkbluethemex-active [style*="border-right-color: rgb(47,51,54)"] {
   border-right-color: #38444D !important;
+}
+
+html.darkbluethemex-active [style*="border-left-color: rgb(47, 51, 54)"],
+html.darkbluethemex-active [style*="border-left-color: rgb(47,51,54)"] {
   border-left-color: #38444D !important;
 }
 
