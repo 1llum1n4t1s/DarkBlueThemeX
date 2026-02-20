@@ -233,6 +233,28 @@
     // 自分自身は書き換えない
     if (el === document.documentElement || el === document.head) return;
 
+    // アバターコンテナの内側要素はスキップ
+    // （Xはアバター内DIVに rgb(0,0,0) をインラインで設定し、z-index:-1 の背景画像で
+    //   アバターを表示する仕組みのため、書き換えると画像が隠れる）
+    if (el.closest('[data-testid*="UserAvatar"]')) return;
+
+    // 通知アイテム・通知内cellInnerDiv はスキップ
+    // （CSSで transparent に設定しているが、ここでインラインを焼き付けると
+    //   CSSの transparent を上書きしてしまい、z-index:-1 のアバター画像が隠れる）
+    if (el.dataset?.testid === 'notification') return;
+    if (el.dataset?.testid === 'cellInnerDiv' && el.querySelector('[data-testid="notification"]')) return;
+
+    // mentionsページのcellInnerDiv・article・中間DIVもスキップ
+    // (data-dbtx-notif="1"でマーキング済み — CSSで transparent に設定)
+    if (el.dataset?.dbtxNotif) return;
+    if (el.closest('[data-dbtx-notif]') && (el.tagName === 'ARTICLE' || el.tagName === 'DIV')) return;
+
+    // 「新しいポストを表示」バナー背景をスキップ
+    // 通知ページの sticky ヘッダー(z:3)内に position:absolute; z-index:-1 で
+    // 配置されたバナーの子DIVが不透明背景を持つと、1行目の通知アバター行が隠れる。
+    // data-dbtx-skip 属性でマーキング済みの要素はスキップする
+    if (el.dataset?.dbtxSkip) return;
+
     // CSSで:hoverスタイルが管理されている要素はJSでの背景色上書きをスキップ
     // （インラインスタイルを焼き付けると:hoverが効かなくなる）
     const isHoverManaged = el.matches(
@@ -260,21 +282,20 @@
       }
     }
 
-    // ボーダー色チェック（辺ごとに個別判定）
+    // ボーダー色チェック（幅>0の辺のみ判定、パフォーマンス改善）
     const borderSides = [
-      { prop: 'border-top-color', computed: computed.borderTopColor },
-      { prop: 'border-bottom-color', computed: computed.borderBottomColor },
-      { prop: 'border-left-color', computed: computed.borderLeftColor },
-      { prop: 'border-right-color', computed: computed.borderRightColor },
+      { prop: 'border-top-color', color: computed.borderTopColor, width: computed.borderTopWidth },
+      { prop: 'border-bottom-color', color: computed.borderBottomColor, width: computed.borderBottomWidth },
+      { prop: 'border-left-color', color: computed.borderLeftColor, width: computed.borderLeftWidth },
+      { prop: 'border-right-color', color: computed.borderRightColor, width: computed.borderRightWidth },
     ];
     for (const side of borderSides) {
-      if (side.computed) {
-        const parsed = parseRgb(side.computed);
-        if (parsed) {
-          const mapped = mapColor(parsed.r, parsed.g, parsed.b, BORDER_MAP);
-          if (mapped) {
-            el.style.setProperty(side.prop, mapped, 'important');
-          }
+      if (side.width === '0px' || !side.color) continue;
+      const parsed = parseRgb(side.color);
+      if (parsed) {
+        const mapped = mapColor(parsed.r, parsed.g, parsed.b, BORDER_MAP);
+        if (mapped) {
+          el.style.setProperty(side.prop, mapped, 'important');
         }
       }
     }
@@ -324,19 +345,17 @@
       '[data-testid="toolBar"], ' +
       '[data-testid="tweetTextarea_0"], ' +
       '[data-testid="renew-subscription-module"], ' +
-      '[data-testid="news_sidebar"]'
+      '[data-testid="news_sidebar"], ' +
+      '[data-testid="inline_reply_offscreen"]'
     );
 
     for (const target of targets) {
       recolorElement(target);
-      // 深さ4レベルまでスキャン
+      // 深さ2レベルまでスキャン（パフォーマンス改善）
       for (const child of target.children) {
         recolorElement(child);
         for (const grandchild of child.children) {
           recolorElement(grandchild);
-          for (const great of grandchild.children) {
-            recolorElement(great);
-          }
         }
       }
     }
@@ -378,40 +397,90 @@
     }
 
     // サイドバー: 黒背景要素を検出して適切なDarkBlue色に変換
+    // section, aside + 直接の子DIV（ウィジェットコンテナ）をスキャン
     const sidebar = document.querySelector('[data-testid="sidebarColumn"]');
     if (sidebar) {
       recolorElement(sidebar);
-      // ターゲットを絞ったセレクタでスキャン（'*' の代わり）
-      const sidebarTargets = sidebar.querySelectorAll(
-        'div, section, aside, nav, header'
-      );
+      const sidebarTargets = sidebar.querySelectorAll('section, aside');
       for (let i = 0; i < sidebarTargets.length; i++) {
-        const el = sidebarTargets[i];
-        // ホバー管理対象要素はスキップ（CSSの:hoverを壊さないため）
-        if (el.dataset.testid === 'UserCell' || el.getAttribute('role') === 'link') continue;
-        // Note: FORM要素自体はCSSで透明にしている（querySelectorにも含まれない）
-        // 既にインラインでDarkBlue色が設定済みならスキップ
-        const inlineBg = el.style.backgroundColor;
-        if (inlineBg) {
-          const ic = parseRgb(inlineBg);
-          if (ic && isDarkBlueColor(ic.r, ic.g, ic.b)) continue;
-        }
-        const bg = getComputedStyle(el).backgroundColor;
-        // 透明ならスキップ
-        if (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') continue;
-        const c = parseRgb(bg);
-        if (!c) continue;
-        // 既にDarkBlue色ならスキップ
-        if (isDarkBlueColor(c.r, c.g, c.b)) continue;
-        // 黒背景 → プライマリ色に統一
-        if (c.r <= 5 && c.g <= 5 && c.b <= 5) {
-          el.style.setProperty('background-color', COLORS.BG_PRIMARY, 'important');
+        recolorElement(sidebarTargets[i]);
+      }
+      // サイドバーのウィジェットコンテナDIV
+      // （本日のニュース、速報、おすすめユーザー等 — クラス由来の黒背景）
+      // 構造: sidebarColumn > div > div > div > div > div > [ウィジェットDIV]
+      const widgetList = sidebar.querySelector(':scope > div > div > div > div > div');
+      if (widgetList) {
+        for (const child of widgetList.children) {
+          recolorElement(child);
         }
       }
     }
 
+    // 通知ページ: 「新しいポストを表示」バナーの背景除去
+    // sticky ヘッダー(z:3)内の position:absolute バナーが不透明背景(#15202B)を持つと
+    // 1行目通知のアバター行を覆い隠すため、インラインスタイルを除去してCSSの transparent に委ねる
+    markNewPostBanner();
+
+    // 通知ページ: cellInnerDiv に data-dbtx-notif マーキング
+    // mentionsページの article 形式の通知でもアバターが見えるようにする
+    markNotificationCells();
+
     // スキャン完了: dirtyフラグをリセット
     _dirtyFlag = false;
+  }
+
+  /**
+   * 「新しいポストを表示」バナー内の不透明背景DIVをマーキングし、
+   * インライン背景色を除去する。
+   * data-dbtx-skip 属性を付与して recolorElement でのスキップ判定に使う。
+   */
+  function markNewPostBanner() {
+    const primaryCol = document.querySelector('[data-testid="primaryColumn"]');
+    if (!primaryCol) return;
+
+    // tablist を含むヘッダーDIVを起点にバナーを探す
+    const tablist = primaryCol.querySelector('[role="tablist"]');
+    if (!tablist) return;
+
+    // tablist → ... → sticky ヘッダーDIV を辿る
+    // sticky ヘッダーは tablist の祖先で primaryColumn の子孫
+    let stickyCandidate = tablist.parentElement;
+    while (stickyCandidate && stickyCandidate !== primaryCol) {
+      if (getComputedStyle(stickyCandidate).position === 'sticky') {
+        // sticky ヘッダーの子で、tablist を含まない要素 = バナー候補
+        for (const child of stickyCandidate.children) {
+          if (!child.contains(tablist)) {
+            // バナー候補の中のDIVをマーキング＋インラインで transparent を強制
+            // （CSS側のルール(L582等)が高specificityで #15202B を設定するため、
+            //   removeProperty ではCSSが再適用される。インライン!importantで確実に上書き）
+            child.querySelectorAll('div').forEach(div => {
+              div.dataset.dbtxSkip = '1';
+              div.style.setProperty('background-color', 'transparent', 'important');
+            });
+            // バナー自体もマーキング
+            child.dataset.dbtxSkip = '1';
+            child.style.setProperty('background-color', 'transparent', 'important');
+          }
+        }
+        break;
+      }
+      stickyCandidate = stickyCandidate.parentElement;
+    }
+  }
+
+  /**
+   * 通知ページ（/notifications, /notifications/mentions）の cellInnerDiv に
+   * data-dbtx-notif="1" をマーキングし、CSSで背景色を transparent にできるようにする。
+   * mentionsページは data-testid="notification" がなく通常の article 形式のため、
+   * 既存のCSS(:has([data-testid="notification"]))では対応できない。
+   * URL判定で通知ページを検出し、cellInnerDiv にマーキングする。
+   */
+  function markNotificationCells() {
+    if (!location.pathname.startsWith('/notifications')) return;
+    const cells = document.querySelectorAll('[data-testid="cellInnerDiv"]:not([data-dbtx-notif])');
+    for (const cell of cells) {
+      cell.dataset.dbtxNotif = '1';
+    }
   }
 
   // ========================================================
@@ -482,19 +551,24 @@
     for (const node of _pendingNodes) {
       if (node.isConnected) {
         recolorElement(node);
-        // [A10] TreeWalker で子孫を効率的に走査
+        // [A10] TreeWalker で子孫を効率的に走査（上限20要素）
         const walker = document.createTreeWalker(node, NodeFilter.SHOW_ELEMENT, null);
         let count = 0;
         let child = walker.firstChild();
-        while (child && count < 100) {
+        while (child && count < 20) {
           recolorElement(child);
           child = walker.nextNode();
           count++;
         }
-        if (count >= 100) _dirtyFlag = true;
+        if (count >= 20) _dirtyFlag = true;
       }
     }
     _pendingNodes.clear();
+
+    // バナーが新規追加された場合に備えてマーキングを更新
+    markNewPostBanner();
+    // 通知ページの新規 cellInnerDiv をマーキング
+    markNotificationCells();
   }
 
   function startObserver() {
@@ -603,11 +677,8 @@
       if (document.visibilityState === 'hidden') return;
       if (!document.documentElement.classList.contains(GUARD_CLASS)) return;
 
-      // dirtyフラグが立っているか、アクティブインターバルなら実行
+      // dirtyフラグが立っている場合のみフルスキャン実行
       if (_dirtyFlag) {
-        fullScan();
-      } else {
-        // dirtyでなくても定期的に軽量チェック（取りこぼし補完）
         fullScan();
       }
     }, _scanInterval);

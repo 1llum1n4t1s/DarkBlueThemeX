@@ -136,12 +136,6 @@ html.darkbluethemex-active nav[role="navigation"] a:hover > div {
   background-color: #22303C !important;
 }
 
-/* サイドナビの「ポストする」ボタン — 青を維持 */
-html.darkbluethemex-active [data-testid="SideNav_NewTweet_Button"] {
-  background-color: #1D9BF0 !important;
-  color: #FFFFFF !important;
-}
-
 /* ============================================================
    7. メインカラム・サイドバー
    ============================================================ */
@@ -208,9 +202,7 @@ html.darkbluethemex-active [data-testid="cellInnerDiv"] {
   background-color: #15202B !important;
 }
 
-html.darkbluethemex-active [data-testid="cellInnerDiv"] > div {
-  background-color: inherit !important;
-}
+/* cellInnerDiv > div: inherit 削除（通知ページで子要素の表示が崩れるため） */
 
 /* ツイートのセパレータ */
 html.darkbluethemex-active [data-testid="cellInnerDiv"] > div[style*="border-bottom"] {
@@ -400,9 +392,14 @@ html.darkbluethemex-active [data-testid="toolBar"] {
   border-color: #38444D !important;
 }
 
-/* 「ポストする」ボタンのある下部バー */
-html.darkbluethemex-active [data-testid="tweetButtonInline"] {
-  background-color: #1D9BF0 !important;
+/* ポスト詳細ページのインライン返信エリア */
+html.darkbluethemex-active [data-testid="inline_reply_offscreen"] {
+  border-color: #38444D !important;
+}
+
+html.darkbluethemex-active [data-testid="inline_reply_offscreen"] > div {
+  background-color: #15202B !important;
+  border-color: #38444D !important;
 }
 
 /* ============================================================
@@ -436,6 +433,66 @@ html.darkbluethemex-active [data-testid="toast"] {
   background-color: #1D9BF0 !important;
 }
 
+/* 通知ページ（/notifications）の各通知アイテム
+   transparent にすることで z-index:-1 の背景画像（アバター）が見えるようになる
+   背景は [role="main"] (#15202B) が担う */
+html.darkbluethemex-active [data-testid="notification"] {
+  background-color: transparent !important;
+}
+
+/* 通知アイテムのホバー */
+html.darkbluethemex-active [data-testid="notification"]:hover {
+  background-color: #22303C !important;
+}
+
+/* 通知を含む cellInnerDiv も transparent に（stacking context 問題の解消）
+   構造: cellInnerDiv > div > div > notification
+   z-index:2 の子DIVがstacking contextを形成し、z-index:-1の背景画像(アバター)を
+   cellInnerDiv の背景色(#15202B)の裏に隠してしまうため transparent にする。
+   :has([data-testid="notification"]) で通知ページの cellInnerDiv だけに限定 */
+html.darkbluethemex-active [data-testid="cellInnerDiv"]:has([data-testid="notification"]) {
+  background-color: transparent !important;
+}
+
+/* mentions ページ(/notifications/mentions)のアバター表示修正
+   mentionsページは data-testid="notification" を使わず通常の article 形式。
+   cellInnerDiv と article の背景が不透明だとアバター(background-image, z-index:0)が隠れる。
+   通知ページの cellInnerDiv のみ対象とするため、
+   data-dbtx-notif="1" 属性(content.jsで付与)の有無で判定する */
+html.darkbluethemex-active [data-testid="cellInnerDiv"][data-dbtx-notif] {
+  background-color: transparent !important;
+}
+
+html.darkbluethemex-active [data-testid="cellInnerDiv"][data-dbtx-notif] > article {
+  background-color: transparent !important;
+}
+
+/* mentions通知内の中間DIVも transparent（stacking context対策） */
+html.darkbluethemex-active [data-testid="cellInnerDiv"][data-dbtx-notif] article > div {
+  background-color: transparent !important;
+}
+
+/* mentions通知のホバー */
+html.darkbluethemex-active [data-testid="cellInnerDiv"][data-dbtx-notif]:hover > article {
+  background-color: #22303C !important;
+}
+
+/* 通知内のテキスト表示を保護 — アカウント名/内容が見えるように */
+html.darkbluethemex-active [data-testid="notification"] span,
+html.darkbluethemex-active [data-testid="notification"] a {
+  color: inherit;
+}
+
+/* 「新しいポストを表示」バナーの背景を透明化
+   通知ページのヘッダー(sticky, z-index:3)の子に position:absolute; z-index:-1 の
+   バナーDIVがあり、その中のDIVが不透明背景(#15202B)を持つ。
+   バナーが1行目の通知のアバター行を覆い隠すため transparent にする。
+   構造: [タブリストを含むヘッダーDIV] > [最後の子(バナー)] > [DIV(bg)]
+   バナー内のボタン(「新しいポストを表示」)はアクセントカラー背景で別途表示される */
+html.darkbluethemex-active [data-testid="primaryColumn"] div:has([role="tablist"]) ~ div > div {
+  background-color: transparent !important;
+}
+
 /* ============================================================
    17. スクロールバー
    ============================================================ */
@@ -467,22 +524,20 @@ html.darkbluethemex-active [role="main"] {
   background-color: #15202B !important;
 }
 
-html.darkbluethemex-active [role="region"] {
+/* region: primaryColumn/sidebarColumn 内に限定
+   通知を含む region は transparent にする（アバターの z-index:-1 背景画像が見えるように） */
+html.darkbluethemex-active [data-testid="primaryColumn"] [role="region"]:not(:has([data-testid="notification"])),
+html.darkbluethemex-active [data-testid="sidebarColumn"] [role="region"] {
   background-color: #15202B !important;
 }
 
-/* リスト・グループ */
-html.darkbluethemex-active [role="list"] {
-  background-color: #15202B !important;
+html.darkbluethemex-active [data-testid="primaryColumn"] [role="region"]:has([data-testid="notification"]) {
+  background-color: transparent !important;
 }
 
-html.darkbluethemex-active [role="group"] {
+/* リスト（アバター行ULは除外: Xがz-index:-1の背景画像でアバターを表示するため） */
+html.darkbluethemex-active [role="list"]:not([data-testid*="UserAvatar"]):not(:has([data-testid*="UserAvatar"])) {
   background-color: #15202B !important;
-}
-
-/* リンクのホバーカード等 */
-html.darkbluethemex-active [role="link"]:hover {
-  background-color: #22303C !important;
 }
 
 /* コンプリメンタリ（サイドバー） */
@@ -542,12 +597,21 @@ html.darkbluethemex-active [data-testid="sidebarColumn"] [data-testid*="news_sid
   background-color: #15202B !important;
 }
 
+/* サイドバーウィジェットのコンテナDIV（本日のニュース、速報、おすすめユーザー等）
+   Xはクラス由来で rgb(0,0,0) を設定する。
+   構造: sidebarColumn > div > div > div > div > div > [ウィジェットDIV]
+   CSSではインラインスタイルなしの黒背景を判別できないため、
+   content.js の recolorElement で検出・変換する */
+
 /* ============================================================
    23. ツイート作成エリア全体
    ============================================================ */
 
-/* ツイート入力欄のコンテナ */
-html.darkbluethemex-active [data-testid="primaryColumn"] > div > div:first-child > div > div {
+/* ツイート入力欄のコンテナ
+   :not([data-dbtx-skip]) で「新しいポストを表示」バナー内DIVを除外。
+   バナー内DIVは markNewPostBanner() で data-dbtx-skip="1" がマーキングされる。
+   バナーに #15202B を設定すると投稿エリアのアバターが隠れるため。 */
+html.darkbluethemex-active [data-testid="primaryColumn"] > div > div:first-child > div > div:not([data-dbtx-skip]) {
   background-color: #15202B !important;
 }
 
@@ -574,25 +638,23 @@ html.darkbluethemex-active article[role="article"]:hover [role="group"] {
 }
 
 /* ============================================================
-   24. 「ポストする」ボタン（インライン＆サイドナビ共通）
-   Xは黒テーマでこれらを rgb(239,243,244) にする場合がある
-   ============================================================ */
-
-html.darkbluethemex-active [data-testid="tweetButtonInline"],
-html.darkbluethemex-active [data-testid="SideNav_NewTweet_Button"] {
-  background-color: #1D9BF0 !important;
-  color: #FFFFFF !important;
-}
-
-/* フォローボタンも白→青にならないよう除外 */
-
-/* ============================================================
-   25. アバター背景の黒を除去
+   24. アバター背景の黒を除去
    プロフィール画像コンテナが純黒になる問題
    ============================================================ */
 
-html.darkbluethemex-active [data-testid*="UserAvatar"] {
+/* アバターコンテナとその内側DIVは一切背景色を上書きしない
+   （Xはz-index:-1の背景画像でアバターを表示するため、背景を塗ると画像が隠れる） */
+html.darkbluethemex-active [data-testid*="UserAvatar"],
+html.darkbluethemex-active [data-testid*="UserAvatar"] * {
   background-color: transparent !important;
+}
+
+/* アバター背景画像(r-vvn4in)の z-index を -1 → 0 に引き上げ
+   Xは background-image を z-index:-1 で描画するが、
+   親や祖先の stacking context + 背景色で隠れるケースがある。
+   z-index:0 にすることで同層の他の透明要素と同じレベルに配置 */
+html.darkbluethemex-active [data-testid*="UserAvatar"] .r-vvn4in {
+  z-index: 0 !important;
 }
 
 /* 「いま」を見つけよう等のサイドバーセクション */
