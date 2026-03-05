@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "帰ってきたDarkBlueテーマ(X)",
-  "version": "1.0.18",
+  "version": "1.0.20",
   "description": "X（旧Twitter）のダークテーマ(黒)を、かつて存在したDarkBlue(Dim)テーマに変換するChrome拡張機能",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [

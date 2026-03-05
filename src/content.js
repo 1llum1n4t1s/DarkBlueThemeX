@@ -20,7 +20,6 @@
 
   let isEnabled = true;
   let domObserver = null;
-  let inlineObserver = null;
   let _suppressObserver = false;
   let _scanTimer = null;
 
@@ -80,52 +79,6 @@
     }
   }
 
-  // --- インラインスタイル監視（新規ノード用） ---
-
-  let _pendingNodes = [];
-  let _rafPending = false;
-
-  function processPendingNodes() {
-    _rafPending = false;
-    const nodes = _pendingNodes;
-    _pendingNodes = [];
-    if (!isEnabled || !document.documentElement.classList.contains(GUARD_CLASS)) return;
-    for (const node of nodes) {
-      if (node.nodeType !== 1) continue;
-      fixElementStyle(node);
-      const styled = node.querySelectorAll('[style]');
-      for (let i = 0, len = styled.length; i < len; i++) {
-        fixElementStyle(styled[i]);
-      }
-    }
-  }
-
-  function startInlineObserver() {
-    if (inlineObserver || !document.body) return;
-    inlineObserver = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        if (m.type !== 'childList') continue;
-        for (const node of m.addedNodes) {
-          if (node.nodeType === 1) _pendingNodes.push(node);
-        }
-      }
-      if (_pendingNodes.length > 0 && !_rafPending) {
-        _rafPending = true;
-        requestAnimationFrame(processPendingNodes);
-      }
-    });
-    inlineObserver.observe(document.body, { childList: true, subtree: true });
-  }
-
-  function stopInlineObserver() {
-    if (inlineObserver) {
-      inlineObserver.disconnect();
-      inlineObserver = null;
-    }
-    _pendingNodes = [];
-    _rafPending = false;
-  }
-
   /** 定期スキャン開始（React 再レンダリングによるスタイル上書き対策） */
   function startPeriodicScan() {
     stopPeriodicScan();
@@ -172,7 +125,6 @@
       updateThemeColor(false);
       try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
       _suppressObserver = false;
-      stopInlineObserver();
       stopPeriodicScan();
       updatePageFlags();
       return;
@@ -187,27 +139,34 @@
 
     // dim テーマ → ガードクラス適用
     if (getCurrentTheme() === 'dim') {
+      _suppressObserver = true;
       if (!document.documentElement.classList.contains(GUARD_CLASS)) {
         document.documentElement.classList.add(GUARD_CLASS);
       }
       if (document.body) {
         document.body.style.setProperty('background-color', '#15202B', 'important');
       }
+      _suppressObserver = false;
       updateThemeColor(true);
       try { localStorage.setItem(LAST_STATE_KEY, 'true'); } catch (e) { /* ignore */ }
-      fixAllInlineStyles();
-      startInlineObserver();
+      // 初回スキャンはブラウザアイドル時まで遅延（初期ロードをブロックしない）
+      (window.requestIdleCallback || requestAnimationFrame)(() => {
+        if (isEnabled && document.documentElement.classList.contains(GUARD_CLASS)) {
+          fixAllInlineStyles();
+        }
+      });
       startPeriodicScan();
       updatePageFlags();
       return;
     }
 
     // ライトテーマ等 → 何もしない
+    _suppressObserver = true;
     document.documentElement.classList.remove(GUARD_CLASS);
     if (document.body) document.body.style.removeProperty('background-color');
+    _suppressObserver = false;
     updateThemeColor(false);
     try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
-    stopInlineObserver();
     stopPeriodicScan();
     updatePageFlags();
   }
@@ -392,7 +351,6 @@
   // クリーンアップ
   window.addEventListener('unload', () => {
     if (domObserver) { domObserver.disconnect(); domObserver = null; }
-    stopInlineObserver();
     stopPeriodicScan();
   });
 
