@@ -71,10 +71,11 @@
     }
   }
 
-  /** DOM 全体のインラインスタイルをスキャン修正 */
+  /** DOM 全体のインラインスタイルをスキャン修正（body は observer が管理） */
   function fixAllInlineStyles() {
     const styled = document.querySelectorAll('[style]');
     for (let i = 0, len = styled.length; i < len; i++) {
+      if (styled[i] === document.body) continue;
       fixElementStyle(styled[i]);
     }
   }
@@ -230,7 +231,12 @@
             mutation.type === 'attributes' &&
             mutation.attributeName === 'style') {
           if (isEnabled && document.documentElement.classList.contains(GUARD_CLASS)) {
-            document.body.style.setProperty('background-color', '#15202B', 'important');
+            // 既に正しい値なら再設定しない（振動防止）
+            if (document.body.style.backgroundColor !== 'rgb(21, 32, 43)') {
+              _suppressObserver = true;
+              document.body.style.setProperty('background-color', '#15202B', 'important');
+              _suppressObserver = false;
+            }
           }
         }
       }
