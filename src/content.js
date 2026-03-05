@@ -144,9 +144,7 @@
       if (!document.documentElement.classList.contains(GUARD_CLASS)) {
         document.documentElement.classList.add(GUARD_CLASS);
       }
-      if (document.body) {
-        document.body.style.setProperty('background-color', '#15202B', 'important');
-      }
+      // body bg は CSS ルール (html.darkbluethemex-active body) で適用
       _suppressObserver = false;
       updateThemeColor(true);
       try { localStorage.setItem(LAST_STATE_KEY, 'true'); } catch (e) { /* ignore */ }
@@ -226,19 +224,6 @@
           }
         }
 
-        // body の style 変更 → React が bg 色を再設定した場合に上書き
-        if (mutation.target === document.body &&
-            mutation.type === 'attributes' &&
-            mutation.attributeName === 'style') {
-          if (isEnabled && document.documentElement.classList.contains(GUARD_CLASS)) {
-            // 既に正しい値なら再設定しない（振動防止）
-            if (document.body.style.backgroundColor !== 'rgb(21, 32, 43)') {
-              _suppressObserver = true;
-              document.body.style.setProperty('background-color', '#15202B', 'important');
-              _suppressObserver = false;
-            }
-          }
-        }
       }
 
       // SPA ナビゲーション検出
@@ -246,18 +231,11 @@
     });
 
     // html 要素の属性変更を監視（childList 不要: body 待機は waitForBody で処理）
+    // body style 監視は廃止: CSS ルール (html.darkbluethemex-active body) で十分
     domObserver.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-theme', 'class'],
     });
-
-    // body の style 変更を監視
-    if (document.body) {
-      domObserver.observe(document.body, {
-        attributes: true,
-        attributeFilter: ['style'],
-      });
-    }
   }
 
   // ========================================================
