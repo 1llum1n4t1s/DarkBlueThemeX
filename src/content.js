@@ -7,7 +7,7 @@
  *
  * v1(力業)からの主な改善:
  *   - getComputedStyle / recolorElement / fullScan を全廃
- *   - MutationObserver は html 属性 + body スタイルのみ監視
+ *   - MutationObserver は html 属性のみ監視（スマートフィルタリング）
  *   - 定期スキャン不要（rAFバッチ、dirtyFlag、WeakSet 等すべて廃止）
  */
 
@@ -20,7 +20,6 @@
 
   let isEnabled = true;
   let domObserver = null;
-  let _suppressObserver = false;
   let _scanTimer = null;
 
   // ========================================================
@@ -116,7 +115,6 @@
 
     // 拡張機能が無効 → 解除
     if (!isEnabled) {
-      _suppressObserver = true;
       if (theme === 'dim' && document.documentElement.classList.contains(GUARD_CLASS)) {
         // 自分が dim に変えたものなので dark に戻す
         document.documentElement.dataset.theme = 'dark';
@@ -125,7 +123,6 @@
       if (document.body) document.body.style.removeProperty('background-color');
       updateThemeColor(false);
       try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
-      _suppressObserver = false;
       stopPeriodicScan();
       updatePageFlags();
       return;
@@ -133,19 +130,15 @@
 
     // ダークテーマ(黒) → DarkBlue(dim) に変換
     if (theme === 'dark') {
-      _suppressObserver = true;
       document.documentElement.dataset.theme = 'dim';
-      _suppressObserver = false;
     }
 
     // dim テーマ → ガードクラス適用
     if (getCurrentTheme() === 'dim') {
-      _suppressObserver = true;
       if (!document.documentElement.classList.contains(GUARD_CLASS)) {
         document.documentElement.classList.add(GUARD_CLASS);
       }
       // body bg は CSS ルール (html.darkbluethemex-active body) で適用
-      _suppressObserver = false;
       updateThemeColor(true);
       try { localStorage.setItem(LAST_STATE_KEY, 'true'); } catch (e) { /* ignore */ }
       // 初回スキャンはブラウザアイドル時まで遅延（初期ロードをブロックしない）
@@ -160,10 +153,8 @@
     }
 
     // ライトテーマ等 → 何もしない
-    _suppressObserver = true;
     document.documentElement.classList.remove(GUARD_CLASS);
     if (document.body) document.body.style.removeProperty('background-color');
-    _suppressObserver = false;
     updateThemeColor(false);
     try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
     stopPeriodicScan();
@@ -207,31 +198,44 @@
   }
 
   // ========================================================
-  // MutationObserver: html 属性 + body スタイルのみ監視
+  // MutationObserver: html 属性のみ監視（スマートフィルタリング）
   // ========================================================
+  //
+  // _suppressObserver フラグは廃止。MutationObserver コールバックは
+  // マイクロタスクとして非同期に実行されるため、同期的なフラグ制御では
+  // 自分自身の変更を抑制できない（コールバック発火時にはフラグが既に false）。
+  // 代わりに、変更後の値を見て自分の変更かどうかを判定する。
 
   function startObserver() {
     if (domObserver) domObserver.disconnect();
 
     domObserver = new MutationObserver((mutations) => {
-      if (_suppressObserver) return;
+      let needsEval = false;
 
       for (const mutation of mutations) {
-        // html の data-theme / class 変更 → テーマ再評価
-        if (mutation.target === document.documentElement && mutation.type === 'attributes') {
-          if (mutation.attributeName === 'data-theme' || mutation.attributeName === 'class') {
-            evaluateAndApply();
+        if (mutation.target !== document.documentElement || mutation.type !== 'attributes') continue;
+
+        if (mutation.attributeName === 'data-theme') {
+          // dim は自分が設定した値 → 再評価不要
+          // !isEnabled 時は外部のテーマ変更に反応しない
+          if (getCurrentTheme() !== 'dim' && isEnabled) {
+            needsEval = true;
+          }
+        } else if (mutation.attributeName === 'class') {
+          // ガードクラスが外部から除去された場合のみ再適用
+          if (isEnabled && getCurrentTheme() === 'dim' &&
+              !document.documentElement.classList.contains(GUARD_CLASS)) {
+            needsEval = true;
           }
         }
-
       }
+
+      if (needsEval) evaluateAndApply();
 
       // SPA ナビゲーション検出
       checkUrlChange();
     });
 
-    // html 要素の属性変更を監視（childList 不要: body 待機は waitForBody で処理）
-    // body style 監視は廃止: CSS ルール (html.darkbluethemex-active body) で十分
     domObserver.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-theme', 'class'],
@@ -332,8 +336,8 @@
     // localStorage アクセス失敗時は適用しない（安全側に倒す）
   }
 
-  // クリーンアップ
-  window.addEventListener('unload', () => {
+  // クリーンアップ（unload は非推奨のため pagehide を使用）
+  window.addEventListener('pagehide', () => {
     if (domObserver) { domObserver.disconnect(); domObserver = null; }
     stopPeriodicScan();
   });
