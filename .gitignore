@@ -7,3 +7,6 @@ temp-build/
 *.swp
 *~
 Thumbs.db
+
+# Windows reserved device names (誤作成防止)
+nul
