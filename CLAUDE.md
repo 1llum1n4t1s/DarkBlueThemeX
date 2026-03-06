@@ -26,21 +26,32 @@ To test locally: load the project folder as an unpacked extension at `chrome://e
 
 Two layers work together to transform colors:
 
-1. **CSS layer** (`src/styles/darkblue.css`) — Static rules scoped under `html.darkbluethemex-active` guard class. Handles known selectors, `data-testid` attributes, and `[style*="..."]` attribute selectors.
+1. **CSS layer** (`src/styles/darkblue.css`) — Static rules scoped under `html.darkbluethemex-active` guard class. Overwrites `r-*` atomic classes, React inline style colors via `[style*="..."]` selectors, and handles special cases (avatars, notifications).
 
-2. **JS layer** (`src/content.js`) — Runtime color detection via MutationObserver. Parses computed/inline RGB values against `COLOR_MAP`, `BORDER_MAP`, `TEXT_MAP` and rewrites inline styles. Catches dynamically-applied colors that CSS alone can't target.
+2. **JS layer** (`src/content.js`) — Switches `data-theme="dark"` to `"dim"` on `<html>` to activate X's built-in DarkBlue CSS custom properties. Also runs periodic inline style fixes via `BG_FIXES`, `TEXT_FIXES`, `BORDER_FIXES` Maps for colors that CSS attribute selectors can't catch.
 
 ### Guard Class Pattern
 
 All theming is controlled by a single class on `<html>`:
 - **Enable:** `document.documentElement.classList.add('darkbluethemex-active')`
-- **Disable:** remove the class + clear inline style overrides
+- **Disable:** `deactivateTheme()` — removes class, clears inline overrides, stops periodic scan
 
 CSS rules are all scoped under `html.darkbluethemex-active`, so removing the class instantly disables the entire theme with no side effects.
 
-### Black Theme Detection
+### Theme Detection via data-theme Attribute
 
-The extension only activates when X's black theme is detected (`body` background RGB values all ≤ 5). Light theme users are never affected. Detection result is cached for 1 second (`_bodyBgCache`) to avoid reflow.
+The extension reads `document.documentElement.dataset.theme`:
+- `"dark"` → X's black theme detected → convert to `"dim"` and apply DarkBlue
+- `"dim"` → DarkBlue already active → maintain guard class
+- Other (light, etc.) → deactivate
+
+No body background color detection — the v2 approach relies entirely on X's `data-theme` attribute.
+
+### MutationObserver Smart Filtering
+
+The observer watches only `data-theme` and `class` attributes on `<html>` (no childList, no subtree). Instead of the old `_suppressObserver` flag pattern (which was unreliable because MutationObserver callbacks fire asynchronously), the callback checks the current attribute values to determine if a mutation was self-inflicted:
+- `data-theme` change: skip if current theme is `"dim"` (self-set) or extension disabled
+- `class` change: only react if guard class was externally removed while theme is `"dim"`
 
 ### DarkBlue Color Palette
 
@@ -53,39 +64,29 @@ The extension only activates when X's black theme is detected (`body` background
 | Text Sub | `#8B98A5` | 139, 152, 165 |
 | Accent | `#1D9BF0` | — |
 
-### Performance Optimizations in content.js
-
-The content script uses tagged comments `[A1]`–`[A15]` for key optimizations:
-
-- **rAF batching** `[A1]` — Collects pending nodes, processes in single animation frame
-- **Smart periodic scan** `[A2]` — 5s active / 10s when tab hidden, only runs when `_dirtyFlag` set
-- **Body BG cache** `[A3]` — 1-second TTL to avoid reflow
-- **Parse cache** `[A4]` — Map with 500-entry limit for RGB string parsing
-- **Observer suppression** `[A8]` — `_suppressObserver` flag prevents recursive triggers
-- **WeakSet tracking** `[A9]` — `_processedElements` avoids re-processing without memory leaks
-- **TreeWalker** `[A10]` — Limited to 20 elements per traversal
-- **Debouncing** `[A15]` — `_evalDebounce` / `_scanDebounce` prevent thrashing
-
 ### Special Element Handling
 
-- **Avatars** — Elements matching `data-testid*="UserAvatar"` are skipped (X uses z-index:-1 background images)
-- **Notifications page** — Requires transparent background to show avatar images
-- **"New Posts" banner** — Marked with `data-dbtx-skip` attribute to preserve transparency
-- **Backdrop-filter headers** — `rgba(0,0,0,X)` converted to `rgba(21,32,43,X)`
-- **Hover states** — Elements with `:hover` CSS rules skip inline style to preserve cascade
+- **Notifications page** — `data-dbtx-page="notifications"` set on `<html>` for CSS to apply transparent backgrounds (avatar visibility)
+- **Inline style periodic scan** — `fixAllInlineStyles()` runs every 3s to catch React re-renders that reapply black-theme inline colors
 
 ### State & Storage
 
 - **`chrome.storage.sync`** — Primary toggle state (`darkblue_enabled`), synced across devices
 - **`localStorage`** — `LAST_STATE_KEY` for FOUC prevention (optimistic guard class at `document_start`)
 
+### Popup ↔ Content Script Communication
+
+Two message types (hardcoded strings in both `src/content.js` and `src/popup/popup.js`):
+- `'darkblue:toggle'` — popup sends enable/disable command
+- `'darkblue:getState'` — popup queries current theme state
+
 ### File Roles
 
 | File | Role |
 |------|------|
 | `manifest.json` | Extension config, version, permissions, content script registration |
-| `src/content.js` | Main theme engine — detection, MutationObserver, color rewriting |
-| `src/styles/darkblue.css` | Static CSS theme rules (26 sections), scoped under guard class |
+| `src/content.js` | Main theme engine — `data-theme` switching, MutationObserver, inline style fixes |
+| `src/styles/darkblue.css` | Static CSS theme rules, scoped under guard class |
 | `src/popup/popup.html` | Extension popup UI |
 | `src/popup/popup.js` | Toggle logic, tab state queries, message passing to content script |
 | `src/popup/popup.css` | Popup styling with DarkBlue palette CSS variables |
@@ -94,8 +95,7 @@ The content script uses tagged comments `[A1]`–`[A15]` for key optimizations:
 
 - All code and comments are in Japanese
 - Content script is wrapped in an IIFE with `'use strict'`
-- CSS sections are numbered and commented (e.g., `/* === 1. Global === */`)
-- Performance-critical code has tagged optimization comments (`[A1]`–`[A15]`)
+- CSS sections are numbered and commented (e.g., `/* === 1. ルート・Body === */`)
 - `!important` is used in CSS to override X's inline styles — this is intentional
 - `run_at: "document_start"` in manifest prevents Flash of Unstyled Content (FOUC)
 

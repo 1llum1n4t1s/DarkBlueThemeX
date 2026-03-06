@@ -104,6 +104,16 @@
     return document.documentElement.dataset.theme || null;
   }
 
+  /** DarkBlue テーマを解除し、状態をリセットする共通処理 */
+  function deactivateTheme() {
+    document.documentElement.classList.remove(GUARD_CLASS);
+    if (document.body) document.body.style.removeProperty('background-color');
+    updateThemeColor(false);
+    try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
+    stopPeriodicScan();
+    updatePageFlags();
+  }
+
   /**
    * テーマを評価し、必要に応じて DarkBlue を適用/解除する。
    * - data-theme="dark" → "dim" に変換し DarkBlue 適用
@@ -111,7 +121,7 @@
    * - その他（light 等）→ DarkBlue を解除
    */
   function evaluateAndApply() {
-    const theme = getCurrentTheme();
+    let theme = getCurrentTheme();
 
     // 拡張機能が無効 → 解除
     if (!isEnabled) {
@@ -119,22 +129,18 @@
         // 自分が dim に変えたものなので dark に戻す
         document.documentElement.dataset.theme = 'dark';
       }
-      document.documentElement.classList.remove(GUARD_CLASS);
-      if (document.body) document.body.style.removeProperty('background-color');
-      updateThemeColor(false);
-      try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
-      stopPeriodicScan();
-      updatePageFlags();
+      deactivateTheme();
       return;
     }
 
     // ダークテーマ(黒) → DarkBlue(dim) に変換
     if (theme === 'dark') {
       document.documentElement.dataset.theme = 'dim';
+      theme = 'dim';
     }
 
     // dim テーマ → ガードクラス適用
-    if (getCurrentTheme() === 'dim') {
+    if (theme === 'dim') {
       if (!document.documentElement.classList.contains(GUARD_CLASS)) {
         document.documentElement.classList.add(GUARD_CLASS);
       }
@@ -153,12 +159,7 @@
     }
 
     // ライトテーマ等 → 何もしない
-    document.documentElement.classList.remove(GUARD_CLASS);
-    if (document.body) document.body.style.removeProperty('background-color');
-    updateThemeColor(false);
-    try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
-    stopPeriodicScan();
-    updatePageFlags();
+    deactivateTheme();
   }
 
   function updateThemeColor(isDarkBlue) {
@@ -210,22 +211,24 @@
     if (domObserver) domObserver.disconnect();
 
     domObserver = new MutationObserver((mutations) => {
+      // attributeFilter + observe(documentElement) により target/type は常に一致 → チェック不要
       let needsEval = false;
+      const theme = getCurrentTheme();
+      const hasGuard = document.documentElement.classList.contains(GUARD_CLASS);
 
       for (const mutation of mutations) {
-        if (mutation.target !== document.documentElement || mutation.type !== 'attributes') continue;
-
         if (mutation.attributeName === 'data-theme') {
           // dim は自分が設定した値 → 再評価不要
           // !isEnabled 時は外部のテーマ変更に反応しない
-          if (getCurrentTheme() !== 'dim' && isEnabled) {
+          if (theme !== 'dim' && isEnabled) {
             needsEval = true;
+            break;
           }
         } else if (mutation.attributeName === 'class') {
           // ガードクラスが外部から除去された場合のみ再適用
-          if (isEnabled && getCurrentTheme() === 'dim' &&
-              !document.documentElement.classList.contains(GUARD_CLASS)) {
+          if (isEnabled && theme === 'dim' && !hasGuard) {
             needsEval = true;
+            break;
           }
         }
       }
