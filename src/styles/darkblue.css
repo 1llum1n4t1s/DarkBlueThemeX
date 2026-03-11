@@ -62,13 +62,7 @@ html.darkbluethemex-active .r-5zmot {
 }
 
 /* ============================================================
-   3. インラインスタイルの色修正は content.js で実行
-   CSS [style*="..."] セレクタは全要素に対する文字列マッチングが
-   毎回発生するため、JS の Map ルックアップに移行。
-   ============================================================ */
-
-/* ============================================================
-   4. アバター背景の透明化
+   3. アバター背景の透明化
    X は z-index:-1 の background-image でアバターを表示するため、
    アバターコンテナの背景を塗ると画像が隠れる。
    ============================================================ */
@@ -84,7 +78,7 @@ html.darkbluethemex-active [data-testid*="UserAvatar"] .r-vvn4in {
 }
 
 /* ============================================================
-   5. 通知ページ: stacking context 対策
+   4. 通知ページ: stacking context 対策
    通知内のアバターが見えるように背景を transparent にする。
    ============================================================ */
 
@@ -129,44 +123,22 @@ html.darkbluethemex-active [data-testid="primaryColumn"] div:has([role="tablist"
 }
 
 /* ============================================================
-   6. ホバー状態
-   article の hover は CSS 変数で管理されない場合があるため明示
+   5. ホバー状態
    ============================================================ */
 
-html.darkbluethemex-active article[role="article"]:hover {
-  background-color: #22303C !important;
-}
-
-html.darkbluethemex-active article[role="article"]:hover [role="group"] {
-  background-color: #22303C !important;
-}
-
-html.darkbluethemex-active [data-testid="UserCell"]:hover {
-  background-color: #22303C !important;
-}
-
-html.darkbluethemex-active [role="menuitem"]:hover {
-  background-color: #22303C !important;
-}
-
-html.darkbluethemex-active [role="option"]:hover {
-  background-color: #22303C !important;
-}
-
-html.darkbluethemex-active [role="tab"]:hover {
-  background-color: #22303C !important;
-}
-
-html.darkbluethemex-active nav[role="navigation"] a:hover > div {
-  background-color: #22303C !important;
-}
-
+html.darkbluethemex-active article[role="article"]:hover,
+html.darkbluethemex-active article[role="article"]:hover [role="group"],
+html.darkbluethemex-active [data-testid="UserCell"]:hover,
+html.darkbluethemex-active [role="menuitem"]:hover,
+html.darkbluethemex-active [role="option"]:hover,
+html.darkbluethemex-active [role="tab"]:hover,
+html.darkbluethemex-active nav[role="navigation"] a:hover > div,
 html.darkbluethemex-active [data-testid="typeaheadResult"]:hover {
   background-color: #22303C !important;
 }
 
 /* ============================================================
-   7. スクロールバー
+   6. スクロールバー
    ============================================================ */
 
 html.darkbluethemex-active ::-webkit-scrollbar {
@@ -187,7 +159,7 @@ html.darkbluethemex-active ::-webkit-scrollbar-thumb:hover {
 }
 
 /* ============================================================
-   8. 検索バーのボーダー
+   7. 検索バーのボーダー
    ============================================================ */
 
 /* サイドバー検索バーの外枠パディング */
@@ -198,18 +170,8 @@ html.darkbluethemex-active [data-testid="sidebarColumn"] div:has(> div > div > d
 }
 
 /* 検索バーの角丸 DIV のボーダー色 */
-html.darkbluethemex-active [data-testid="sidebarColumn"] form > div > div {
-  border-color: #38444D !important;
-  border-width: 1px !important;
-  border-style: solid !important;
-}
-
-html.darkbluethemex-active [data-testid="SearchBox_Search_Input_row"] {
-  border-color: #38444D !important;
-  border-width: 1px !important;
-  border-style: solid !important;
-}
-
+html.darkbluethemex-active [data-testid="sidebarColumn"] form > div > div,
+html.darkbluethemex-active [data-testid="SearchBox_Search_Input_row"],
 html.darkbluethemex-active form:has([data-testid="SearchBox_Search_Input"]) > div > div {
   border-color: #38444D !important;
   border-width: 1px !important;
@@ -222,7 +184,7 @@ html.darkbluethemex-active form:has([data-testid="SearchBox_Search_Input"]:focus
 }
 
 /* ============================================================
-   9. DM タブのグラデーション
+   8. DM タブのグラデーション
    Tailwind の from-background が黒を参照するため DarkBlue に上書き
    ============================================================ */
 
@@ -235,26 +197,20 @@ html.darkbluethemex-active [data-testid="dm-inbox-tabs-container"] > div:last-ch
 }
 
 /* ============================================================
-   10. メニュー・ダイアログのシャドウ
-   X の黒テーマのシャドウを DarkBlue に合わせる
+   9. メニュー・ダイアログのシャドウ
    ============================================================ */
 
 html.darkbluethemex-active [role="menu"] {
   box-shadow: 0 0 15px rgba(21, 32, 43, 0.8), 0 0 3px rgba(56, 68, 77, 0.4) !important;
 }
 
-html.darkbluethemex-active [data-testid="typeaheadDropdown"] {
-  box-shadow: 0 0 15px rgba(21, 32, 43, 0.8) !important;
-}
-
+html.darkbluethemex-active [data-testid="typeaheadDropdown"],
 html.darkbluethemex-active [data-testid="HoverCard"] {
   box-shadow: 0 0 15px rgba(21, 32, 43, 0.8) !important;
 }
 
-/* 半透明オーバーレイ背景 → content.js で処理 */
-
 /* ============================================================
-   11. #layers ポップアップレイヤー
+   10. #layers ポップアップレイヤー
    ============================================================ */
 
 html.darkbluethemex-active #layers > div > div {

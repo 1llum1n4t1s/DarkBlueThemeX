@@ -1,14 +1,9 @@
 /**
- * DarkBlueThemeX - Content Script (v2: CSS Variable Approach)
+ * DarkBlueThemeX - Content Script
  *
  * X(旧Twitter)の data-theme="dark" を data-theme="dim" に切り替え、
  * X内蔵の DarkBlue(Dim) テーマ CSS カスタムプロパティを有効化する。
  * ハードコードされた r-* クラスとインラインスタイルは darkblue.css で上書き。
- *
- * v1(力業)からの主な改善:
- *   - getComputedStyle / recolorElement / fullScan を全廃
- *   - MutationObserver は html 属性のみ監視（スマートフィルタリング）
- *   - 定期スキャン不要（rAFバッチ、dirtyFlag、WeakSet 等すべて廃止）
  */
 
 (function () {
@@ -249,17 +244,11 @@
   // ポップアップとの通信
   // ========================================================
 
-  let _messageListenerRegistered = false;
-
   function registerMessageListener() {
-    if (_messageListenerRegistered) return;
-    _messageListenerRegistered = true;
-
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === 'darkblue:toggle') {
         isEnabled = message.enabled;
         chrome.storage.sync.set({ [STORAGE_KEY]: isEnabled });
-        try { localStorage.setItem(STORAGE_KEY + '_local', String(isEnabled)); } catch (e) { /* ignore */ }
         evaluateAndApply();
         sendResponse({ ok: true });
         return true;

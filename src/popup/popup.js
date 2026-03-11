@@ -107,27 +107,17 @@ function queryTabState() {
   });
 }
 
-/**
- * [B5] handleStateResponse のロジックギャップ修正
- * isBlackTheme=true && enabled=true && isDarkBlueApplied=false のケースを追加
- */
 function handleStateResponse(response) {
   const { isBlackTheme, isDarkBlueApplied, enabled } = response;
 
   if (isDarkBlueApplied) {
-    // Theme is actively applied
     setStatus('active', 'DarkBlue テーマ適用中');
   } else if (isBlackTheme && !enabled) {
-    // Black dark theme detected but extension is disabled
     setStatus('info', '黒テーマを検出（無効中）');
   } else if (isBlackTheme && enabled) {
-    // [B5] Black theme detected, enabled, but not yet applied (e.g. during transition)
     setStatus('info', 'DarkBlue テーマを適用中...');
-  } else if (!isBlackTheme) {
-    // Page is not using a dark theme at all
-    setStatus('info', 'ダークテーマではありません');
   } else {
-    setStatus('inactive', '状態を確認中...');
+    setStatus('info', 'ダークテーマではありません');
   }
 }
 
