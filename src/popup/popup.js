@@ -13,6 +13,10 @@ function cacheElements() {
   _toggleLabel = document.getElementById('toggleLabel');
   _statusDot = document.getElementById('statusDot');
   _statusMsg = document.getElementById('statusMessage');
+
+  // manifest.json からバージョンを動的に取得（ハードコード防止）
+  const ver = document.getElementById('versionLabel');
+  if (ver) ver.textContent = 'v' + chrome.runtime.getManifest().version;
 }
 
 /* --------------------------------------------------

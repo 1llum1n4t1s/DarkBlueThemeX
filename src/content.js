@@ -16,6 +16,8 @@
   let isEnabled = true;
   let domObserver = null;
   let _scanTimer = null;
+  let _metaThemeColor = null;       // キャッシュ: <meta name="theme-color">
+  let _originalThemeColor = null;   // 元の theme-color 値（復元用）
 
   // ========================================================
   // インラインスタイル色修正（CSS [style*="..."] の代替）
@@ -65,18 +67,18 @@
     }
   }
 
-  /** DOM 全体のインラインスタイルをスキャン修正（body は observer が管理） */
+  /** DOM 全体のインラインスタイルをスキャン修正（body は CSS ルールで管理） */
   function fixAllInlineStyles() {
-    const styled = document.querySelectorAll('[style]');
+    // :not(body) でセレクタレベルで除外し、ループ内比較を排除
+    const styled = document.querySelectorAll(':not(body)[style]');
     for (let i = 0, len = styled.length; i < len; i++) {
-      if (styled[i] === document.body) continue;
       fixElementStyle(styled[i]);
     }
   }
 
   /** 定期スキャン開始（React 再レンダリングによるスタイル上書き対策） */
   function startPeriodicScan() {
-    stopPeriodicScan();
+    if (_scanTimer) return; // 既にスキャン中なら再生成しない
     _scanTimer = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       if (!isEnabled || !document.documentElement.classList.contains(GUARD_CLASS)) return;
@@ -85,10 +87,9 @@
   }
 
   function stopPeriodicScan() {
-    if (_scanTimer) {
-      clearInterval(_scanTimer);
-      _scanTimer = null;
-    }
+    // clearInterval(null) は仕様上安全（no-op）
+    clearInterval(_scanTimer);
+    _scanTimer = null;
   }
 
   // ========================================================
@@ -136,9 +137,8 @@
 
     // dim テーマ → ガードクラス適用
     if (theme === 'dim') {
-      if (!document.documentElement.classList.contains(GUARD_CLASS)) {
-        document.documentElement.classList.add(GUARD_CLASS);
-      }
+      // classList.add() は既存クラスに対して no-op のためチェック不要
+      document.documentElement.classList.add(GUARD_CLASS);
       // body bg は CSS ルール (html.darkbluethemex-active body) で適用
       updateThemeColor(true);
       try { localStorage.setItem(LAST_STATE_KEY, 'true'); } catch (e) { /* ignore */ }
@@ -158,9 +158,16 @@
   }
 
   function updateThemeColor(isDarkBlue) {
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta && isDarkBlue) {
-      meta.setAttribute('content', '#15202B');
+    if (!_metaThemeColor) {
+      _metaThemeColor = document.querySelector('meta[name="theme-color"]');
+      if (_metaThemeColor) _originalThemeColor = _metaThemeColor.getAttribute('content');
+    }
+    if (!_metaThemeColor) return;
+    if (isDarkBlue) {
+      _metaThemeColor.setAttribute('content', '#15202B');
+    } else if (_originalThemeColor) {
+      // 無効化時に X の元の theme-color を復元
+      _metaThemeColor.setAttribute('content', _originalThemeColor);
     }
   }
 
@@ -168,7 +175,7 @@
   // SPA ナビゲーション検出 & ページ固有フラグ
   // ========================================================
 
-  let _lastUrl = '';
+  let _lastUrl = location.href;
 
   /**
    * 通知ページ判定フラグを html 要素に設定。
@@ -229,9 +236,8 @@
       }
 
       if (needsEval) evaluateAndApply();
-
-      // SPA ナビゲーション検出
-      checkUrlChange();
+      // checkUrlChange() は History API フック + popstate で完全にカバー済み
+      // data-theme/class 属性変更は URL 変更と無関係なため、ここでの呼び出しは不要
     });
 
     domObserver.observe(document.documentElement, {
@@ -248,7 +254,8 @@
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === 'darkblue:toggle') {
         isEnabled = message.enabled;
-        chrome.storage.sync.set({ [STORAGE_KEY]: isEnabled });
+        // storage.sync.set は popup.js 側で実行済み → ここでは不要
+        // （二重書き込みは storage.onChanged → evaluateAndApply の余分な発火を招く）
         evaluateAndApply();
         sendResponse({ ok: true });
         return true;
@@ -275,7 +282,6 @@
   // ========================================================
 
   function init() {
-    _lastUrl = location.href;
     startObserver();
     registerMessageListener();
 

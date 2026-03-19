@@ -8,7 +8,7 @@
   --db-bg-card: #192734;
   --db-border: #38444D;
   --db-text-main: #E7E9EA;
-  --db-text-sub: #8899A6;
+  --db-text-sub: #8B98A5;
   --db-accent: #1D9BF0;
   --db-success: #00BA7C;
 }
@@ -195,6 +195,12 @@ body {
 .swatch:hover {
   transform: scale(1.1);
 }
+
+/* スウォッチ色を CSS 変数から取得（HTML ハードコード排除） */
+.swatch-primary { background-color: var(--db-bg-primary); }
+.swatch-card    { background-color: var(--db-bg-card); }
+.swatch-border  { background-color: var(--db-border); }
+.swatch-accent  { background-color: var(--db-accent); }
 
 /* ---- Footer ---- */
 
