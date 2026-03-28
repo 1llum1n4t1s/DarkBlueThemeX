@@ -2,7 +2,7 @@
 
 const STORAGE_KEY = 'darkblue_enabled';
 
-// [A11] DOM要素キャッシュ（関数getterからconst変数に変更）
+// DOM要素キャッシュ
 let _toggleSwitch = null;
 let _toggleLabel = null;
 let _statusDot = null;
@@ -20,95 +20,72 @@ function cacheElements() {
 }
 
 /* --------------------------------------------------
-   Initialise popup
+   初期化
    -------------------------------------------------- */
-document.addEventListener('DOMContentLoaded', () => {
-  // DOM要素をキャッシュ
+document.addEventListener('DOMContentLoaded', async () => {
   cacheElements();
 
-  // Load saved toggle state (default: enabled)
-  chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
-    const enabled = result[STORAGE_KEY];
-    applyToggleUI(enabled);
-  });
+  const result = await chrome.storage.sync.get({ [STORAGE_KEY]: true });
+  applyToggleUI(result[STORAGE_KEY]);
 
-  // Listen for toggle changes
   _toggleSwitch.addEventListener('change', onToggleChange);
-
-  // Query the active tab for current state
-  queryTabState();
+  await queryTabState();
 });
 
 /* --------------------------------------------------
-   Toggle handling
+   トグル処理
    -------------------------------------------------- */
 function applyToggleUI(enabled) {
   _toggleSwitch.checked = enabled;
   _toggleLabel.textContent = enabled ? '有効' : '無効';
 }
 
-function onToggleChange() {
+async function onToggleChange() {
   const enabled = _toggleSwitch.checked;
-
-  // Persist
-  chrome.storage.sync.set({ [STORAGE_KEY]: enabled });
-
-  // Update label (applyToggleUI と統合)
+  await chrome.storage.sync.set({ [STORAGE_KEY]: enabled });
   applyToggleUI(enabled);
 
-  // Notify the active tab
-  getActiveTab((tab) => {
-    if (!tab) return;
-    chrome.tabs.sendMessage(
-      tab.id,
-      { type: 'darkblue:toggle', enabled },
-      () => {
-        // Ignore errors when content script is not loaded
-        void chrome.runtime.lastError;
-        // Refresh status after toggling
-        queryTabState();
-      }
-    );
-  });
+  const tab = await getActiveTab();
+  if (!tab) return;
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: 'darkblue:toggle', enabled });
+  } catch {
+    // コンテンツスクリプト未ロード時は無視
+  }
+  await queryTabState(tab);
 }
 
 /* --------------------------------------------------
-   Status query
+   ステータス表示
    -------------------------------------------------- */
-function queryTabState() {
-  getActiveTab((tab) => {
-    if (!tab) {
+
+/** タブが X のドメインかどうか判定 */
+function isXTab(tab) {
+  try {
+    const host = new URL(tab?.url || '').hostname.replace(/^www\./, '');
+    return host === 'x.com' || host === 'twitter.com';
+  } catch {
+    return false;
+  }
+}
+
+async function queryTabState(existingTab) {
+  const tab = existingTab ?? await getActiveTab();
+  if (!tab || !isXTab(tab)) {
+    setStatus('inactive', 'X のページを開いてください');
+    return;
+  }
+
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id, { type: 'darkblue:getState' });
+    if (!response) {
       setStatus('inactive', 'X のページを開いてください');
       return;
     }
-
-    // Check if the tab is on X (twitter.com or x.com)
-    try {
-      const url = new URL(tab.url || '');
-      const host = url.hostname.replace(/^www\./, '');
-      if (host !== 'x.com' && host !== 'twitter.com') {
-        setStatus('inactive', 'X のページを開いてください');
-        return;
-      }
-    } catch {
-      setStatus('inactive', 'X のページを開いてください');
-      return;
-    }
-
-    // Ask the content script for its state
-    chrome.tabs.sendMessage(
-      tab.id,
-      { type: 'darkblue:getState' },
-      (response) => {
-        if (chrome.runtime.lastError || !response) {
-          // Content script not loaded / not responding
-          setStatus('inactive', 'X のページを開いてください');
-          return;
-        }
-        handleStateResponse(response);
-      }
-    );
-  });
+    handleStateResponse(response);
+  } catch {
+    setStatus('inactive', 'X のページを開いてください');
+  }
 }
 
 function handleStateResponse(response) {
@@ -126,18 +103,15 @@ function handleStateResponse(response) {
 }
 
 /* --------------------------------------------------
-   Helpers
+   ヘルパー
    -------------------------------------------------- */
 function setStatus(type, message) {
-  // Reset classes
   _statusDot.classList.remove('active', 'info', 'inactive');
   _statusDot.classList.add(type);
-
   _statusMsg.textContent = message;
 }
 
-function getActiveTab(callback) {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    callback(tabs && tabs.length > 0 ? tabs[0] : null);
-  });
+async function getActiveTab() {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tabs?.[0] ?? null;
 }

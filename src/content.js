@@ -18,6 +18,8 @@
   let _scanTimer = null;
   let _metaThemeColor = null;       // キャッシュ: <meta name="theme-color">
   let _originalThemeColor = null;   // 元の theme-color 値（復元用）
+  let _bodyThemeFixed = false;      // body の data-theme を変更したかどうか（jf-element 用）
+  let _idleCallbackPending = false; // requestIdleCallback の重複防止
 
   // ========================================================
   // インラインスタイル色修正（CSS [style*="..."] の代替）
@@ -100,10 +102,24 @@
     return document.documentElement.dataset.theme || null;
   }
 
+  const OFF_CLASS = 'darkbluethemex-off';
+
   /** DarkBlue テーマを解除し、状態をリセットする共通処理 */
   function deactivateTheme() {
-    document.documentElement.classList.remove(GUARD_CLASS);
-    if (document.body) document.body.style.removeProperty('background-color');
+    const docEl = document.documentElement;
+    // setAttribute インターセプトを先に無効化（dark への復元を許可）
+    deactivateAttributeIntercept();
+    docEl.classList.remove(GUARD_CLASS);
+    // CSS FOUC ルール (html[data-theme="dark"]:not(.darkbluethemex-off)) を無効化。
+    // これがないと data-theme="dark" に戻しても CSS が DarkBlue 背景を強制してしまう。
+    docEl.classList.add(OFF_CLASS);
+    if (document.body) {
+      // body の data-theme を元に戻す（jf-element 用）
+      if (_bodyThemeFixed) {
+        document.body.dataset.theme = 'dark';
+        _bodyThemeFixed = false;
+      }
+    }
     updateThemeColor(false);
     try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
     stopPeriodicScan();
@@ -117,12 +133,13 @@
    * - その他（light 等）→ DarkBlue を解除
    */
   function evaluateAndApply() {
-    let theme = getCurrentTheme();
+    const theme = getCurrentTheme();
 
     // 拡張機能が無効 → 解除
     if (!isEnabled) {
+      // dataset.theme = 'dark' 代入前にインターセプトを無効化（deactivateTheme 内でも呼ぶが順序上ここで必要）
+      deactivateAttributeIntercept();
       if (theme === 'dim' && document.documentElement.classList.contains(GUARD_CLASS)) {
-        // 自分が dim に変えたものなので dark に戻す
         document.documentElement.dataset.theme = 'dark';
       }
       deactivateTheme();
@@ -132,22 +149,33 @@
     // ダークテーマ(黒) → DarkBlue(dim) に変換
     if (theme === 'dark') {
       document.documentElement.dataset.theme = 'dim';
-      theme = 'dim';
     }
 
-    // dim テーマ → ガードクラス適用
-    if (theme === 'dim') {
-      // classList.add() は既存クラスに対して no-op のためチェック不要
+    // dim テーマ or dark→dim 変換後 → ガードクラス適用
+    if (theme === 'dark' || theme === 'dim') {
+      // classList.add()/remove() は既存/非存在クラスに対して no-op のためチェック不要
       document.documentElement.classList.add(GUARD_CLASS);
+      document.documentElement.classList.remove(OFF_CLASS);
+      // setAttribute インターセプト有効化（X の JS が dark に戻すのを阻止）
+      installAttributeIntercept();
+      // body の data-theme も dim に変換（jf-element 用: body が独自に data-theme="dark" を持つ場合）
+      if (document.body && document.body.dataset.theme === 'dark') {
+        document.body.dataset.theme = 'dim';
+        _bodyThemeFixed = true;
+      }
       // body bg は CSS ルール (html.darkbluethemex-active body) で適用
       updateThemeColor(true);
       try { localStorage.setItem(LAST_STATE_KEY, 'true'); } catch (e) { /* ignore */ }
-      // 初回スキャンはブラウザアイドル時まで遅延（初期ロードをブロックしない）
-      (window.requestIdleCallback || requestAnimationFrame)(() => {
-        if (isEnabled && document.documentElement.classList.contains(GUARD_CLASS)) {
-          fixAllInlineStyles();
-        }
-      });
+      // 初回スキャンはブラウザアイドル時まで遅延（重複登録防止付き）
+      if (!_idleCallbackPending) {
+        _idleCallbackPending = true;
+        requestIdleCallback(() => {
+          _idleCallbackPending = false;
+          if (isEnabled && document.documentElement.classList.contains(GUARD_CLASS)) {
+            fixAllInlineStyles();
+          }
+        });
+      }
       startPeriodicScan();
       updatePageFlags();
       return;
@@ -213,12 +241,19 @@
     if (domObserver) domObserver.disconnect();
 
     domObserver = new MutationObserver((mutations) => {
-      // attributeFilter + observe(documentElement) により target/type は常に一致 → チェック不要
+      // observe(documentElement) と observe(body) の両方から届くため target チェックが必要
       let needsEval = false;
       const theme = getCurrentTheme();
       const hasGuard = document.documentElement.classList.contains(GUARD_CLASS);
 
       for (const mutation of mutations) {
+        if (mutation.target === document.body) {
+          // body の data-theme が外部から dark に戻された場合、dim に再変換
+          if (isEnabled && hasGuard && document.body.dataset.theme === 'dark') {
+            document.body.dataset.theme = 'dim';
+          }
+          continue;
+        }
         if (mutation.attributeName === 'data-theme') {
           // dim は自分が設定した値 → 再評価不要
           // !isEnabled 時は外部のテーマ変更に反応しない
@@ -243,6 +278,11 @@
     domObserver.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-theme', 'class'],
+    });
+    // body の data-theme も監視（jf-element 用: Creator Studio 等のページ対応）
+    domObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
     });
   }
 
@@ -319,19 +359,40 @@
   });
 
   // ========================================================
-  // FOUC 防止: document_start 時点で楽観的に data-theme="dim" に変更
-  // 前回 DarkBlue が適用されていた場合のみ実行
+  // setAttribute インターセプト
+  // X の main.js が data-theme="dark" を再設定するのを同期的に dim に変換。
+  // MutationObserver は非同期のため、これがないと黒テーマが一瞬描画される。
   // ========================================================
 
-  try {
-    if (localStorage.getItem(LAST_STATE_KEY) === 'true') {
-      document.documentElement.classList.add(GUARD_CLASS);
-      if (document.documentElement.dataset.theme === 'dark') {
-        document.documentElement.dataset.theme = 'dim';
+  // オリジナルのプロトタイプを一度だけキャプチャ（多重ラップ防止）
+  const _origSetAttribute = Element.prototype.setAttribute;
+  const _origRemoveAttribute = Element.prototype.removeAttribute;
+  let _attrInterceptActive = false;
+  let _attrInterceptInstalled = false;
+
+  function installAttributeIntercept() {
+    _attrInterceptActive = true;
+    if (_attrInterceptInstalled) return;
+    _attrInterceptInstalled = true;
+    const docEl = document.documentElement;
+
+    Element.prototype.setAttribute = function (name, value) {
+      if (_attrInterceptActive && this === docEl && name === 'data-theme' && value === 'dark') {
+        return _origSetAttribute.call(this, name, 'dim');
       }
-    }
-  } catch (e) {
-    // localStorage アクセス失敗時は適用しない（安全側に倒す）
+      return _origSetAttribute.call(this, name, value);
+    };
+
+    Element.prototype.removeAttribute = function (name) {
+      if (_attrInterceptActive && this === docEl && name === 'data-theme') {
+        return;
+      }
+      return _origRemoveAttribute.call(this, name);
+    };
+  }
+
+  function deactivateAttributeIntercept() {
+    _attrInterceptActive = false;
   }
 
   // クリーンアップ（unload は非推奨のため pagehide を使用）

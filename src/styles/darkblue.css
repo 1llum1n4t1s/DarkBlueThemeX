@@ -21,6 +21,22 @@
    1. ルート・Body
    ============================================================ */
 
+/* ── FOUC 防止（CSS のみ、JS 実行不要）──
+   CSS は JS より先にブラウザにパースされるため、content.js が注入・実行
+   される前から DarkBlue 背景を強制できる。X の内部ナビゲーションで新しい
+   ドキュメントが生成されると content.js #1 のインターセプトは失われるが、
+   CSS は即座に再注入されるため空白期間なく背景色をカバーする。
+   拡張機能の無効化時は content.js が darkbluethemex-off クラスを付与し、
+   この FOUC ルールを無効化して元の黒テーマに戻す。 */
+html[data-theme="dark"]:not(.darkbluethemex-off) {
+  color-scheme: dark !important;
+  background-color: #15202B !important;
+}
+
+html[data-theme="dark"]:not(.darkbluethemex-off) body {
+  background-color: #15202B !important;
+}
+
 html.darkbluethemex-active {
   color-scheme: dark !important;
 }
@@ -29,9 +45,21 @@ html.darkbluethemex-active body {
   background-color: #15202B !important;
 }
 
-/* フォールバック: React root コンテナ */
+/* フォールバック: React root コンテナ + ローディング画面 */
+html[data-theme="dark"]:not(.darkbluethemex-off) #react-root,
+html[data-theme="dark"]:not(.darkbluethemex-off) #react-root > div,
 html.darkbluethemex-active #react-root,
 html.darkbluethemex-active #react-root > div {
+  background-color: #15202B !important;
+}
+
+/* FOUC: X のローディング画面がインラインスタイルで設定する黒背景をキャッチ。
+   CSS 属性セレクタは JS 実行不要で、React がインラインで背景色を設定した瞬間に
+   マッチする。!important はインラインスタイルより優先される。 */
+html[data-theme="dark"]:not(.darkbluethemex-off) [style*="background-color: rgb(0, 0, 0)"],
+html[data-theme="dark"]:not(.darkbluethemex-off) [style*="background-color:rgb(0, 0, 0)"],
+html.darkbluethemex-active [style*="background-color: rgb(0, 0, 0)"],
+html.darkbluethemex-active [style*="background-color:rgb(0, 0, 0)"] {
   background-color: #15202B !important;
 }
 
@@ -42,6 +70,7 @@ html.darkbluethemex-active #react-root > div {
    ============================================================ */
 
 /* 純黒背景 rgb(0,0,0) → メイン背景 */
+html[data-theme="dark"]:not(.darkbluethemex-off) .r-kemksi,
 html.darkbluethemex-active .r-kemksi {
   background-color: #15202B !important;
 }
@@ -54,6 +83,11 @@ html.darkbluethemex-active .r-g2wdr4 {
 /* ボーダー色 rgb(47,51,54) → DarkBlue ボーダー */
 html.darkbluethemex-active .r-gu4em3 {
   border-color: #38444D !important;
+}
+
+/* ホバー背景 rgb(32,35,39) → DarkBlue ホバー */
+html.darkbluethemex-active .r-z32n2g {
+  background-color: #22303C !important;
 }
 
 /* 半透明黒ヘッダー rgba(0,0,0,0.65) → 半透明 DarkBlue */
@@ -215,4 +249,207 @@ html.darkbluethemex-active [data-testid="HoverCard"] {
 
 html.darkbluethemex-active #layers > div > div {
   background-color: transparent !important;
+}
+
+/* ============================================================
+   11. jf-element dim テーマ near-black 色の DarkBlue 化
+   X の dim テーマは jf-element ヘッダー等に rgba(24,24,27) を定義している。
+   j-cw4uj613 クラスがその色をあてているため DarkBlue に上書き。
+   ============================================================ */
+
+html.darkbluethemex-active [data-theme="dim"] .jf-element .j-cw4uj613 {
+  background-color: #15202B !important;
+}
+
+/* ============================================================
+   12. Analytics / JF ページ Tailwind CSS カスタムプロパティ上書き
+   data-theme="dim" 変換後、このシステムの :root フォールバック（ライトテーマ値）が
+   適用されてしまう問題を修正。ダークブルーパレットをインジェクト。
+   FOUC 防止のため data-theme="dark" 時にも同じ値を適用する。
+   ============================================================ */
+
+html[data-theme="dark"]:not(.darkbluethemex-off),
+html.darkbluethemex-active {
+  /* 背景・ニュートラルスケール: DarkBlue パレット */
+  --color-background:    210 35% 13%;   /* #15202B メイン背景 */
+  --color-gray-0:        210 35% 15%;   /* #192734 カード背景 */
+  --color-gray-50:       210 35% 14%;
+  --color-gray-100:      208 28% 18%;   /* #22303C ホバー */
+  --color-gray-200:      208 24% 21%;
+  --color-gray-300:      206 18% 26%;   /* #38444D ボーダー相当 */
+  --color-gray-400:      206 15% 30%;
+  --color-gray-500:      207 12% 36%;
+  --color-gray-600:      207 9% 42%;
+  --color-gray-700:      207 7% 52%;
+  --color-gray-800:      207 5% 65%;
+  --color-gray-900:      207 4% 78%;
+  --color-gray-1000:     204 4% 88%;
+  --color-gray-1100:     200 7% 91%;
+  --color-text:          200 7% 91%;
+  --color-brand:         200 7% 91%;
+  --color-nested-border: 207 9% 42%;
+  --color-mark:          rgba(56, 68, 77, 0.4);
+
+  /* ブルースケール: ダークテーマ値 */
+  --color-blue-0:    225 94% 12%;
+  --color-blue-50:   223 100% 15%;
+  --color-blue-100:  215 100% 26%;
+  --color-blue-200:  212 100% 38%;
+  --color-blue-300:  209 100% 42%;
+  --color-blue-400:  207 100% 46%;
+  --color-blue-500:  204 88% 53%;
+  --color-blue-600:  202 91% 61%;
+  --color-blue-700:  201 95% 70%;
+  --color-blue-800:  196 100% 80%;
+  --color-blue-900:  192 100% 87%;
+  --color-blue-1000: 194 100% 92%;
+  --color-blue-1100: 194 100% 96%;
+
+  /* グリーンスケール: ダークテーマ値 */
+  --color-green-0:    162 100% 7%;
+  --color-green-50:   162 100% 7%;
+  --color-green-100:  157 100% 13%;
+  --color-green-200:  158 100% 19%;
+  --color-green-300:  158 100% 25%;
+  --color-green-400:  158 100% 31%;
+  --color-green-500:  160 100% 36%;
+  --color-green-600:  157 61% 49%;
+  --color-green-700:  154 59% 61%;
+  --color-green-800:  153 59% 73%;
+  --color-green-900:  153 63% 85%;
+  --color-green-1000: 153 67% 92%;
+  --color-green-1100: 160 100% 96%;
+
+  /* レッドスケール: ダークテーマ値 */
+  --color-red-0:    356 97% 12%;
+  --color-red-50:   356 100% 13%;
+  --color-red-100:  355 87% 22%;
+  --color-red-200:  351 83% 30%;
+  --color-red-300:  353 79% 38%;
+  --color-red-400:  355 78% 46%;
+  --color-red-500:  356 91% 54%;
+  --color-red-600:  354 90% 63%;
+  --color-red-700:  355 90% 72%;
+  --color-red-800:  354 92% 80%;
+  --color-red-900:  354 93% 89%;
+  --color-red-1000: 351 94% 93%;
+  --color-red-1100: 356 100% 97%;
+
+  /* イエロースケール: ダークテーマ値 */
+  --color-yellow-0:    28 94% 12%;
+  --color-yellow-50:   29 100% 14%;
+  --color-yellow-100:  34 100% 22%;
+  --color-yellow-200:  36 100% 29%;
+  --color-yellow-300:  42 100% 36%;
+  --color-yellow-400:  47 100% 43%;
+  --color-yellow-500:  50 100% 50%;
+  --color-yellow-600:  50 100% 63%;
+  --color-yellow-700:  52 100% 71%;
+  --color-yellow-800:  54 100% 79%;
+  --color-yellow-900:  59 100% 88%;
+  --color-yellow-1000: 59 100% 92%;
+  --color-yellow-1100: 54 100% 96%;
+
+  /* オレンジスケール: ダークテーマ値 */
+  --color-orange-0:    17 97% 12%;
+  --color-orange-50:   18 100% 14%;
+  --color-orange-100:  19 100% 21%;
+  --color-orange-200:  19 100% 27%;
+  --color-orange-300:  24 100% 35%;
+  --color-orange-400:  27 100% 42%;
+  --color-orange-500:  29 100% 50%;
+  --color-orange-600:  29 100% 60%;
+  --color-orange-700:  29 100% 69%;
+  --color-orange-800:  29 100% 79%;
+  --color-orange-900:  30 100% 88%;
+  --color-orange-1000: 30 100% 93%;
+  --color-orange-1100: 30 90% 96%;
+
+  /* マゼンタスケール: ダークテーマ値 */
+  --color-magenta-0:    330 96% 11%;
+  --color-magenta-50:   330 100% 12%;
+  --color-magenta-100:  331 90% 21%;
+  --color-magenta-200:  332 86% 29%;
+  --color-magenta-300:  332 85% 37%;
+  --color-magenta-400:  332 84% 45%;
+  --color-magenta-500:  332 95% 54%;
+  --color-magenta-600:  332 95% 62%;
+  --color-magenta-700:  332 95% 71%;
+  --color-magenta-800:  332 96% 80%;
+  --color-magenta-900:  332 96% 89%;
+  --color-magenta-1000: 332 100% 93%;
+  --color-magenta-1100: 330 100% 97%;
+
+  /* パープルスケール: ダークテーマ値 */
+  --color-purple-0:    261 79% 11%;
+  --color-purple-50:   260 100% 15%;
+  --color-purple-100:  257 73% 25%;
+  --color-purple-200:  256 62% 35%;
+  --color-purple-300:  254 56% 46%;
+  --color-purple-400:  253 68% 56%;
+  --color-purple-500:  252 100% 67%;
+  --color-purple-600:  252 100% 73%;
+  --color-purple-700:  252 100% 80%;
+  --color-purple-800:  252 100% 86%;
+  --color-purple-900:  251 100% 92%;
+  --color-purple-1000: 250 100% 95%;
+  --color-purple-1100: 250 100% 98%;
+
+  /* プラムスケール: ダークテーマ値 */
+  --color-plum-0:    300 88% 9%;
+  --color-plum-50:   299 100% 10%;
+  --color-plum-100:  299 77% 18%;
+  --color-plum-200:  299 67% 26%;
+  --color-plum-300:  298 64% 35%;
+  --color-plum-400:  299 60% 43%;
+  --color-plum-500:  299 60% 51%;
+  --color-plum-600:  299 60% 60%;
+  --color-plum-700:  299 60% 69%;
+  --color-plum-800:  298 63% 79%;
+  --color-plum-900:  299 67% 88%;
+  --color-plum-1000: 300 72% 93%;
+  --color-plum-1100: 300 100% 97%;
+
+  /* ティールスケール: ダークテーマ値 */
+  --color-teal-0:    185 89% 7%;
+  --color-teal-50:   185 100% 7%;
+  --color-teal-100:  184 100% 13%;
+  --color-teal-200:  183 100% 19%;
+  --color-teal-300:  182 100% 24%;
+  --color-teal-400:  182 100% 30%;
+  --color-teal-500:  182 100% 36%;
+  --color-teal-600:  182 100% 41%;
+  --color-teal-700:  183 70% 55%;
+  --color-teal-800:  182 71% 69%;
+  --color-teal-900:  183 75% 83%;
+  --color-teal-1000: 183 80% 90%;
+  --color-teal-1100: 183 100% 96%;
+
+  /* ── shadcn/ui 系変数: ライトフォールバック阻止 ── */
+  /* :root[data-theme="dark"] でのみ定義される変数群。
+     dim 変換でマッチしなくなり :root (ライト) にフォールバックするのを防止 */
+  --background:              210 35% 13%;   /* #15202B */
+  --foreground:              200 7% 91%;    /* #E6E9EA 明るいテキスト */
+  --card:                    var(--color-gray-0);
+  --card-foreground:         200 7% 91%;
+  --popover:                 210 35% 13%;   /* #15202B */
+  --popover-foreground:      200 7% 91%;
+  --primary:                 var(--color-blue-500);
+  --primary-foreground:      240 5.9% 10%;
+  --secondary:               210 7% 18%;
+  --secondary-foreground:    200 7% 91%;
+  --muted:                   210 7% 18%;
+  --muted-foreground:        240 5% 64.9%;
+  --accent:                  var(--color-blue-200);
+  --accent-foreground:       var(--color-blue-700);
+  --destructive:             0 62.8% 30.6%;
+  --destructive-foreground:  200 7% 91%;
+  --border:                  210 7% 18%;
+  --input:                   210 7% 18%;
+  --ring:                    var(--color-blue-500);
+  --chart-1:                 var(--color-blue-500);
+  --chart-2:                 var(--color-green-500);
+  --chart-3:                 var(--color-red-500);
+  --chart-4:                 var(--color-yellow-500);
+  --chart-5:                 var(--color-purple-500);
 }
