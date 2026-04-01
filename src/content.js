@@ -15,84 +15,9 @@
 
   let isEnabled = true;
   let domObserver = null;
-  let _scanTimer = null;
   let _metaThemeColor = null;       // キャッシュ: <meta name="theme-color">
   let _originalThemeColor = null;   // 元の theme-color 値（復元用）
   let _bodyThemeFixed = false;      // body の data-theme を変更したかどうか（jf-element 用）
-  let _idleCallbackPending = false; // requestIdleCallback の重複防止
-
-  // ========================================================
-  // インラインスタイル色修正（CSS [style*="..."] の代替）
-  // Map.get() は O(1) で、CSS の全要素文字列マッチングより高速
-  // ========================================================
-
-  const BG_FIXES = new Map([
-    ['rgb(0, 0, 0)', '#15202B'],
-    ['rgb(22, 24, 28)', '#192734'],
-    ['rgb(25, 25, 25)', '#192734'],
-    ['rgb(16, 16, 16)', '#192734'],
-    ['rgb(15, 15, 15)', '#192734'],
-    ['rgb(21, 24, 28)', '#192734'],
-    ['rgb(32, 35, 39)', '#22303C'],
-    ['rgb(39, 44, 48)', '#22303C'],
-    ['rgb(26, 29, 33)', '#22303C'],
-  ]);
-
-  const TEXT_FIXES = new Map([
-    ['rgb(113, 118, 123)', '#8B98A5'],
-  ]);
-
-  const BORDER_FIXES = new Map([
-    ['rgb(47, 51, 54)', '#38444D'],
-  ]);
-
-  /** 単一要素のインラインスタイルを修正 */
-  function fixElementStyle(el) {
-    const s = el.style;
-    if (!s || !s.cssText) return;
-
-    let fix;
-    if ((fix = BG_FIXES.get(s.backgroundColor))) {
-      s.setProperty('background-color', fix, 'important');
-    }
-    if ((fix = TEXT_FIXES.get(s.color))) {
-      s.setProperty('color', fix, 'important');
-    }
-    if ((fix = BORDER_FIXES.get(s.borderColor))) {
-      s.setProperty('border-color', fix, 'important');
-    }
-    if ((fix = BORDER_FIXES.get(s.borderBottomColor))) {
-      s.setProperty('border-bottom-color', fix, 'important');
-    }
-    if ((fix = BORDER_FIXES.get(s.borderTopColor))) {
-      s.setProperty('border-top-color', fix, 'important');
-    }
-  }
-
-  /** DOM 全体のインラインスタイルをスキャン修正（body は CSS ルールで管理） */
-  function fixAllInlineStyles() {
-    // :not(body) でセレクタレベルで除外し、ループ内比較を排除
-    const styled = document.querySelectorAll(':not(body)[style]');
-    for (let i = 0, len = styled.length; i < len; i++) {
-      fixElementStyle(styled[i]);
-    }
-  }
-
-  /** 定期スキャン開始（React 再レンダリングによるスタイル上書き対策） */
-  function startPeriodicScan() {
-    if (_scanTimer) return; // 既にスキャン中なら再生成しない
-    _scanTimer = setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      if (!isEnabled || !document.documentElement.classList.contains(GUARD_CLASS)) return;
-      fixAllInlineStyles();
-    }, 3000);
-  }
-
-  function stopPeriodicScan() {
-    // clearInterval(null) は仕様上安全（no-op）
-    clearInterval(_scanTimer);
-    _scanTimer = null;
-  }
 
   // ========================================================
   // テーマ検出・適用
@@ -122,7 +47,6 @@
     }
     updateThemeColor(false);
     try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
-    stopPeriodicScan();
     updatePageFlags();
   }
 
@@ -166,17 +90,8 @@
       // body bg は CSS ルール (html.darkbluethemex-active body) で適用
       updateThemeColor(true);
       try { localStorage.setItem(LAST_STATE_KEY, 'true'); } catch (e) { /* ignore */ }
-      // 初回スキャンはブラウザアイドル時まで遅延（重複登録防止付き）
-      if (!_idleCallbackPending) {
-        _idleCallbackPending = true;
-        requestIdleCallback(() => {
-          _idleCallbackPending = false;
-          if (isEnabled && document.documentElement.classList.contains(GUARD_CLASS)) {
-            fixAllInlineStyles();
-          }
-        });
-      }
-      startPeriodicScan();
+      // インラインスタイル色修正は darkblue.css の CSS 属性セレクタ
+      // ([style*="..."]) で即座に適用されるため、JS 側の処理は不要
       updatePageFlags();
       return;
     }
@@ -398,7 +313,6 @@
   // クリーンアップ（unload は非推奨のため pagehide を使用）
   window.addEventListener('pagehide', () => {
     if (domObserver) { domObserver.disconnect(); domObserver = null; }
-    stopPeriodicScan();
   });
 
   function waitForBody() {

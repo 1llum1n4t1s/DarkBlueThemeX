@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -29,7 +29,7 @@ Two layers work together to transform colors:
 1. **CSS layer** (`src/styles/darkblue.css`) — Static rules with two selector patterns: `html.darkbluethemex-active` (post-activation) and `html[data-theme="dark"]:not(.darkbluethemex-off)` (FOUC prevention). Overwrites `r-*` atomic classes and handles special cases. Sections are numbered 1–10:
    1. ルート・Body  2. r-* アトミッククラス上書き  3. アバター背景透明化  4. 通知ページ stacking context  5. ホバー状態  6. スクロールバー  7. 検索バーボーダー  8. DM タブグラデーション  9. メニュー・ダイアログシャドウ  10. #layers ポップアップレイヤー
 
-2. **JS layer** (`src/content.js`) — Switches `data-theme="dark"` to `"dim"` on `<html>` to activate X's built-in DarkBlue CSS custom properties. Inline style colors are handled entirely by CSS `[style*="..."]` attribute selectors in `darkblue.css` — no JS-based periodic scanning.
+2. **JS layer** (`src/content.js`) — Switches `data-theme="dark"` to `"dim"` on `<html>` to activate X's built-in DarkBlue CSS custom properties. Also runs periodic inline style fixes via `BG_FIXES`, `TEXT_FIXES`, `BORDER_FIXES` Maps for colors that CSS attribute selectors can't catch.
 
 ### Two-Class Guard System
 
@@ -39,7 +39,7 @@ Theming state is controlled by two classes on `<html>`:
 - **`darkbluethemex-off`** (OFF class) — Added when the extension is explicitly disabled. Deactivates CSS FOUC prevention rules (`html[data-theme="dark"]:not(.darkbluethemex-off)`). Without this, CSS would continue forcing DarkBlue colors even after the user disables the extension, because `data-theme` reverts to `"dark"`.
 
 Enable flow: add guard class, remove OFF class, install setAttribute intercept.
-Disable flow (`deactivateTheme()`): deactivate intercept, remove guard class, add OFF class, restore `<meta name="theme-color">`.
+Disable flow (`deactivateTheme()`): deactivate intercept, remove guard class, add OFF class, restore `<meta name="theme-color">`, stop periodic scan.
 
 ### CSS FOUC Prevention (Multi-Layer)
 
@@ -108,13 +108,13 @@ When X introduces a new dark-theme color not yet handled:
      background-color: #22303C !important;
    }
    ```
-4. Add CSS `[style*="..."]` attribute selector in `darkblue.css` section 1 for the RGB value (see existing patterns)
+4. Add the RGB value to `BG_FIXES` (or `TEXT_FIXES`/`BORDER_FIXES`) Map in `content.js` as a fallback for inline styles
 
 ### Special Element Handling
 
 - **Notifications page** — `data-dbtx-page="notifications"` set on `<html>` for CSS to apply transparent backgrounds (avatar visibility)
 - **Body data-theme** — Some X pages (Creator Studio, analytics) set `data-theme="dark"` on `<body>` via jf-element framework. The script detects and converts this separately; `_bodyThemeFixed` flag tracks whether body was modified for cleanup on deactivation.
-- **Inline style color override** — CSS `[style*="..."]` attribute selectors in `darkblue.css` override React's hardcoded inline colors instantly (no JS needed). Covers background-color, color, and border-color variants.
+- **Inline style periodic scan** — `fixAllInlineStyles()` runs every 3s using `:not(body)[style]` selector to catch React re-renders. Initial scan is deferred to `requestIdleCallback`. Scan pauses when tab is hidden (`visibilitychange` listener).
 - **Theme color meta** — `<meta name="theme-color">` is cached on first access; original value is saved and restored on deactivation.
 
 ### State & Storage
@@ -133,7 +133,7 @@ Two message types (hardcoded strings in both `src/content.js` and `src/popup/pop
 | File | Role |
 |------|------|
 | `manifest.json` | Extension config, version (single source of truth), permissions, content script registration |
-| `src/content.js` | Main theme engine — `data-theme` switching, MutationObserver, setAttribute intercept |
+| `src/content.js` | Main theme engine — `data-theme` switching, MutationObserver, setAttribute intercept, inline style fixes |
 | `src/styles/darkblue.css` | Static CSS theme rules, FOUC prevention, scoped under guard class and data-theme selectors |
 | `src/popup/popup.html` | Extension popup UI |
 | `src/popup/popup.js` | Toggle logic, storage writes, tab state queries, message passing to content script |

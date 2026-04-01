@@ -53,14 +53,64 @@ html.darkbluethemex-active #react-root > div {
   background-color: #15202B !important;
 }
 
-/* FOUC: X のローディング画面がインラインスタイルで設定する黒背景をキャッチ。
-   CSS 属性セレクタは JS 実行不要で、React がインラインで背景色を設定した瞬間に
-   マッチする。!important はインラインスタイルより優先される。 */
+/* ── インラインスタイル色上書き（CSS 属性セレクタ）──
+   React がインラインで設定するハードコード色を CSS のみで即座に変換。
+   CSS 属性セレクタは JS 実行不要で、React がインラインスタイルを設定した瞬間に
+   マッチする。!important はインラインスタイルより優先される。
+   FOUC用（ローディング画面）は html[data-theme="dark"] セレクタを併用。 */
+
+/* 純黒背景 → メイン背景（FOUC 防止込み） */
 html[data-theme="dark"]:not(.darkbluethemex-off) [style*="background-color: rgb(0, 0, 0)"],
 html[data-theme="dark"]:not(.darkbluethemex-off) [style*="background-color:rgb(0, 0, 0)"],
 html.darkbluethemex-active [style*="background-color: rgb(0, 0, 0)"],
 html.darkbluethemex-active [style*="background-color:rgb(0, 0, 0)"] {
   background-color: #15202B !important;
+}
+
+/* 近黒カード背景 → カード背景 */
+html.darkbluethemex-active [style*="background-color: rgb(22, 24, 28)"],
+html.darkbluethemex-active [style*="background-color:rgb(22, 24, 28)"],
+html.darkbluethemex-active [style*="background-color: rgb(25, 25, 25)"],
+html.darkbluethemex-active [style*="background-color:rgb(25, 25, 25)"],
+html.darkbluethemex-active [style*="background-color: rgb(16, 16, 16)"],
+html.darkbluethemex-active [style*="background-color:rgb(16, 16, 16)"],
+html.darkbluethemex-active [style*="background-color: rgb(15, 15, 15)"],
+html.darkbluethemex-active [style*="background-color:rgb(15, 15, 15)"],
+html.darkbluethemex-active [style*="background-color: rgb(21, 24, 28)"],
+html.darkbluethemex-active [style*="background-color:rgb(21, 24, 28)"] {
+  background-color: #192734 !important;
+}
+
+/* ホバー/やや明るい背景 → ホバー背景 */
+html.darkbluethemex-active [style*="background-color: rgb(32, 35, 39)"],
+html.darkbluethemex-active [style*="background-color:rgb(32, 35, 39)"],
+html.darkbluethemex-active [style*="background-color: rgb(39, 44, 48)"],
+html.darkbluethemex-active [style*="background-color:rgb(39, 44, 48)"],
+html.darkbluethemex-active [style*="background-color: rgb(26, 29, 33)"],
+html.darkbluethemex-active [style*="background-color:rgb(26, 29, 33)"] {
+  background-color: #22303C !important;
+}
+
+/* テキストサブカラー */
+html.darkbluethemex-active [style*="color: rgb(113, 118, 123)"],
+html.darkbluethemex-active [style*="color:rgb(113, 118, 123)"] {
+  color: #8B98A5 !important;
+}
+
+/* ボーダーカラー（shorthand は4辺一括、top/bottom は個別に上書き） */
+html.darkbluethemex-active [style*="border-color: rgb(47, 51, 54)"],
+html.darkbluethemex-active [style*="border-color:rgb(47, 51, 54)"] {
+  border-color: #38444D !important;
+}
+
+html.darkbluethemex-active [style*="border-bottom-color: rgb(47, 51, 54)"],
+html.darkbluethemex-active [style*="border-bottom-color:rgb(47, 51, 54)"] {
+  border-bottom-color: #38444D !important;
+}
+
+html.darkbluethemex-active [style*="border-top-color: rgb(47, 51, 54)"],
+html.darkbluethemex-active [style*="border-top-color:rgb(47, 51, 54)"] {
+  border-top-color: #38444D !important;
 }
 
 /* ============================================================
