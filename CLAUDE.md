@@ -11,14 +11,25 @@ Chrome extension (Manifest V3) that converts X (formerly Twitter)'s black/Lights
 ```bash
 # Windows
 powershell -File zip.ps1
+npm run zip:win     # package.json 経由 (同じ処理)
 
 # Unix/macOS
 bash zip.sh
+npm run zip         # = npm run zip:nix
 ```
 
-Both produce `DarkBlueThemeX.zip` for Chrome Web Store upload. No npm, no build tools, no compilation step. Included: `manifest.json`, `src/`, `icons/`. Excluded: editor/system files (`*.DS_Store`, `*.swp`, `*~`), docs, and dev files.
+Both produce `DarkBlueThemeX.zip` for Chrome Web Store upload. No build tools, no compilation step — `package.json` の scripts はシェルスクリプトの薄いラッパー。Included: `manifest.json`, `src/`, `icons/`. Excluded: editor/system files (`*.DS_Store`, `*.swp`, `*~`), docs, and dev files.
 
 To test locally: load the project folder as an unpacked extension at `chrome://extensions` with Developer Mode enabled.
+
+## Release & CI (自動公開ワークフロー)
+
+`.github/workflows/publish.yml` は `release/**` ブランチに push されると起動し、Chrome Web Store に自動アップロード＆公開する。
+
+- ブランチ名と `manifest.json` の `version` が **完全一致必須**（例: `release/1.0.40` ⇔ `"version": "1.0.40"`）。不一致なら CI が失敗する。
+- zip は `zip -r DarkBlueThemeX.zip manifest.json src icons -x "*.DS_Store" "*.swp" "*~"` で作成（`zip.sh`/`zip.ps1` と同じ内容物）。
+- Secrets 必須: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_EXTENSION_ID`。
+- リリース手順は `vava` スキル（`/vava`）が自動化: バージョン +1 → main に push → `release/x.y.z` ブランチ作成 → 古いリリースブランチ削除。
 
 ## Architecture
 
@@ -138,6 +149,19 @@ Two message types (hardcoded strings in both `src/content.js` and `src/popup/pop
 | `src/popup/popup.html` | Extension popup UI |
 | `src/popup/popup.js` | Toggle logic, storage writes, tab state queries, message passing to content script |
 | `src/popup/popup.css` | Popup styling with DarkBlue palette CSS variables (all swatch colors reference these variables) |
+
+### Repository Layout (Reference)
+
+リリース zip には含まれない補助ディレクトリ:
+
+| Path | 用途 |
+|------|------|
+| `scripts/generate-icons.ps1` | 拡張機能アイコン (16/48/128px) 生成スクリプト |
+| `webstore/images/` | Chrome Web Store 掲載用タイル画像と生成スクリプト |
+| `webstore/screenshots/` | ストアリスティング用スクリーンショットと生成スクリプト |
+| `docs/privacy-policy*.md` | プライバシーポリシー (日本語・英語) |
+| `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (gitignore 対象) |
+| `AGENTS.md` | Codex CLI 用の並行ガイド。CLAUDE.md と同趣旨だが古くなっている場合あり — 仕様が変わったら両方を同期すること |
 
 ## Version Update
 
