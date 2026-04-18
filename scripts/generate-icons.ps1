@@ -94,16 +94,17 @@ function New-Icon($size, $outPath) {
     Write-Host "Created $outPath ($size x $size)"
 }
 
-$basePath = "C:\Users\szk\Work\DarkBlueThemeX\icons"
+# scripts/ から見て ../icons に出力（プロジェクトルート/icons/）
+$basePath = Join-Path $PSScriptRoot "..\icons" | Resolve-Path
 
 # Ensure directory exists
 if (-not (Test-Path $basePath)) {
     New-Item -ItemType Directory -Path $basePath -Force | Out-Null
 }
 
-New-Icon 16  "$basePath\icon16.png"
-New-Icon 48  "$basePath\icon48.png"
-New-Icon 128 "$basePath\icon128.png"
+New-Icon 16  (Join-Path $basePath "icon16.png")
+New-Icon 48  (Join-Path $basePath "icon48.png")
+New-Icon 128 (Join-Path $basePath "icon128.png")
 
 Write-Host ""
 Write-Host "All icons generated!" -ForegroundColor Green
