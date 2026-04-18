@@ -160,8 +160,9 @@ Two message types (hardcoded strings in both `src/content.js` and `src/popup/pop
 | `webstore/images/` | Chrome Web Store 掲載用タイル画像と生成スクリプト |
 | `webstore/screenshots/` | ストアリスティング用スクリーンショットと生成スクリプト |
 | `docs/privacy-policy*.md` | プライバシーポリシー (日本語・英語) |
-| `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (gitignore 対象) |
-| `AGENTS.md` | Codex CLI 用の並行ガイド。CLAUDE.md と同趣旨だが古くなっている場合あり — 仕様が変わったら両方を同期すること |
+| `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (`.gitignore` 対象) |
+
+> CLAUDE.md が唯一の正規ガイド。過去に存在した `AGENTS.md` (Codex 用の並行ドキュメント) は情報がドリフトする問題があったため削除済み。Codex を使う場合も CLAUDE.md を参照させること。
 
 ## Version Update
 
