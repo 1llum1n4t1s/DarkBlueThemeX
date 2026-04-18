@@ -35,6 +35,17 @@ jobs:
           fi
           echo "✅ ブランチ名と manifest バージョン一致: $expected"
 
+      - name: Node セットアップ
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: 依存インストール
+        run: npm ci || npm install
+
+      - name: アイコン生成
+        run: node scripts/generate-icons.js
+
       - name: zip パッケージを作成
         run: |
           zip -r DarkBlueThemeX.zip manifest.json src icons \

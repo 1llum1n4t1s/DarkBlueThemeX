@@ -1,12 +1,17 @@
 {
   "name": "dark-blue-theme-x",
   "version": "1.0.41",
+  "type": "commonjs",
   "private": true,
   "description": "X (Twitter) のダークテーマをDarkBlue(Dim)テーマに変換するChrome拡張機能",
   "scripts": {
+    "generate-icons": "node scripts/generate-icons.js",
     "zip:win": "powershell -ExecutionPolicy Bypass -File zip.ps1",
     "zip:nix": "bash zip.sh",
     "zip": "npm run zip:nix"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.0"
   },
   "license": "MIT"
 }
