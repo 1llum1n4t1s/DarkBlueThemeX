@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "chrome-webstore-upload-cli": "3.3.2",
-    "sharp": "^0.33.0"
+    "sharp": "^0.34.5"
   },
   "license": "MIT"
 }
