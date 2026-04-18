@@ -17,3 +17,6 @@ Thumbs.db
 # Windows reserved device names (誤作成防止)
 nul
 debug/
+
+# Claude Code 実行時の一時ロック (scheduled_tasks など)
+.claude/*.lock
