@@ -7,12 +7,12 @@
  *   2. React インラインスタイルのハードコード色を上書き
  *   3. アバター/通知等の特殊ケースを処理
  *
- * カラーパレット:
+ * カラーパレット (popup.css の CSS 変数が Single Source of Truth):
  *   背景メイン:     #15202B  rgb(21, 32, 43)
  *   背景カード:     #192734  rgb(25, 39, 52)
  *   背景ホバー:     #22303C  rgb(34, 48, 60)
  *   ボーダー:       #38444D  rgb(56, 68, 77)
- *   テキストメイン: #F7F9F9
+ *   テキストメイン: #E7E9EA
  *   テキストサブ:   #8B98A5
  *   アクセント:     #1D9BF0
  */
@@ -117,9 +117,14 @@ html.darkbluethemex-active [style*="border-top-color:rgb(47, 51, 54)"] {
    2. r-* アトミッククラスの上書き
    React Native Web が生成するハードコード色を DarkBlue に変換。
    クラス名は CSS プロパティ値から決定論的に生成されるため安定。
+
+   FOUC 系セレクタ (html[data-theme="dark"]:not(.darkbluethemex-off)) に追加する判断基準:
+     - <html>/<body> 直下に即適用され、JS 実行前に視覚的に影響するクラスのみ FOUC 系に追加。
+     - コンポーネント内部色 (カード/ホバー/テキスト/ボーダー) は html.darkbluethemex-active のみで十分。
+     - r-kemksi (純黒=背景ルート) は FOUC 系、r-g2wdr4 / r-z32n2g 等 (内部色) は active のみ。
    ============================================================ */
 
-/* 純黒背景 rgb(0,0,0) → メイン背景 */
+/* 純黒背景 rgb(0,0,0) → メイン背景 (FOUC 系: html/body 直下に影響するため両系統に必要) */
 html[data-theme="dark"]:not(.darkbluethemex-off) .r-kemksi,
 html.darkbluethemex-active .r-kemksi {
   background-color: #15202B !important;
@@ -151,6 +156,9 @@ html.darkbluethemex-active .r-5zmot {
    アバターコンテナの背景を塗ると画像が隠れる。
    ============================================================ */
 
+/* ユニバーサルセレクタ `*` は全要素を候補にするためコスト高だが、
+   アバターは深さが不定のネスト div を持つため完全な代替は難しい。
+   UserAvatar サブツリーはページ内で十数個程度のため実害は限定的。 */
 html.darkbluethemex-active [data-testid*="UserAvatar"],
 html.darkbluethemex-active [data-testid*="UserAvatar"] * {
   background-color: transparent !important;
@@ -175,8 +183,8 @@ html.darkbluethemex-active [data-testid="notification"]:hover {
   background-color: #22303C !important;
 }
 
-/* 通知を含む cellInnerDiv */
-html.darkbluethemex-active [data-testid="cellInnerDiv"]:has([data-testid="notification"]) {
+/* 通知を含む cellInnerDiv (通知ページスコープに限定して :has() の全ページ評価コストを排除) */
+html.darkbluethemex-active[data-dbtx-page="notifications"] [data-testid="cellInnerDiv"]:has([data-testid="notification"]) {
   background-color: transparent !important;
 }
 

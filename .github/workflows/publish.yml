@@ -13,13 +13,15 @@ jobs:
     name: Chrome Web Store 公開
     runs-on: ubuntu-latest
     steps:
+      # Dependabot (.github/dependabot.yml) が actions の更新 PR を作成する。
+      # 可能なら @v5 → SHA 固定へマージ時に順次切り替え推奨（サプライチェーン対策）。
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v5
 
       - name: バージョンを取得
         id: version
         run: |
-          version=$(grep -oP '(?<="version": ")[^"]+' manifest.json)
+          version=$(node -p "require('./manifest.json').version")
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "📦 公開対象バージョン: $version"
 
@@ -39,18 +41,19 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '20'
+          cache: 'npm'
 
-      - name: 依存インストール
-        run: npm ci || npm install
+      - name: 依存インストール（lockfile 厳密モード）
+        run: npm ci
+
+      - name: package.json と manifest.json の version 同期確認
+        run: npm run check-version
 
       - name: アイコン生成
         run: node scripts/generate-icons.js
 
-      - name: zip パッケージを作成
-        run: |
-          zip -r DarkBlueThemeX.zip manifest.json src icons \
-            -x "*.DS_Store" "*.swp" "*~"
-          ls -lh DarkBlueThemeX.zip
+      - name: zip パッケージを作成（zip.sh 単一定義を使用）
+        run: bash zip.sh
 
       - name: Chrome Web Store にアップロード & 公開
         env:
@@ -58,8 +61,10 @@ jobs:
           CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        # devDependencies で固定バージョンの chrome-webstore-upload-cli を使用
+        # (npx で毎回 latest を取得する方式はサプライチェーン攻撃の露出面が大きいため廃止)
         run: |
-          npx --yes chrome-webstore-upload-cli@3 upload \
+          ./node_modules/.bin/chrome-webstore-upload upload \
             --source DarkBlueThemeX.zip \
             --extension-id "$CWS_EXTENSION_ID" \
             --client-id "$CWS_CLIENT_ID" \

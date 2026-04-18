@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # GitHub Actions の自動更新 (SHA ピン化まで将来的に段階移行推奨)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+
+  # npm devDependencies (sharp / chrome-webstore-upload-cli) の自動更新
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+    # リリース公開に関わる重要依存は自動マージしない
+    open-pull-requests-limit: 5

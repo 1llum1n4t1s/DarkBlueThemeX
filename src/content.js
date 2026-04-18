@@ -1,23 +1,60 @@
 /**
- * DarkBlueThemeX - Content Script
+ * DarkBlueThemeX - Content Script (isolated world)
  *
  * X(旧Twitter)の data-theme="dark" を data-theme="dim" に切り替え、
  * X内蔵の DarkBlue(Dim) テーマ CSS カスタムプロパティを有効化する。
  * ハードコードされた r-* クラスとインラインスタイルは darkblue.css で上書き。
+ *
+ * 同期的な setAttribute/removeAttribute の intercept は src/intercept.js (MAIN world) で実装。
+ * この content.js からは <html data-dbtx-intercept="on|off"> 属性で ON/OFF を切り替える。
  */
 
 (function () {
   'use strict';
 
+  // 拡張機能の二重注入防止（ホットリロード等で IIFE が複数回評価される事態に備える）
+  if (window.__dbtx_content_installed__) return;
+  window.__dbtx_content_installed__ = true;
+
+  // ---- 状態クラス名（GUARD_CLASS と OFF_CLASS はペア、ここに集約）----
   const GUARD_CLASS = 'darkbluethemex-active';
+  const OFF_CLASS = 'darkbluethemex-off';
+
+  // ---- ストレージキー（STORAGE_KEY は popup.js:3 と同期。変更時は両方同時更新必須）----
   const STORAGE_KEY = 'darkblue_enabled';
   const LAST_STATE_KEY = 'darkbluethemex_was_active';
+
+  // ---- メッセージ型（popup.js 内の対応リテラルと同期。変更時は両方同時更新必須）----
+  const MSG_GET_STATE = 'darkblue:getState'; // popup.js:80 と一致
+
+  // ---- カラー定数（darkblue.css ヘッダと popup.css 変数を正として同期）----
+  const BG_PRIMARY = '#15202B';
+
+  // ---- intercept 制御属性（src/intercept.js が読む）----
+  const INTERCEPT_ATTR = 'data-dbtx-intercept';
 
   let isEnabled = true;
   let domObserver = null;
   let _metaThemeColor = null;       // キャッシュ: <meta name="theme-color">
   let _originalThemeColor = null;   // 元の theme-color 値（復元用）
   let _bodyThemeFixed = false;      // body の data-theme を変更したかどうか（jf-element 用）
+  let _lastStoredState = null;      // localStorage 重複書き込み抑制用
+
+  // ---- localStorage 早期読み込みによる楽観的 GUARD_CLASS 付与（FOUC 防止強化）----
+  // storage.sync の非同期解決を待たずに、前回セッションで有効だったなら即 GUARD_CLASS を付ける。
+  // ミスマッチ（前回有効・今回無効）の場合は init 内の evaluateAndApply で解除される。
+  try {
+    const wasActive = localStorage.getItem(LAST_STATE_KEY);
+    if (wasActive === 'true') {
+      document.documentElement.classList.add(GUARD_CLASS);
+      document.documentElement.classList.remove(OFF_CLASS);
+      document.documentElement.setAttribute(INTERCEPT_ATTR, 'on');
+      _lastStoredState = 'true';
+    } else if (wasActive === 'false') {
+      document.documentElement.classList.add(OFF_CLASS);
+      _lastStoredState = 'false';
+    }
+  } catch (e) { /* ignore (プライバシーモード等) */ }
 
   // ========================================================
   // テーマ検出・適用
@@ -27,13 +64,21 @@
     return document.documentElement.dataset.theme || null;
   }
 
-  const OFF_CLASS = 'darkbluethemex-off';
+  /** 状態変化時のみ localStorage に書き込む（同期 I/O 削減） */
+  function writeLastState(active) {
+    const next = active ? 'true' : 'false';
+    if (_lastStoredState === next) return;
+    try {
+      localStorage.setItem(LAST_STATE_KEY, next);
+      _lastStoredState = next;
+    } catch (e) { /* ignore */ }
+  }
 
   /** DarkBlue テーマを解除し、状態をリセットする共通処理 */
   function deactivateTheme() {
     const docEl = document.documentElement;
-    // setAttribute インターセプトを先に無効化（dark への復元を許可）
-    deactivateAttributeIntercept();
+    // intercept を先に OFF (dark 再設定の解禁)
+    docEl.setAttribute(INTERCEPT_ATTR, 'off');
     docEl.classList.remove(GUARD_CLASS);
     // CSS FOUC ルール (html[data-theme="dark"]:not(.darkbluethemex-off)) を無効化。
     // これがないと data-theme="dark" に戻しても CSS が DarkBlue 背景を強制してしまう。
@@ -46,7 +91,7 @@
       }
     }
     updateThemeColor(false);
-    try { localStorage.setItem(LAST_STATE_KEY, 'false'); } catch (e) { /* ignore */ }
+    writeLastState(false);
     updatePageFlags();
   }
 
@@ -57,14 +102,14 @@
    * - その他（light 等）→ DarkBlue を解除
    */
   function evaluateAndApply() {
+    const docEl = document.documentElement;
     const theme = getCurrentTheme();
 
     // 拡張機能が無効 → 解除
     if (!isEnabled) {
-      // dataset.theme = 'dark' 代入前にインターセプトを無効化（deactivateTheme 内でも呼ぶが順序上ここで必要）
-      deactivateAttributeIntercept();
-      if (theme === 'dim' && document.documentElement.classList.contains(GUARD_CLASS)) {
-        document.documentElement.dataset.theme = 'dark';
+      docEl.setAttribute(INTERCEPT_ATTR, 'off');
+      if (theme === 'dim' && docEl.classList.contains(GUARD_CLASS)) {
+        docEl.dataset.theme = 'dark';
       }
       deactivateTheme();
       return;
@@ -72,26 +117,21 @@
 
     // ダークテーマ(黒) → DarkBlue(dim) に変換
     if (theme === 'dark') {
-      document.documentElement.dataset.theme = 'dim';
+      docEl.dataset.theme = 'dim';
     }
 
     // dim テーマ or dark→dim 変換後 → ガードクラス適用
     if (theme === 'dark' || theme === 'dim') {
-      // classList.add()/remove() は既存/非存在クラスに対して no-op のためチェック不要
-      document.documentElement.classList.add(GUARD_CLASS);
-      document.documentElement.classList.remove(OFF_CLASS);
-      // setAttribute インターセプト有効化（X の JS が dark に戻すのを阻止）
-      installAttributeIntercept();
-      // body の data-theme も dim に変換（jf-element 用: body が独自に data-theme="dark" を持つ場合）
+      docEl.classList.add(GUARD_CLASS);
+      docEl.classList.remove(OFF_CLASS);
+      docEl.setAttribute(INTERCEPT_ATTR, 'on');
+      // body の data-theme も dim に変換（jf-element 用: Creator Studio 等で body が独自に持つ場合）
       if (document.body && document.body.dataset.theme === 'dark') {
         document.body.dataset.theme = 'dim';
         _bodyThemeFixed = true;
       }
-      // body bg は CSS ルール (html.darkbluethemex-active body) で適用
       updateThemeColor(true);
-      try { localStorage.setItem(LAST_STATE_KEY, 'true'); } catch (e) { /* ignore */ }
-      // インラインスタイル色修正は darkblue.css の CSS 属性セレクタ
-      // ([style*="..."]) で即座に適用されるため、JS 側の処理は不要
+      writeLastState(true);
       updatePageFlags();
       return;
     }
@@ -101,15 +141,20 @@
   }
 
   function updateThemeColor(isDarkBlue) {
+    // キャッシュ済みノードが DOM から外れている場合は再クエリ（X の SPA が <meta> を差し替える可能性）
+    if (_metaThemeColor && !document.contains(_metaThemeColor)) {
+      _metaThemeColor = null;
+    }
     if (!_metaThemeColor) {
       _metaThemeColor = document.querySelector('meta[name="theme-color"]');
-      if (_metaThemeColor) _originalThemeColor = _metaThemeColor.getAttribute('content');
+      if (_metaThemeColor && _originalThemeColor === null) {
+        _originalThemeColor = _metaThemeColor.getAttribute('content');
+      }
     }
     if (!_metaThemeColor) return;
     if (isDarkBlue) {
-      _metaThemeColor.setAttribute('content', '#15202B');
+      _metaThemeColor.setAttribute('content', BG_PRIMARY);
     } else if (_originalThemeColor) {
-      // 無効化時に X の元の theme-color を復元
       _metaThemeColor.setAttribute('content', _originalThemeColor);
     }
   }
@@ -120,19 +165,17 @@
 
   let _lastUrl = location.href;
 
-  /**
-   * 通知ページ判定フラグを html 要素に設定。
-   * CSS で通知ページ固有のスタイル（背景色 transparent 等）を適用するため。
-   */
+  /** 通知ページ判定フラグを html 要素に設定（CSS の :has() 範囲限定に使用） */
   function updatePageFlags() {
-    if (!document.documentElement.classList.contains(GUARD_CLASS)) {
-      document.documentElement.removeAttribute('data-dbtx-page');
+    const docEl = document.documentElement;
+    if (!docEl.classList.contains(GUARD_CLASS)) {
+      docEl.removeAttribute('data-dbtx-page');
       return;
     }
     if (location.pathname.startsWith('/notifications')) {
-      document.documentElement.setAttribute('data-dbtx-page', 'notifications');
+      docEl.setAttribute('data-dbtx-page', 'notifications');
     } else {
-      document.documentElement.removeAttribute('data-dbtx-page');
+      docEl.removeAttribute('data-dbtx-page');
     }
   }
 
@@ -146,36 +189,32 @@
   // ========================================================
   // MutationObserver: html 属性のみ監視（スマートフィルタリング）
   // ========================================================
-  //
-  // _suppressObserver フラグは廃止。MutationObserver コールバックは
-  // マイクロタスクとして非同期に実行されるため、同期的なフラグ制御では
-  // 自分自身の変更を抑制できない（コールバック発火時にはフラグが既に false）。
-  // 代わりに、変更後の値を見て自分の変更かどうかを判定する。
 
   function startObserver() {
     if (domObserver) domObserver.disconnect();
 
     domObserver = new MutationObserver((mutations) => {
-      // observe(documentElement) と observe(body) の両方から届くため target チェックが必要
-      let needsEval = false;
+      const docEl = document.documentElement;
       const theme = getCurrentTheme();
-      const hasGuard = document.documentElement.classList.contains(GUARD_CLASS);
+      const hasGuard = docEl.classList.contains(GUARD_CLASS);
+      let needsEval = false;
 
       for (const mutation of mutations) {
         if (mutation.target === document.body) {
           // body の data-theme が外部から dark に戻された場合、dim に再変換
           if (isEnabled && hasGuard && document.body.dataset.theme === 'dark') {
             document.body.dataset.theme = 'dim';
+            _bodyThemeFixed = true;
           }
           continue;
         }
         if (mutation.attributeName === 'data-theme') {
-          // dim は自分が設定した値 → 再評価不要
-          // !isEnabled 時は外部のテーマ変更に反応しない
-          if (theme !== 'dim' && isEnabled) {
-            needsEval = true;
-            break;
-          }
+          // 「dim かつ GUARD_CLASS 付与済み」なら自分が設定した値 → 再評価不要
+          // GUARD_CLASS 未付与の dim は X 公式 Dim 設定や別拡張由来なので再評価が必要
+          if (!isEnabled) continue;
+          if (theme === 'dim' && hasGuard) continue;
+          needsEval = true;
+          break;
         } else if (mutation.attributeName === 'class') {
           // ガードクラスが外部から除去された場合のみ再適用
           if (isEnabled && theme === 'dim' && !hasGuard) {
@@ -187,7 +226,6 @@
 
       if (needsEval) evaluateAndApply();
       // checkUrlChange() は History API フック + popstate で完全にカバー済み
-      // data-theme/class 属性変更は URL 変更と無関係なため、ここでの呼び出しは不要
     });
 
     domObserver.observe(document.documentElement, {
@@ -195,10 +233,13 @@
       attributeFilter: ['data-theme', 'class'],
     });
     // body の data-theme も監視（jf-element 用: Creator Studio 等のページ対応）
-    domObserver.observe(document.body, {
-      attributes: true,
-      attributeFilter: ['data-theme'],
-    });
+    // 防御的 null ガード（通常は waitForBody 経由で body 確定後に呼ばれる）
+    if (document.body) {
+      domObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['data-theme'],
+      });
+    }
   }
 
   // ========================================================
@@ -207,25 +248,20 @@
 
   function registerMessageListener() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.type === 'darkblue:toggle') {
-        isEnabled = message.enabled;
-        // storage.sync.set は popup.js 側で実行済み → ここでは不要
-        // （二重書き込みは storage.onChanged → evaluateAndApply の余分な発火を招く）
-        evaluateAndApply();
-        sendResponse({ ok: true });
-        return true;
-      }
+      // sender.id !== runtime.id なら他拡張機能からの偽装。即拒否。
+      if (!sender || sender.id !== chrome.runtime.id) return false;
 
-      if (message.type === 'darkblue:getState') {
+      if (message && message.type === MSG_GET_STATE) {
         const isActive = document.documentElement.classList.contains(GUARD_CLASS);
         const theme = getCurrentTheme();
-
         sendResponse({
           enabled: isEnabled,
           isBlackTheme: theme === 'dark' || (isActive && theme === 'dim'),
           isDarkBlueApplied: isActive,
+          theme,                                  // デバッグ表示用
+          hasGuard: isActive,
         });
-        return true;
+        return false; // 同期応答のため false（旧コードの `return true` は誤用）
       }
 
       return false;
@@ -236,7 +272,12 @@
   // 初期化
   // ========================================================
 
+  let _initialized = false;
+
   function init() {
+    if (_initialized) return; // bfcache 復元等での再呼び出し保険
+    _initialized = true;
+
     startObserver();
     registerMessageListener();
 
@@ -258,57 +299,32 @@
       evaluateAndApply();
     });
 
+    // storage.onChanged は「popup でのトグル」および「他タブからの同期」の唯一の経路。
+    // popup.js からの sendMessage('darkblue:toggle') は廃止済み（二重発火の原因だった）。
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'sync' && changes[STORAGE_KEY]) {
-        isEnabled = changes[STORAGE_KEY].newValue;
+        const newVal = changes[STORAGE_KEY].newValue;
+        if (newVal === isEnabled) return; // 既に同値ならスキップ
+        isEnabled = newVal;
         evaluateAndApply();
       }
     });
   }
 
-  // タブ復帰時に再評価（Xがテーマを変更している可能性）
+  // タブ復帰時に再評価（X がテーマを変更している可能性）
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && isEnabled) {
       evaluateAndApply();
     }
   });
 
-  // ========================================================
-  // setAttribute インターセプト
-  // X の main.js が data-theme="dark" を再設定するのを同期的に dim に変換。
-  // MutationObserver は非同期のため、これがないと黒テーマが一瞬描画される。
-  // ========================================================
-
-  // オリジナルのプロトタイプを一度だけキャプチャ（多重ラップ防止）
-  const _origSetAttribute = Element.prototype.setAttribute;
-  const _origRemoveAttribute = Element.prototype.removeAttribute;
-  let _attrInterceptActive = false;
-  let _attrInterceptInstalled = false;
-
-  function installAttributeIntercept() {
-    _attrInterceptActive = true;
-    if (_attrInterceptInstalled) return;
-    _attrInterceptInstalled = true;
-    const docEl = document.documentElement;
-
-    Element.prototype.setAttribute = function (name, value) {
-      if (_attrInterceptActive && this === docEl && name === 'data-theme' && value === 'dark') {
-        return _origSetAttribute.call(this, name, 'dim');
-      }
-      return _origSetAttribute.call(this, name, value);
-    };
-
-    Element.prototype.removeAttribute = function (name) {
-      if (_attrInterceptActive && this === docEl && name === 'data-theme') {
-        return;
-      }
-      return _origRemoveAttribute.call(this, name);
-    };
-  }
-
-  function deactivateAttributeIntercept() {
-    _attrInterceptActive = false;
-  }
+  // bfcache からの復元時、MutationObserver が disconnect されている可能性がある
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted && _initialized && !domObserver) {
+      startObserver();
+      if (isEnabled) evaluateAndApply();
+    }
+  });
 
   // クリーンアップ（unload は非推奨のため pagehide を使用）
   window.addEventListener('pagehide', () => {
