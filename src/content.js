@@ -40,6 +40,7 @@
   let _bodyThemeFixed = false;      // body の data-theme を変更したかどうか（jf-element 用）
   let _lastStoredState = null;      // localStorage 重複書き込み抑制用
   let _lastColorScheme = null;      // style 属性変化のフィルタリング用
+  let _syntheticDim = false;        // color-scheme フォールバックで合成した dim（無効化時に属性削除 vs dark 復元を区別）
 
   // ---- localStorage 早期読み込みによる楽観的 GUARD_CLASS 付与（FOUC 防止強化）----
   // storage.sync の非同期解決を待たずに、前回セッションで有効だったなら即 GUARD_CLASS を付ける。
@@ -99,13 +100,18 @@
     docEl.classList.remove(GUARD_CLASS);
     // CSS FOUC ルール無効化
     docEl.classList.add(OFF_CLASS);
-    // 拡張機能が追加した data-theme="dim" を削除（X 新仕様では data-theme 属性自体が不使用）
+    // 拡張機能が設定した data-theme="dim" を復元/削除
     if (docEl.dataset.theme === 'dim') {
-      docEl.removeAttribute('data-theme');
+      if (_syntheticDim) {
+        docEl.removeAttribute('data-theme');
+      } else {
+        docEl.dataset.theme = 'dark';
+      }
+      _syntheticDim = false;
     }
     if (document.body) {
       if (_bodyThemeFixed) {
-        document.body.removeAttribute('data-theme');
+        document.body.dataset.theme = 'dark';
         _bodyThemeFixed = false;
       }
     }
@@ -127,9 +133,13 @@
     // 拡張機能が無効 → 解除
     if (!isEnabled) {
       docEl.setAttribute(INTERCEPT_ATTR, 'off');
-      // 拡張機能が設定した data-theme="dim" を削除（X 新仕様では data-theme 不使用）
+      // 拡張機能が設定した data-theme="dim" を復元/削除
       if (docEl.dataset.theme === 'dim' && docEl.classList.contains(GUARD_CLASS)) {
-        docEl.removeAttribute('data-theme');
+        if (_syntheticDim) {
+          docEl.removeAttribute('data-theme');
+        } else {
+          docEl.dataset.theme = 'dark';
+        }
       }
       deactivateTheme();
       return;
@@ -137,6 +147,8 @@
 
     // ダークテーマ(黒) → DarkBlue(dim) に変換
     if (theme === 'dark') {
+      // レガシー（data-theme 属性あり）vs 合成（color-scheme フォールバック）を記録
+      _syntheticDim = !docEl.hasAttribute('data-theme');
       docEl.dataset.theme = 'dim';
     }
 
