@@ -136,6 +136,11 @@ html.darkbluethemex-active .r-kemksi {
   background-color: #15202B !important;
 }
 
+/* 近黒モーダル背景 rgb(20,20,20) → メイン背景 */
+html.darkbluethemex-active .r-cl2sl0 {
+  background-color: #15202B !important;
+}
+
 /* 近黒カード背景 rgb(22,24,28) → カード背景 */
 html.darkbluethemex-active .r-g2wdr4 {
   background-color: #192734 !important;
