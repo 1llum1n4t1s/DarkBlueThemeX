@@ -180,7 +180,7 @@ When X introduces a new dark-theme color not yet handled:
 | `docs/privacy-policy*.md` | プライバシーポリシー (日本語・英語) |
 | `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (`.gitignore` 対象) |
 
-> CLAUDE.md が唯一の正規ガイド。過去に存在した `AGENTS.md` (Codex 用の並行ドキュメント) は情報がドリフトする問題があったため削除済み。Codex を使う場合も CLAUDE.md を参照させること。
+> CLAUDE.md が唯一の正規ガイド。過去に存在した `AGENTS.md` は情報がドリフトする問題があったため削除済み。
 
 ## Version Update
 

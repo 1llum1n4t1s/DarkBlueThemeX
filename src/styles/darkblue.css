@@ -28,12 +28,14 @@
    CSS は即座に再注入されるため空白期間なく背景色をカバーする。
    拡張機能の無効化時は content.js が darkbluethemex-off クラスを付与し、
    この FOUC ルールを無効化して元の黒テーマに戻す。 */
-html[data-theme="dark"]:not(.darkbluethemex-off) {
+html[data-theme="dark"]:not(.darkbluethemex-off),
+html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) {
   color-scheme: dark !important;
   background-color: #15202B !important;
 }
 
-html[data-theme="dark"]:not(.darkbluethemex-off) body {
+html[data-theme="dark"]:not(.darkbluethemex-off) body,
+html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) body {
   background-color: #15202B !important;
 }
 
@@ -48,6 +50,8 @@ html.darkbluethemex-active body {
 /* フォールバック: React root コンテナ + ローディング画面 */
 html[data-theme="dark"]:not(.darkbluethemex-off) #react-root,
 html[data-theme="dark"]:not(.darkbluethemex-off) #react-root > div,
+html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) #react-root,
+html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) #react-root > div,
 html.darkbluethemex-active #react-root,
 html.darkbluethemex-active #react-root > div {
   background-color: #15202B !important;
@@ -62,6 +66,8 @@ html.darkbluethemex-active #react-root > div {
 /* 純黒背景 → メイン背景（FOUC 防止込み） */
 html[data-theme="dark"]:not(.darkbluethemex-off) [style*="background-color: rgb(0, 0, 0)"],
 html[data-theme="dark"]:not(.darkbluethemex-off) [style*="background-color:rgb(0, 0, 0)"],
+html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) [style*="background-color: rgb(0, 0, 0)"],
+html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) [style*="background-color:rgb(0, 0, 0)"],
 html.darkbluethemex-active [style*="background-color: rgb(0, 0, 0)"],
 html.darkbluethemex-active [style*="background-color:rgb(0, 0, 0)"] {
   background-color: #15202B !important;

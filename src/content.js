@@ -39,6 +39,7 @@
   let _originalThemeColor = null;   // 元の theme-color 値（復元用）
   let _bodyThemeFixed = false;      // body の data-theme を変更したかどうか（jf-element 用）
   let _lastStoredState = null;      // localStorage 重複書き込み抑制用
+  let _lastColorScheme = null;      // style 属性変化のフィルタリング用
 
   // ---- localStorage 早期読み込みによる楽観的 GUARD_CLASS 付与（FOUC 防止強化）----
   // storage.sync の非同期解決を待たずに、前回セッションで有効だったなら即 GUARD_CLASS を付ける。
@@ -61,7 +62,13 @@
   // ========================================================
 
   function getCurrentTheme() {
-    return document.documentElement.dataset.theme || null;
+    const dataTheme = document.documentElement.dataset.theme;
+    if (dataTheme) return dataTheme;
+    // X が data-theme 属性を廃止した場合の代替検出:
+    // html の inline style に color-scheme: dark が含まれる → 黒テーマと判断
+    const style = document.documentElement.getAttribute('style') || '';
+    if (style.includes('color-scheme: dark')) return 'dark';
+    return null;
   }
 
   /** 状態変化時のみ localStorage に書き込む（同期 I/O 削減） */
@@ -80,13 +87,15 @@
     // intercept を先に OFF (dark 再設定の解禁)
     docEl.setAttribute(INTERCEPT_ATTR, 'off');
     docEl.classList.remove(GUARD_CLASS);
-    // CSS FOUC ルール (html[data-theme="dark"]:not(.darkbluethemex-off)) を無効化。
-    // これがないと data-theme="dark" に戻しても CSS が DarkBlue 背景を強制してしまう。
+    // CSS FOUC ルール無効化
     docEl.classList.add(OFF_CLASS);
+    // 拡張機能が追加した data-theme="dim" を削除（X 新仕様では data-theme 属性自体が不使用）
+    if (docEl.dataset.theme === 'dim') {
+      docEl.removeAttribute('data-theme');
+    }
     if (document.body) {
-      // body の data-theme を元に戻す（jf-element 用）
       if (_bodyThemeFixed) {
-        document.body.dataset.theme = 'dark';
+        document.body.removeAttribute('data-theme');
         _bodyThemeFixed = false;
       }
     }
@@ -108,8 +117,9 @@
     // 拡張機能が無効 → 解除
     if (!isEnabled) {
       docEl.setAttribute(INTERCEPT_ATTR, 'off');
-      if (theme === 'dim' && docEl.classList.contains(GUARD_CLASS)) {
-        docEl.dataset.theme = 'dark';
+      // 拡張機能が設定した data-theme="dim" を削除（X 新仕様では data-theme 不使用）
+      if (docEl.dataset.theme === 'dim' && docEl.classList.contains(GUARD_CLASS)) {
+        docEl.removeAttribute('data-theme');
       }
       deactivateTheme();
       return;
@@ -221,6 +231,16 @@
             needsEval = true;
             break;
           }
+        } else if (mutation.attributeName === 'style') {
+          // color-scheme の変化を検出（X がテーマを切り替えた場合）
+          if (!isEnabled) continue;
+          const style = docEl.getAttribute('style') || '';
+          const currentScheme = style.includes('color-scheme: dark') ? 'dark' : 'other';
+          if (currentScheme !== _lastColorScheme) {
+            _lastColorScheme = currentScheme;
+            needsEval = true;
+            break;
+          }
         }
       }
 
@@ -230,7 +250,7 @@
 
     domObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-theme', 'class'],
+      attributeFilter: ['data-theme', 'class', 'style'],
     });
     // body の data-theme も監視（jf-element 用: Creator Studio 等のページ対応）
     // 防御的 null ガード（通常は waitForBody 経由で body 確定後に呼ばれる）
