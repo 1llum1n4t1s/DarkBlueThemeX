@@ -88,18 +88,24 @@ content.js (isolated world) から intercept の ON/OFF を制御する手段と
 
 `removeAttribute('data-theme')` は「削除して X のリセット」ではなく「`data-theme="dim"` に再設定」するよう変換し、silently 無視による混乱を避ける設計。
 
-### Theme Detection via data-theme Attribute
+### Theme Detection (data-theme + color-scheme フォールバック)
 
-The extension reads `document.documentElement.dataset.theme`:
-- `"dark"` → X's black theme detected → convert to `"dim"` and apply DarkBlue
-- `"dim"` → DarkBlue already active → maintain guard class
-- Other (light, etc.) → deactivate
+`getCurrentTheme()` は以下の優先順位でテーマを判定する:
+1. `document.documentElement.dataset.theme` が存在すればその値を使用（ただし拡張機能が設定した `"dim"` かつ GUARD_CLASS 付与済みの場合は `color-scheme` を優先確認し、ダークでなければ `null` を返す）
+2. `data-theme` がない場合、`<html>` の inline style から `color-scheme: dark` を検出すれば `"dark"` を返す（X が `data-theme` 属性を廃止したことへの対応）
+3. いずれにも該当しなければ `null`（ライトテーマ等 → deactivate）
+
+判定結果の処理:
+- `"dark"` → X の黒テーマ → `data-theme="dim"` を設定して DarkBlue 適用
+- `"dim"` → DarkBlue 維持（ガードクラス保持）
+- `null` / その他 → deactivate
 
 ### MutationObserver Smart Filtering
 
-The observer watches only `data-theme` and `class` attributes on `<html>` (and `data-theme` on `<body>` for jf-element pages). The callback checks current attribute values to determine if a mutation was self-inflicted:
+The observer watches `data-theme`, `class`, and `style` attributes on `<html>` (and `data-theme` on `<body>` for jf-element pages). The callback checks current attribute values to determine if a mutation was self-inflicted:
 - `data-theme` change: **GUARD_CLASS 付与済みの `"dim"`** は自分が設定した値としてスキップ。GUARD_CLASS 未付与の `"dim"` は X 公式 Dim 設定や他拡張由来なので再評価する（この区別を入れないと自己変更誤検知で初期適用が漏れる）。extension 無効時は常にスキップ。
 - `class` change: only react if guard class was externally removed while theme is `"dim"`
+- `style` change: `color-scheme` の値が前回と異なる場合のみ再評価（X が `data-theme` を廃止し `color-scheme` で管理する方式に移行したため追加）。前回値キャッシュ (`_lastColorScheme`) でフィルタリングし、無関係な style 変更では発火しない。
 
 SPA navigation detection is handled separately by History API hooks (`pushState`/`replaceState`) and `popstate` listener — not by the observer.
 
