@@ -62,12 +62,22 @@
   // ========================================================
 
   function getCurrentTheme() {
-    const dataTheme = document.documentElement.dataset.theme;
-    if (dataTheme) return dataTheme;
+    const docEl = document.documentElement;
+    const style = docEl.getAttribute('style') || '';
+    const isDarkScheme = style.includes('color-scheme: dark');
+
+    const dataTheme = docEl.dataset.theme;
+    if (dataTheme) {
+      // 拡張機能が設定した dim が color-scheme の実態を隠さないようにする:
+      // ユーザーがライトテーマに切り替えた場合、dim を無視してテーマ解除へ
+      if (dataTheme === 'dim' && docEl.classList.contains(GUARD_CLASS) && !isDarkScheme) {
+        return null;
+      }
+      return dataTheme;
+    }
     // X が data-theme 属性を廃止した場合の代替検出:
     // html の inline style に color-scheme: dark が含まれる → 黒テーマと判断
-    const style = document.documentElement.getAttribute('style') || '';
-    if (style.includes('color-scheme: dark')) return 'dark';
+    if (isDarkScheme) return 'dark';
     return null;
   }
 
