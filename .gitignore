@@ -20,3 +20,6 @@ debug/
 
 # Claude Code 実行時の一時ロック (scheduled_tasks など)
 .claude/*.lock
+
+# Serena LSP プロジェクト設定
+.serena/
