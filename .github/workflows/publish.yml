@@ -16,7 +16,7 @@ jobs:
       # Dependabot (.github/dependabot.yml) が actions の更新 PR を作成する。
       # 可能なら @v5 → SHA 固定へマージ時に順次切り替え推奨（サプライチェーン対策）。
       - name: リポジトリをチェックアウト
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: バージョンを取得
         id: version
