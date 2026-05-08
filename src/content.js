@@ -255,11 +255,11 @@
           }
         } else if (mutation.attributeName === 'style') {
           // color-scheme の変化を検出（X がテーマを切り替えた場合）
-          if (!isEnabled) continue;
           const style = docEl.getAttribute('style') || '';
           const currentScheme = style.includes('color-scheme: dark') ? 'dark' : 'other';
           if (currentScheme !== _lastColorScheme) {
             _lastColorScheme = currentScheme;
+            if (!isEnabled) continue;
             needsEval = true;
             break;
           }
