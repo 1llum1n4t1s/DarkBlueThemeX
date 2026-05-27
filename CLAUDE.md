@@ -47,7 +47,7 @@ To test locally:
 - ブランチ名と `manifest.json` の `version` が **完全一致必須**（例: `release/1.0.40` ⇔ `"version": "1.0.40"`）。不一致なら CI が失敗する。
 - `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者同期も `npm run check-version` で検証される（不一致なら CI 失敗）。
 - zip は `bash zip.sh both` を CI 内で直接呼び出す形に統一済み（過去はインラインコマンドだったが、パッケージ内容物定義を 1 箇所に集約するため）。
-- Chrome Web Store CLI は `devDependencies` 固定バージョン (`chrome-webstore-upload-cli@4.0.0`) で、CI は `./node_modules/.bin/chrome-webstore-upload` を使う。
+- Chrome Web Store CLI は `devDependencies` 固定バージョン (`chrome-webstore-upload-cli@3.5.0`) で、CI は `./node_modules/.bin/chrome-webstore-upload` を使う。v4 は publisherId 新規必須化で個人開発者の Secrets 構成と不適合なため意図的に 3.x に留めている (Dependabot が v4 を再提案してきても merge しないこと)。
 - Firefox AMO は `web-ext sign --channel=listed` で提出。`.amo-metadata.json` で `version.license: "MIT"` を毎回付与（AMO API v5 では各 version 提出時に license 明示必須、過去 version から継承しないため）。
 - GitHub Actions 依存と npm 依存は `.github/dependabot.yml` で週次自動更新。
 - Secrets 必須:

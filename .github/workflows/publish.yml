@@ -93,20 +93,21 @@ jobs:
           path: .
 
       - name: Chrome Web Store にアップロード & 公開
-        # chrome-webstore-upload-cli v4 で --client-id / --client-secret / --refresh-token /
-        # --extension-id フラグは廃止され、CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN /
-        # EXTENSION_ID 環境変数経由でのみ受け付ける仕様に変わった (upstream issue #80)。
-        # GitHub Secrets 名は既存の CWS_ プレフィックス付きを維持し、ここで CLI 期待名に alias する。
         env:
-          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-          EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
-        # devDependencies で固定バージョンの chrome-webstore-upload-cli を使用
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        # devDependencies で固定バージョンの chrome-webstore-upload-cli v3.5.0 を使用。
+        # v4 は publisherId 新規必須化があり個人開発者の Secrets 構成と不適合のため v3 系で固定。
         # (npx で毎回 latest を取得する方式はサプライチェーン攻撃の露出面が大きいため廃止)
         run: |
           ./node_modules/.bin/chrome-webstore-upload upload \
             --source DarkBlueThemeX-chrome.zip \
+            --extension-id "$CWS_EXTENSION_ID" \
+            --client-id "$CWS_CLIENT_ID" \
+            --client-secret "$CWS_CLIENT_SECRET" \
+            --refresh-token "$CWS_REFRESH_TOKEN" \
             --auto-publish
           echo "🎉 Chrome Web Store への公開リクエストを送信したよ〜"
 
@@ -184,8 +185,10 @@ jobs:
           if [ "$rc" -ne 0 ]; then
             if grep -q "Approval: timeout exceeded" /tmp/web-ext.log; then
               echo "::warning::web-ext sign が timeout exceeded で exit 1 を返したが submission は AMO に受理済み (既知挙動)。CI green 化のため exit 0 扱いに変換します"
+            elif grep -qE "Version .* already exists\.|Submission failed \([0-9]+\): Conflict" /tmp/web-ext.log; then
+              echo "::warning::AMO に同 version の submission が既に存在する (Chrome 側修正のための同 version 再 push 時に発生する想定挙動)。CI green 化のため exit 0 扱いに変換します"
             else
-              echo "::error::web-ext sign が timeout exceeded 以外の理由で失敗しました (rc=$rc)。ログ確認要"
+              echo "::error::web-ext sign が timeout exceeded / 同 version 重複以外の理由で失敗しました (rc=$rc)。ログ確認要"
               exit "$rc"
             fi
           fi
