@@ -93,20 +93,20 @@ jobs:
           path: .
 
       - name: Chrome Web Store にアップロード & 公開
+        # chrome-webstore-upload-cli v4 で --client-id / --client-secret / --refresh-token /
+        # --extension-id フラグは廃止され、CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN /
+        # EXTENSION_ID 環境変数経由でのみ受け付ける仕様に変わった (upstream issue #80)。
+        # GitHub Secrets 名は既存の CWS_ プレフィックス付きを維持し、ここで CLI 期待名に alias する。
         env:
-          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
         # devDependencies で固定バージョンの chrome-webstore-upload-cli を使用
         # (npx で毎回 latest を取得する方式はサプライチェーン攻撃の露出面が大きいため廃止)
         run: |
           ./node_modules/.bin/chrome-webstore-upload upload \
             --source DarkBlueThemeX-chrome.zip \
-            --extension-id "$CWS_EXTENSION_ID" \
-            --client-id "$CWS_CLIENT_ID" \
-            --client-secret "$CWS_CLIENT_SECRET" \
-            --refresh-token "$CWS_REFRESH_TOKEN" \
             --auto-publish
           echo "🎉 Chrome Web Store への公開リクエストを送信したよ〜"
 
