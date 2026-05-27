@@ -1,4 +1,4 @@
-name: Publish to Chrome Web Store
+name: Publish to Chrome Web Store + Firefox AMO
 
 on:
   push:
@@ -9,12 +9,12 @@ permissions:
   contents: read
 
 jobs:
-  publish:
-    name: Chrome Web Store 公開
+  package:
+    name: 拡張機能パッケージ作成
     runs-on: ubuntu-latest
     steps:
       # Dependabot (.github/dependabot.yml) が actions の更新 PR を作成する。
-      # 可能なら @v5 → SHA 固定へマージ時に順次切り替え推奨（サプライチェーン対策）。
+      # 可能なら @v6 → SHA 固定へマージ時に順次切り替え推奨（サプライチェーン対策）。
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v6
 
@@ -46,14 +46,51 @@ jobs:
       - name: 依存インストール（lockfile 厳密モード）
         run: npm ci
 
-      - name: package.json と manifest.json の version 同期確認
+      - name: package.json / manifest.json / manifest.firefox.json の version 同期確認
         run: npm run check-version
 
       - name: アイコン生成
         run: node scripts/generate-icons.js
 
-      - name: zip パッケージを作成（zip.sh 単一定義を使用）
-        run: bash zip.sh
+      - name: Chrome + Firefox 両方のパッケージを作成（zip.sh 単一定義を使用）
+        run: bash zip.sh both
+
+      - name: Chrome ZIP artifact を保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: darkbluethemex-chrome
+          path: DarkBlueThemeX-chrome.zip
+          if-no-files-found: error
+
+      - name: Firefox XPI artifact を保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: darkbluethemex-firefox
+          path: DarkBlueThemeX-firefox.xpi
+          if-no-files-found: error
+
+  publish-chrome:
+    name: Chrome Web Store にアップロード & 公開
+    runs-on: ubuntu-latest
+    needs: package
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v6
+
+      - name: Node セットアップ
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 依存インストール（lockfile 厳密モード）
+        run: npm ci
+
+      - name: Chrome ZIP artifact を取得
+        uses: actions/download-artifact@v4
+        with:
+          name: darkbluethemex-chrome
+          path: .
 
       - name: Chrome Web Store にアップロード & 公開
         env:
@@ -65,10 +102,93 @@ jobs:
         # (npx で毎回 latest を取得する方式はサプライチェーン攻撃の露出面が大きいため廃止)
         run: |
           ./node_modules/.bin/chrome-webstore-upload upload \
-            --source DarkBlueThemeX.zip \
+            --source DarkBlueThemeX-chrome.zip \
             --extension-id "$CWS_EXTENSION_ID" \
             --client-id "$CWS_CLIENT_ID" \
             --client-secret "$CWS_CLIENT_SECRET" \
             --refresh-token "$CWS_REFRESH_TOKEN" \
             --auto-publish
           echo "🎉 Chrome Web Store への公開リクエストを送信したよ〜"
+
+  publish-firefox:
+    name: Firefox AMO に submission
+    runs-on: ubuntu-latest
+    needs: package
+    # Chrome publish が失敗 (同 version 重複 upload 等) しても Firefox AMO は独立 submit する。
+    # `if: success() || failure()` がないと「Chrome 失敗 → Firefox AMO 連鎖 skip」で
+    # リカバリーフロー全体が機能しなくなる (cancelled() 時のみ skip)。
+    if: ${{ success() || failure() }}
+    steps:
+      - name: リポジトリをチェックアウト
+        # web-ext は devDependencies なので package.json + lockfile が必要 (npm ci で取得)
+        uses: actions/checkout@v6
+
+      - name: Node セットアップ
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 依存インストール（lockfile 厳密モード）
+        run: npm ci
+
+      - name: アイコン生成
+        run: node scripts/generate-icons.js
+
+      - name: Firefox 用ソースディレクトリを構築
+        # manifest.firefox.json を manifest.json として配置し、icons / src を同梱。
+        # web-ext sign は source-dir を受け取って自身で xpi を構築するため、
+        # ここでは zip 化せず source dir のまま渡す (二度手間の zip 化を避ける)。
+        run: |
+          mkdir -p firefox-build
+          cp manifest.firefox.json firefox-build/manifest.json
+          cp -r icons firefox-build/
+          cp -r src firefox-build/
+          find firefox-build \( -name "*.DS_Store" -o -name "*.swp" -o -name "*~" \) -delete
+          echo "📂 firefox-build 内容:"
+          ls -la firefox-build/
+
+      - name: Firefox AMO に submit (web-ext sign --channel=listed)
+        # web-ext 10+ では submission API がデフォルト動作 (`--use-submission-api` フラグは廃止)。
+        # `--channel=listed` で AMO 公開 (人間レビュー入り)、submission 受付完了で job 成功扱い。
+        # 実際のストア反映はレビュー通過後 (通常 1〜数日)、メール通知あり。
+        env:
+          # AMO API キー (JWT issuer / secret)
+          # GitHub Secrets に設定: `gh secret set AMO_JWT_ISSUER` / `gh secret set AMO_JWT_SECRET`
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -z "$WEB_EXT_API_KEY" ] || [ -z "$WEB_EXT_API_SECRET" ]; then
+            echo "::error::AMO_JWT_ISSUER / AMO_JWT_SECRET の GitHub Secrets が未設定です"
+            echo "  JWT 発行: https://addons.mozilla.org/ja/developers/addon/api/key/"
+            echo "  登録: gh secret set AMO_JWT_ISSUER / gh secret set AMO_JWT_SECRET"
+            exit 1
+          fi
+          # npx --no で package-lock.json integrity 検証済みのローカル版を呼ぶ (Chrome 側と同じ
+          # サプライチェーン方針)。--source-dir は事前に構築した firefox-build/。
+          # --amo-metadata=.amo-metadata.json で version.license: "MIT" を毎回 submission に含める
+          # (AMO API v5 仕様: 各 version 提出時に license 明示必須、過去 version からの継承なし)。
+          #
+          # `web-ext sign --channel=listed` は AMO の auto-sign を待たずに 15 分で timeout exceeded を
+          # 返して exit 1 になる既知挙動がある。submission 自体は受理済みなので、timeout exceeded を
+          # 検出したら warning 扱いで exit 0 に書き換えて CI を green 化する。
+          # それ以外の exit 1 はそのまま fail。
+          set +e
+          npx --no web-ext sign \
+            --source-dir=firefox-build \
+            --artifacts-dir=web-ext-artifacts \
+            --channel=listed \
+            --amo-metadata=.amo-metadata.json 2>&1 | tee /tmp/web-ext.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            if grep -q "Approval: timeout exceeded" /tmp/web-ext.log; then
+              echo "::warning::web-ext sign が timeout exceeded で exit 1 を返したが submission は AMO に受理済み (既知挙動)。CI green 化のため exit 0 扱いに変換します"
+            else
+              echo "::error::web-ext sign が timeout exceeded 以外の理由で失敗しました (rc=$rc)。ログ確認要"
+              exit "$rc"
+            fi
+          fi
+          echo "🦊 Firefox AMO への submission 送信完了 (レビュー待ち)"
+          echo "🔗 AMO Developer Hub: https://addons.mozilla.org/developers/"
+          echo "⏰ レビュー結果は通常 1〜数日でメール通知"

@@ -4,39 +4,68 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Chrome extension (Manifest V3) that converts X (formerly Twitter)'s black/Lights Out dark theme into the classic DarkBlue (Dim) theme. Published on Chrome Web Store as "帰ってきたDarkBlueテーマ(X)". Version is the single source of truth in `manifest.json` (popup reads it dynamically via `chrome.runtime.getManifest()`). Zero external dependencies — pure vanilla JS and CSS.
+Cross-browser Manifest V3 拡張機能 (Chrome / Edge / Brave / Firefox 142+) で、X (旧 Twitter) の黒/Lights Out テーマを旧 DarkBlue(Dim) テーマに変換する。Chrome Web Store には「帰ってきたDarkBlueテーマ(X)」として公開、Firefox AMO 対応済み (ストアリスティングは別途申請)。**Version の真実の源は `manifest.json`** で、`manifest.firefox.json` と `package.json` は CI の `npm run check-version` で 3 ファイル同期を強制。popup は `chrome.runtime.getManifest().version` で動的取得。Zero external dependencies — pure vanilla JS と CSS のみ。
 
 ## Build & Package
 
 ```bash
-# Windows
+# Windows (Chrome + Firefox 両方)
 powershell -File zip.ps1
-npm run zip:win     # package.json 経由 (同じ処理)
+npm run zip:win                   # package.json 経由 (同じ処理)
 
-# Unix/macOS
+# Unix/macOS (Chrome + Firefox 両方)
 bash zip.sh
-npm run zip         # = npm run zip:nix
+npm run zip                       # = npm run zip:nix
+
+# variant 個別
+bash zip.sh chrome                # Chrome のみ
+bash zip.sh firefox               # Firefox のみ
+powershell -File zip.ps1 -Target chrome
+powershell -File zip.ps1 -Target firefox
 ```
 
-Both produce `DarkBlueThemeX.zip` for Chrome Web Store upload. No build tools, no compilation step — `package.json` の scripts はシェルスクリプトの薄いラッパー。Included: `manifest.json`, `src/`, `icons/`. Excluded: editor/system files (`*.DS_Store`, `*.swp`, `*~`), docs, and dev files.
+成果物:
+- **`DarkBlueThemeX-chrome.zip`** — Chrome Web Store にアップロードする ZIP
+- **`DarkBlueThemeX-firefox.xpi`** — Firefox AMO にアップロードする XPI (中身は ZIP、`manifest.firefox.json` を `manifest.json` にリネームして同梱)
 
-アイコン再生成が必要な場合は `npm run generate-icons` (Node.js + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成) と `chrome-webstore-upload-cli` (CI 用) の2つに固定。**ランタイム依存はゼロ**。
+No build tools, no compilation step — `package.json` の scripts はシェルスクリプトの薄いラッパー。Included: variant 別 manifest, `src/`, `icons/`. Excluded: editor/system files (`*.DS_Store`, `*.swp`, `*~`), docs, dev files。
 
-`npm run check-version` で `package.json` と `manifest.json` の version 一致を検証できる (CI ステップでも実行される)。
+**Windows の zip.ps1 は `System.IO.Compression.ZipFile` を直接使い、エントリ名を forward slash に正規化**している (Windows PowerShell 5.1 の `Compress-Archive` は backslash separator で zip を作る既知バグがあり、Firefox AMO の web-ext lint と一部の unzip ツールが弾くため)。
 
-To test locally: load the project folder as an unpacked extension at `chrome://extensions` with Developer Mode enabled.
+アイコン再生成が必要な場合は `npm run generate-icons` (Node.js + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成) と `chrome-webstore-upload-cli` (CWS CI 用) と `web-ext` (AMO CI 用) の 3 つに固定。**ランタイム依存はゼロ**。
+
+`npm run check-version` で `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証できる (CI ステップでも実行される)。
+
+To test locally:
+- **Chrome / Edge / Brave**: `chrome://extensions` で「パッケージ化されていない拡張機能を読み込む」からプロジェクトフォルダを選択
+- **Firefox**: `bash zip.sh firefox` でビルドした `DarkBlueThemeX-firefox.xpi` を `about:debugging#/runtime/this-firefox` で「一時的なアドオンとして読み込む」(セッションごとに再読み込みが必要)
 
 ## Release & CI (自動公開ワークフロー)
 
-`.github/workflows/publish.yml` は `release/**` ブランチに push されると起動し、Chrome Web Store に自動アップロード＆公開する。
+`.github/workflows/publish.yml` は `release/**` ブランチに push されると起動し、**Chrome Web Store と Firefox AMO に同時に**自動アップロード＆申請する。
 
 - ブランチ名と `manifest.json` の `version` が **完全一致必須**（例: `release/1.0.40` ⇔ `"version": "1.0.40"`）。不一致なら CI が失敗する。
-- `package.json` と `manifest.json` の version 同期も `npm run check-version` で検証される（不一致なら CI 失敗）。
-- zip は `bash zip.sh` を CI 内で直接呼び出す形に統一済み（過去はインラインコマンドだったが、パッケージ内容物定義を 1 箇所に集約するため）。
-- Chrome Web Store CLI は `devDependencies` 固定バージョン (`chrome-webstore-upload-cli@3.3.2`) で、CI は `./node_modules/.bin/chrome-webstore-upload` を使う（過去は `npx --yes` で毎回 latest を取得していたが、サプライチェーン観点で廃止）。
+- `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者同期も `npm run check-version` で検証される（不一致なら CI 失敗）。
+- zip は `bash zip.sh both` を CI 内で直接呼び出す形に統一済み（過去はインラインコマンドだったが、パッケージ内容物定義を 1 箇所に集約するため）。
+- Chrome Web Store CLI は `devDependencies` 固定バージョン (`chrome-webstore-upload-cli@4.0.0`) で、CI は `./node_modules/.bin/chrome-webstore-upload` を使う。
+- Firefox AMO は `web-ext sign --channel=listed` で提出。`.amo-metadata.json` で `version.license: "MIT"` を毎回付与（AMO API v5 では各 version 提出時に license 明示必須、過去 version から継承しないため）。
 - GitHub Actions 依存と npm 依存は `.github/dependabot.yml` で週次自動更新。
-- Secrets 必須: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_EXTENSION_ID`。
+- Secrets 必須:
+  - **Chrome Web Store**: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_EXTENSION_ID`
+  - **Firefox AMO**: `AMO_JWT_ISSUER`, `AMO_JWT_SECRET`（[AMO Developer Hub](https://addons.mozilla.org/ja/developers/addon/api/key/) で発行 → `gh secret set` で登録）
+- Firefox AMO ジョブは `if: success() || failure()` 条件で、Chrome 公開が失敗しても独立して走る（重複 upload 等の片側エラーでもう片方を諦めないため）。
+- `web-ext sign --channel=listed` は submission 受理後 15 分で `Approval: timeout exceeded` を返して exit 1 になる既知挙動があり、CI はそれだけは warning 扱いに変換して green 化する（submission 自体は AMO に届いている）。
 - リリース手順は `vava` スキル（`/vava`）が自動化: バージョン +1 → main に push → `release/x.y.z` ブランチ作成 → 古いリリースブランチ削除。
+
+## Firefox AMO 対応の構造
+
+- `manifest.firefox.json` が Firefox 専用 manifest。差分は **`browser_specific_settings.gecko`** のみ:
+  - `id`: `{6a3c2b7e-9d4f-4a1c-b8e5-2f7d8c9e1a3b}` (UUID 形式、初回 AMO 公開後は変更不可)
+  - `strict_min_version`: `"142.0"` (`data_collection_permissions` 利用と `world: "MAIN"` content script の安全マージン)
+  - `data_collection_permissions.required`: `["none"]` (収集なし宣言、AMO レビュアー向けの明示シグナル)
+- DarkBlueThemeX は `chrome.offscreen` / `chrome.tabCapture` 等の Firefox 非対応 API を一切使っていないため、WebRestrictionRemoval が採用する `__FIREFOX_STRIP_BEGIN__` マーカー方式のコード物理削除は不要。`chrome.runtime` / `chrome.storage` / `chrome.tabs` のみで完結している。
+- `content_scripts.world: "MAIN"` は Firefox 128+ でサポート済 (本プロジェクトは 142+ 必須)。
+- web-ext lint 結果: **errors 0 / warnings 0**（2026-05-27 確認）。
 
 ## Architecture
 
@@ -163,13 +192,15 @@ When X introduces a new dark-theme color not yet handled:
 
 | File | Role |
 |------|------|
-| `manifest.json` | Extension config, version (single source of truth), permissions, 2 content scripts (isolated + MAIN world) |
+| `manifest.json` | Chrome / Edge / Brave 用 manifest, version (single source of truth), permissions, 2 content scripts (isolated + MAIN world) |
+| `manifest.firefox.json` | Firefox AMO 用 manifest, **差分は `browser_specific_settings.gecko` のみ** (id / strict_min_version / data_collection_permissions) |
 | `src/content.js` | Main theme engine (isolated world) — `data-theme` switching, MutationObserver, intercept ON/OFF 属性制御 |
 | `src/intercept.js` | MAIN world から `Element.prototype.setAttribute`/`removeAttribute` を同期的にラップ (FOUC 防止最終防衛線) |
 | `src/styles/darkblue.css` | Static CSS theme rules, FOUC prevention, scoped under guard class and data-theme selectors |
 | `src/popup/popup.html` | Extension popup UI |
 | `src/popup/popup.js` | Toggle logic, storage writes, tab state queries, message passing to content script |
 | `src/popup/popup.css` | Popup styling with DarkBlue palette CSS variables (all swatch colors reference these variables) |
+| `.amo-metadata.json` | Firefox AMO submission の metadata (`categories.firefox: ["appearance"]`, `version.license: "MIT"`)。 `web-ext sign --amo-metadata=` で毎回付与 |
 
 ### Repository Layout (Reference)
 
@@ -178,8 +209,9 @@ When X introduces a new dark-theme color not yet handled:
 | Path | 用途 |
 |------|------|
 | `scripts/generate-icons.js` | 拡張機能アイコン (16/48/128px) 生成スクリプト (Node.js + sharp) |
-| `scripts/check-version.js` | `package.json` と `manifest.json` の version 一致を検証 (CI 実行) |
-| `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store 自動公開 |
+| `scripts/check-version.js` | `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証 (CI 実行) |
+| `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store + Firefox AMO に同時自動公開 |
+| `zip.ps1` / `zip.sh` | Chrome/Firefox 両対応のパッケージ生成 (`-Target chrome|firefox|both` / `bash zip.sh chrome|firefox|both`) |
 | `.github/dependabot.yml` | GitHub Actions と npm 依存の週次自動更新 |
 | `webstore/images/` | Chrome Web Store 掲載用タイル画像と生成スクリプト |
 | `webstore/screenshots/` | ストアリスティング用スクリーンショットと生成スクリプト |
@@ -204,7 +236,7 @@ Version の唯一の真実は `manifest.json` の `"version"` フィールド。
 
 ## Key Constraints
 
-- Target: Chrome 110+ only (MV3 の `world: "MAIN"` content script を使うため)
+- Target: Chrome 110+ / Firefox 142+ (MV3 の `world: "MAIN"` content script を使うため。Firefox は 128 から MAIN world 対応だが、`data_collection_permissions` を使うため 142+ に統一)
 - Host permissions: `x.com/*` and `twitter.com/*` only
 - Permissions: `storage` + `activeTab` (minimal)
 - `content_security_policy.extension_pages`: `script-src 'self'; object-src 'self'` を明示 (デフォルトと同等だが将来のリグレッション防止のため)

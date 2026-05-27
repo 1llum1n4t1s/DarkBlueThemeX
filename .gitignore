@@ -3,10 +3,29 @@ node_modules/
 
 # Generated files
 DarkBlueThemeX.zip
+DarkBlueThemeX-chrome.zip
+DarkBlueThemeX-firefox.xpi
 icons/icon16.png
 icons/icon48.png
 icons/icon128.png
 temp-build/
+temp-build-chrome/
+temp-build-firefox/
+
+# Firefox AMO ビルド成果物
+firefox-build/
+web-ext-artifacts/
+*.xpi
+
+# ローカルで AMO / CWS 操作するときの secret ファイル混入防止
+.env
+.env.*
+secrets.json
+secrets.local.json
+credentials.json
+credentials.local.json
+*.pem
+*.key
 
 # OS files
 .DS_Store
