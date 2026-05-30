@@ -87,7 +87,7 @@ jobs:
         run: npm ci
 
       - name: Chrome ZIP artifact を取得
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: darkbluethemex-chrome
           path: .
