@@ -15,7 +15,7 @@
     "check-version": "node scripts/check-version.js"
   },
   "devDependencies": {
-    "chrome-webstore-upload-cli": "3.5.0",
+    "chrome-webstore-upload-cli": "4.0.1",
     "sharp": "^0.34.5",
     "web-ext": "10.2.0"
   },
