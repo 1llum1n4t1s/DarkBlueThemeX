@@ -20,7 +20,8 @@ const FILES = {
 
 /** `const NAME = 'value';` から value を抽出（最初の定義のみ。シングル/ダブルクォート両対応）。 */
 function extractLiteral(source, name) {
-  const re = new RegExp('const\\s+' + name + "\\s*=\\s*(['\"])(.*?)\\1");
+  // 行頭アンカー (^[ \t]*) + m フラグで、コメントアウト行 (// const ...) の誤検出を防ぐ。
+  const re = new RegExp('^[ \\t]*const\\s+' + name + "\\s*=\\s*(['\"])(.*?)\\1", 'm');
   const m = source.match(re);
   return m ? m[2] : null;
 }

@@ -47,7 +47,7 @@
   // ---- デバッグログ（既定 OFF。localStorage 'dbtx_debug'==='1' で有効化。本番コンソールを汚さない）----
   // X の DOM 変更でテーマが壊れたとき、状態遷移を DevTools コンソールから観測できるようにする。
   let DEBUG = false;
-  try { DEBUG = localStorage.getItem('dbtx_debug') === '1'; } catch (e) { /* ignore */ }
+  try { DEBUG = localStorage.getItem('dbtx_debug') === '1'; } catch (e) { /* 取得不可なら既定 OFF のまま */ }
   function dlog(...args) { if (DEBUG) console.debug('[dbtx]', ...args); }
 
   // ---- localStorage 早期読み込みによる楽観的 GUARD_CLASS 付与（FOUC 防止強化）----
@@ -383,7 +383,14 @@
       _lastUrl = location.href;
       updatePageFlags();
       startObserver();
-      if (_stateResolved && isEnabled) evaluateAndApply();
+      // サスペンド中は storage.onChanged を取りこぼすため、復元時に最新状態を再取得してから再評価する。
+      chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
+        if (!chrome.runtime.lastError) {
+          isEnabled = result[STORAGE_KEY];
+        }
+        _stateResolved = true;
+        evaluateAndApply();
+      });
     }
   });
 

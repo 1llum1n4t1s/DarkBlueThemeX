@@ -9,10 +9,11 @@ permissions:
   contents: read
 
 # release/** への連続 push 時に publish が並走して CWS の --auto-publish が競合しないよう直列化。
-# 最新 push を優先し、進行中の古いランはキャンセルする。
+# publish ジョブはストアへの upload/submit という不可逆な外部副作用を持つため、進行中のランは
+# キャンセルせずキューイングする (cancel-in-progress: false)。中断による部分公開を避ける。
 concurrency:
   group: publish-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   package:
