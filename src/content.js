@@ -384,13 +384,24 @@
       updatePageFlags();
       startObserver();
       // サスペンド中は storage.onChanged を取りこぼすため、復元時に最新状態を再取得してから再評価する。
-      chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
-        if (!chrome.runtime.lastError) {
-          isEnabled = result[STORAGE_KEY];
+      // 拡張更新後などコンテキスト失効時は chrome.storage が無効化され、get が throw / undefined になりうる。
+      // 二重防御 (存在ガード + try/catch) で、取得不可でもメモリ上の状態で適用を継続する。
+      const resolveAndApply = () => { _stateResolved = true; evaluateAndApply(); };
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+        try {
+          chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
+            if (!chrome.runtime?.lastError && result) {
+              isEnabled = result[STORAGE_KEY];
+            }
+            resolveAndApply();
+          });
+        } catch (e) {
+          dlog('bfcache 復元時の storage.sync.get が失効、メモリ状態で続行', e);
+          resolveAndApply();
         }
-        _stateResolved = true;
-        evaluateAndApply();
-      });
+      } else {
+        resolveAndApply();
+      }
     }
   });
 
