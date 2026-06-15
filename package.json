@@ -8,16 +8,18 @@
     "generate-icons": "node scripts/generate-icons.js",
     "zip:win": "powershell -ExecutionPolicy Bypass -File zip.ps1",
     "zip:nix": "bash zip.sh",
-    "zip": "npm run zip:nix",
+    "zip": "pnpm run zip:nix",
     "zip:chrome": "bash zip.sh chrome",
     "zip:firefox": "bash zip.sh firefox",
     "zip:both": "bash zip.sh both",
-    "check-version": "node scripts/check-version.js"
+    "check-version": "node scripts/check-version.js",
+    "check-shared-literals": "node scripts/check-shared-literals.js",
+    "check": "pnpm run check-version && pnpm run check-shared-literals"
   },
   "devDependencies": {
-    "chrome-webstore-upload-cli": "3.5.0",
-    "sharp": "^0.34.5",
-    "web-ext": "10.2.0"
+    "chrome-webstore-upload-cli": "4.0.1",
+    "sharp": "^0.35.1",
+    "web-ext": "10.4.0"
   },
   "license": "MIT"
 }

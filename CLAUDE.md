@@ -4,18 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Cross-browser Manifest V3 拡張機能 (Chrome / Edge / Brave / Firefox 142+) で、X (旧 Twitter) の黒/Lights Out テーマを旧 DarkBlue(Dim) テーマに変換する。Chrome Web Store には「帰ってきたDarkBlueテーマ(X)」として公開、Firefox AMO 対応済み (ストアリスティングは別途申請)。**Version の真実の源は `manifest.json`** で、`manifest.firefox.json` と `package.json` は CI の `npm run check-version` で 3 ファイル同期を強制。popup は `chrome.runtime.getManifest().version` で動的取得。Zero external dependencies — pure vanilla JS と CSS のみ。
+Cross-browser Manifest V3 拡張機能 (Chrome / Edge / Brave / Firefox 142+) で、X (旧 Twitter) の黒/Lights Out テーマを旧 DarkBlue(Dim) テーマに変換する。Chrome Web Store には「帰ってきたDarkBlueテーマ(X)」として公開、Firefox AMO 対応済み (ストアリスティングは別途申請)。**Version の真実の源は `manifest.json`** で、`manifest.firefox.json` と `package.json` は CI の `pnpm run check-version` で 3 ファイル同期を強制。popup は `chrome.runtime.getManifest().version` で動的取得。Zero external dependencies — pure vanilla JS と CSS のみ。
 
 ## Build & Package
 
 ```bash
 # Windows (Chrome + Firefox 両方)
 powershell -File zip.ps1
-npm run zip:win                   # package.json 経由 (同じ処理)
+pnpm run zip:win                  # package.json 経由 (同じ処理)
 
 # Unix/macOS (Chrome + Firefox 両方)
 bash zip.sh
-npm run zip                       # = npm run zip:nix
+pnpm run zip                      # = pnpm run zip:nix
 
 # variant 個別
 bash zip.sh chrome                # Chrome のみ
@@ -32,9 +32,9 @@ No build tools, no compilation step — `package.json` の scripts はシェル�
 
 **Windows の zip.ps1 は `System.IO.Compression.ZipFile` を直接使い、エントリ名を forward slash に正規化**している (Windows PowerShell 5.1 の `Compress-Archive` は backslash separator で zip を作る既知バグがあり、Firefox AMO の web-ext lint と一部の unzip ツールが弾くため)。
 
-アイコン再生成が必要な場合は `npm run generate-icons` (Node.js + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成) と `chrome-webstore-upload-cli` (CWS CI 用) と `web-ext` (AMO CI 用) の 3 つに固定。**ランタイム依存はゼロ**。
+アイコン再生成が必要な場合は `pnpm run generate-icons` (Node.js + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成) と `chrome-webstore-upload-cli` (CWS CI 用) と `web-ext` (AMO CI 用) の 3 つに固定。**ランタイム依存はゼロ**。
 
-`npm run check-version` で `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証できる (CI ステップでも実行される)。
+`pnpm run check-version` で `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証できる (CI ステップでも実行される)。
 
 To test locally:
 - **Chrome / Edge / Brave**: `chrome://extensions` で「パッケージ化されていない拡張機能を読み込む」からプロジェクトフォルダを選択
@@ -45,17 +45,30 @@ To test locally:
 `.github/workflows/publish.yml` は `release/**` ブランチに push されると起動し、**Chrome Web Store と Firefox AMO に同時に**自動アップロード＆申請する。
 
 - ブランチ名と `manifest.json` の `version` が **完全一致必須**（例: `release/1.0.40` ⇔ `"version": "1.0.40"`）。不一致なら CI が失敗する。
-- `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者同期も `npm run check-version` で検証される（不一致なら CI 失敗）。
+- `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者同期も `pnpm run check-version` で検証される（不一致なら CI 失敗）。
 - zip は `bash zip.sh both` を CI 内で直接呼び出す形に統一済み（過去はインラインコマンドだったが、パッケージ内容物定義を 1 箇所に集約するため）。
-- Chrome Web Store CLI は `devDependencies` 固定バージョン (`chrome-webstore-upload-cli@3.5.0`) で、CI は `./node_modules/.bin/chrome-webstore-upload` を使う。v4 は publisherId 新規必須化で個人開発者の Secrets 構成と不適合なため意図的に 3.x に留めている (Dependabot が v4 を再提案してきても merge しないこと)。
+- Chrome Web Store CLI は `devDependencies` 固定バージョン (`chrome-webstore-upload-cli@4.0.1`, CWS API v2) で、CI は `./node_modules/.bin/chrome-webstore-upload` のデフォルトコマンド (サブコマンド無し = upload+publish、`--auto-publish` は廃止) を使う。v4 は認証を `CLIENT_ID` / `CLIENT_SECRET` / `REFRESH_TOKEN` / `PUBLISHER_ID` 環境変数で受け取り (v3 の secret フラグは廃止)、**`PUBLISHER_ID` が新規必須** (CWS Developer Dashboard の Settings で確認)。GitHub Secret は `CWS_` プレフィックスのまま CLI 期待名に env で alias する。
 - Firefox AMO は `web-ext sign --channel=listed` で提出。`.amo-metadata.json` で `version.license: "MIT"` を毎回付与（AMO API v5 では各 version 提出時に license 明示必須、過去 version から継承しないため）。
 - GitHub Actions 依存と npm 依存は `.github/dependabot.yml` で週次自動更新。
 - Secrets 必須:
-  - **Chrome Web Store**: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_EXTENSION_ID`
+  - **Chrome Web Store**: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID`, `CWS_EXTENSION_ID`（`CWS_PUBLISHER_ID` は v4 で新規必須 — CWS Developer Dashboard の Settings で取得 → `gh secret set CWS_PUBLISHER_ID`）
   - **Firefox AMO**: `AMO_JWT_ISSUER`, `AMO_JWT_SECRET`（[AMO Developer Hub](https://addons.mozilla.org/ja/developers/addon/api/key/) で発行 → `gh secret set` で登録）
-- Firefox AMO ジョブは `if: success() || failure()` 条件で、Chrome 公開が失敗しても独立して走る（重複 upload 等の片側エラーでもう片方を諦めないため）。
+- Firefox AMO ジョブは `needs: package` のみで `publish-chrome` に依存しないため、Chrome 公開が失敗しても独立して submit される（sibling job の失敗は波及しない）。`if: success() || failure()` は付けない（付けると `package` の検証 = `check-version` / `check-shared-literals` 失敗時にも firefox が走り、壊れた拡張を AMO に submit してしまうため。既定の「package 成功時のみ実行」ゲートに委ねる）。
+- CI の Node は **22 固定**（pnpm 11 が Node 22+ 必須のため。ローカル開発環境とも一致）。
 - `web-ext sign --channel=listed` は submission 受理後 15 分で `Approval: timeout exceeded` を返して exit 1 になる既知挙動があり、CI はそれだけは warning 扱いに変換して green 化する（submission 自体は AMO に届いている）。
 - リリース手順は `vava` スキル（`/vava`）が自動化: バージョン +1 → main に push → `release/x.y.z` ブランチ作成 → 古いリリースブランチ削除。
+- GitHub Actions は `actions/*` を含めすべて commit SHA で固定（サプライチェーン対策）。`# vN` コメントを手掛かりに Dependabot が SHA を追従更新する。
+- ワークフローはトップレベル `concurrency`（`group: publish-${{ github.ref }}` / `cancel-in-progress: false`）で直列化し、`release/**` への連続 push 時に publish が並走して CWS の `--auto-publish` が競合するのを防ぐ。publish は不可逆な外部副作用を持つため、進行中ランをキャンセルせずキューイングして中断による部分公開を避ける。
+- Chrome 公開ジョブは Firefox ジョブと対称に、`CWS_*` Secrets 欠落時の事前ガード（`-z` チェック）で fail-fast する。Secrets を扱う publish 2 ジョブは job レベル `permissions: contents: read` を明示。
+- `pnpm run check-shared-literals`（CI）で `STORAGE_KEY` / `MSG_GET_STATE` の content↔popup 一致も検証する。
+
+### 公開後のロールバック / ロールフォワード（インシデント時 runbook）
+
+公開済みバージョンに不具合が出た場合、**前バージョンへの直接ロールバックはできない**ため、修正版を新しいバージョン番号で出し直す（ロールフォワード）。
+
+- **Chrome Web Store**: 旧バージョンへの直戻し UI はない。修正を入れて version を上げ、`/vava` で再リリースする。影響を絞りたい場合は CWS の段階公開（percentage rollout）も検討。
+- **Firefox AMO**: 同一 version の再 submit は `Version ... already exists` で **warning 化され反映されない**（`publish.yml` が green 化する既知挙動）。必ず version 番号を上げてから出し直すこと。
+- version は 3 ファイル一致 + ブランチ名一致が CI で強制されるため、`/vava` 経由で番号を上げるのが最短経路。
 
 ## Firefox AMO 対応の構造
 
@@ -186,7 +199,7 @@ When X introduces a new dark-theme color not yet handled:
 
 トグル自体は `chrome.storage.sync.set` → `storage.onChanged` 経由で全タブに伝播する設計（sendMessage 経由の toggle は二重発火の原因になるため廃止）。
 
-**重複リテラル管理**: `STORAGE_KEY = 'darkblue_enabled'` と `'darkblue:getState'` は content.js と popup.js の両方に独立してハードコードされている（Chrome 拡張のコンテキスト分離で共有モジュール不可）。変更時は必ず両ファイルを同時更新すること。各リテラル定義箇所には対応箇所のファイルパスをコメントとして併記済み。
+**重複リテラル管理**: `STORAGE_KEY = 'darkblue_enabled'` と `MSG_GET_STATE = 'darkblue:getState'` は content.js と popup.js の両方に独立してハードコードされている（Chrome 拡張のコンテキスト分離で共有モジュール不可）。変更時は必ず両ファイルを同時更新すること。各リテラル定義箇所には対応箇所を**定数名で**コメント併記している（行番号は行ズレで腐るため付さない）。一致は `scripts/check-shared-literals.js`（`pnpm run check-shared-literals`、CI でも実行）が機械検証し、片側更新漏れを CI で検出する。
 
 ### File Roles
 
@@ -210,6 +223,7 @@ When X introduces a new dark-theme color not yet handled:
 |------|------|
 | `scripts/generate-icons.js` | 拡張機能アイコン (16/48/128px) 生成スクリプト (Node.js + sharp) |
 | `scripts/check-version.js` | `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証 (CI 実行) |
+| `scripts/check-shared-literals.js` | content.js / popup.js の共有リテラル (`STORAGE_KEY` / `MSG_GET_STATE`) 値の一致を検証 (CI 実行) |
 | `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store + Firefox AMO に同時自動公開 |
 | `zip.ps1` / `zip.sh` | Chrome/Firefox 両対応のパッケージ生成 (`-Target chrome|firefox|both` / `bash zip.sh chrome|firefox|both`) |
 | `.github/dependabot.yml` | GitHub Actions と npm 依存の週次自動更新 |
@@ -222,7 +236,7 @@ When X introduces a new dark-theme color not yet handled:
 
 ## Version Update
 
-Version の唯一の真実は `manifest.json` の `"version"` フィールド。popup.js は `chrome.runtime.getManifest().version` で動的取得するため、popup 側の変更は不要。`package.json` の `"version"` は npm エコシステム互換のため保持しているが、`npm run check-version` （CI でも実行）で manifest と一致しているかを検証する。`/vava` スキルが両方を同時にインクリメントする。
+Version の唯一の真実は `manifest.json` の `"version"` フィールド。popup.js は `chrome.runtime.getManifest().version` で動的取得するため、popup 側の変更は不要。`package.json` の `"version"` は npm エコシステム互換のため保持しているが、`pnpm run check-version` （CI でも実行）で manifest と一致しているかを検証する。`/vava` スキルが両方を同時にインクリメントする。
 
 ## Coding Conventions
 

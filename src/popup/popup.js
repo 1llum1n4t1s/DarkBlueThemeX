@@ -1,9 +1,10 @@
 'use strict';
 
-// 注意: 以下の2リテラルは content.js:28 / content.js:30 と完全同期。
+// 注意: 以下の2リテラル (STORAGE_KEY / MSG_GET_STATE) は src/content.js の同名定数と完全同期。
 // Chrome 拡張のコンテキスト分離で共有モジュール不可。変更時は両ファイル同時更新必須。
-const STORAGE_KEY = 'darkblue_enabled'; // 対応箇所: src/content.js:28
-const MSG_GET_STATE = 'darkblue:getState'; // 対応箇所: src/content.js:31
+// CI: scripts/check-shared-literals.js が値の一致を機械検証する (行番号併記は行ズレで腐るため廃止)。
+const STORAGE_KEY = 'darkblue_enabled'; // content.js の同名定数と一致
+const MSG_GET_STATE = 'darkblue:getState'; // content.js の同名定数と一致
 
 // DOM要素キャッシュ
 let _toggleSwitch = null;
@@ -49,7 +50,14 @@ async function onToggleChange() {
   const enabled = _toggleSwitch.checked;
   // storage.sync.set → content.js の storage.onChanged が全タブで反応する。
   // sendMessage('darkblue:toggle') は二重発火の原因になるため廃止済み。
-  await chrome.storage.sync.set({ [STORAGE_KEY]: enabled });
+  try {
+    await chrome.storage.sync.set({ [STORAGE_KEY]: enabled });
+  } catch (e) {
+    // storage 障害 (quota 超過・コンテキスト失効等) → UI を実状態に戻し、失敗を伝える
+    applyToggleUI(!enabled);
+    setStatus('inactive', '設定の保存に失敗しました');
+    return;
+  }
   applyToggleUI(enabled);
   // 状態取得は少し遅延させ、content.js の再評価が完了してから問い合わせる
   setTimeout(() => { queryTabState().catch(() => {}); }, 50);

@@ -20,12 +20,13 @@
   const GUARD_CLASS = 'darkbluethemex-active';
   const OFF_CLASS = 'darkbluethemex-off';
 
-  // ---- ストレージキー（STORAGE_KEY は popup.js:3 と同期。変更時は両方同時更新必須）----
+  // ---- ストレージキー（STORAGE_KEY は popup.js の同名定数と同期。変更時は両ファイル同時更新必須。
+  //      CI: scripts/check-shared-literals.js が値の一致を機械検証する）----
   const STORAGE_KEY = 'darkblue_enabled';
   const LAST_STATE_KEY = 'darkbluethemex_was_active';
 
-  // ---- メッセージ型（popup.js 内の対応リテラルと同期。変更時は両方同時更新必須）----
-  const MSG_GET_STATE = 'darkblue:getState'; // popup.js:80 と一致
+  // ---- メッセージ型（MSG_GET_STATE は popup.js の同名定数と同期。CI: check-shared-literals.js）----
+  const MSG_GET_STATE = 'darkblue:getState';
 
   // ---- カラー定数（darkblue.css ヘッダと popup.css 変数を正として同期）----
   const BG_PRIMARY = '#15202B';
@@ -41,6 +42,13 @@
   let _lastStoredState = null;      // localStorage 重複書き込み抑制用
   let _lastColorScheme = null;      // style 属性変化のフィルタリング用
   let _syntheticDim = false;        // color-scheme フォールバックで合成した dim（無効化時に属性削除 vs dark 復元を区別）
+  let _stateResolved = false;       // storage.sync.get が解決済みか（解決前の visibilitychange/pageshow で誤適用しないため）
+
+  // ---- デバッグログ（既定 OFF。localStorage 'dbtx_debug'==='1' で有効化。本番コンソールを汚さない）----
+  // X の DOM 変更でテーマが壊れたとき、状態遷移を DevTools コンソールから観測できるようにする。
+  let DEBUG = false;
+  try { DEBUG = localStorage.getItem('dbtx_debug') === '1'; } catch (e) { /* 取得不可なら既定 OFF のまま */ }
+  function dlog(...args) { if (DEBUG) console.debug('[dbtx]', ...args); }
 
   // ---- localStorage 早期読み込みによる楽観的 GUARD_CLASS 付与（FOUC 防止強化）----
   // storage.sync の非同期解決を待たずに、前回セッションで有効だったなら即 GUARD_CLASS を付ける。
@@ -56,7 +64,7 @@
       document.documentElement.classList.add(OFF_CLASS);
       _lastStoredState = 'false';
     }
-  } catch (e) { /* ignore (プライバシーモード等) */ }
+  } catch (e) { dlog('localStorage 読み取り不可 (プライバシーモード等)', e); }
 
   // ========================================================
   // テーマ検出・適用
@@ -89,7 +97,7 @@
     try {
       localStorage.setItem(LAST_STATE_KEY, next);
       _lastStoredState = next;
-    } catch (e) { /* ignore */ }
+    } catch (e) { dlog('localStorage 書き込み不可', e); }
   }
 
   /** DarkBlue テーマを解除し、状態をリセットする共通処理 */
@@ -337,7 +345,14 @@
     window.addEventListener('popstate', checkUrlChange);
 
     chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
-      isEnabled = result[STORAGE_KEY];
+      if (chrome.runtime.lastError) {
+        // storage 障害時は既定値 (true) で続行し、無言にしない
+        dlog('storage.sync.get 失敗、既定値で続行', chrome.runtime.lastError);
+        isEnabled = true;
+      } else {
+        isEnabled = result[STORAGE_KEY];
+      }
+      _stateResolved = true;
       evaluateAndApply();
     });
 
@@ -355,7 +370,8 @@
 
   // タブ復帰時に再評価（X がテーマを変更している可能性）
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && isEnabled) {
+    // storage 解決前 (isEnabled が暫定 true) は評価しない。初期適用は init の get コールバックが担う。
+    if (document.visibilityState === 'visible' && _stateResolved && isEnabled) {
       evaluateAndApply();
     }
   });
@@ -363,8 +379,29 @@
   // bfcache からの復元時、MutationObserver が disconnect されている可能性がある
   window.addEventListener('pageshow', (event) => {
     if (event.persisted && _initialized && !domObserver) {
+      // bfcache 復元直後は URL が変わっている可能性 → ページフラグを再同期してから再評価。
+      _lastUrl = location.href;
+      updatePageFlags();
       startObserver();
-      if (isEnabled) evaluateAndApply();
+      // サスペンド中は storage.onChanged を取りこぼすため、復元時に最新状態を再取得してから再評価する。
+      // 拡張更新後などコンテキスト失効時は chrome.storage が無効化され、get が throw / undefined になりうる。
+      // 二重防御 (存在ガード + try/catch) で、取得不可でもメモリ上の状態で適用を継続する。
+      const resolveAndApply = () => { _stateResolved = true; evaluateAndApply(); };
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+        try {
+          chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
+            if (!chrome.runtime?.lastError && result) {
+              isEnabled = result[STORAGE_KEY];
+            }
+            resolveAndApply();
+          });
+        } catch (e) {
+          dlog('bfcache 復元時の storage.sync.get が失効、メモリ状態で続行', e);
+          resolveAndApply();
+        }
+      } else {
+        resolveAndApply();
+      }
     }
   });
 
