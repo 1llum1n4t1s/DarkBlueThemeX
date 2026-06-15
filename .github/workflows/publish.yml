@@ -117,28 +117,28 @@ jobs:
 
       - name: Chrome Web Store にアップロード & 公開
         env:
-          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
-        # devDependencies で固定バージョンの chrome-webstore-upload-cli v3.5.0 を使用。
-        # v4 は publisherId 新規必須化があり個人開発者の Secrets 構成と不適合のため v3 系で固定。
+          # v4 は CLI が CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN / PUBLISHER_ID 環境変数を直接読む
+          # (v3 の secret フラグは廃止)。GitHub Secrets 名は CWS_ プレフィックスのまま CLI 期待名に alias。
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        # devDependencies 固定バージョンの chrome-webstore-upload-cli v4.0.1 を使用 (CWS API v2)。
+        # v4 は PUBLISHER_ID が新規必須 (CWS Developer Dashboard の Settings で確認)。
         # (pnpm dlx で毎回 latest を取得する方式はサプライチェーン攻撃の露出面が大きいため廃止)
         run: |
           # Firefox ジョブと対称の事前ガード: Secrets 欠落時に CLI の不透明なエラーではなく
           # 一行目で「どの Secret が未設定か」を明示して fail-fast する。
-          if [ -z "$CWS_CLIENT_ID" ] || [ -z "$CWS_CLIENT_SECRET" ] || [ -z "$CWS_REFRESH_TOKEN" ] || [ -z "$CWS_EXTENSION_ID" ]; then
-            echo "::error::CWS_CLIENT_ID / CWS_CLIENT_SECRET / CWS_REFRESH_TOKEN / CWS_EXTENSION_ID の GitHub Secrets が未設定です"
-            echo "  登録: gh secret set CWS_CLIENT_ID 等 (4 つすべて)"
+          if [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ] || [ -z "$REFRESH_TOKEN" ] || [ -z "$PUBLISHER_ID" ] || [ -z "$EXTENSION_ID" ]; then
+            echo "::error::CWS_CLIENT_ID / CWS_CLIENT_SECRET / CWS_REFRESH_TOKEN / CWS_PUBLISHER_ID / CWS_EXTENSION_ID の GitHub Secrets が未設定です"
+            echo "  v4 は CWS_PUBLISHER_ID が新規必須 (CWS Developer Dashboard の Settings で確認 → gh secret set CWS_PUBLISHER_ID)"
             exit 1
           fi
-          ./node_modules/.bin/chrome-webstore-upload upload \
+          # v4: サブコマンド無しのデフォルトコマンドで upload + publish (--auto-publish は廃止)。
+          ./node_modules/.bin/chrome-webstore-upload \
             --source DarkBlueThemeX-chrome.zip \
-            --extension-id "$CWS_EXTENSION_ID" \
-            --client-id "$CWS_CLIENT_ID" \
-            --client-secret "$CWS_CLIENT_SECRET" \
-            --refresh-token "$CWS_REFRESH_TOKEN" \
-            --auto-publish
+            --extension-id "$EXTENSION_ID"
           echo "🎉 Chrome Web Store への公開リクエストを送信したよ〜"
 
   publish-firefox:

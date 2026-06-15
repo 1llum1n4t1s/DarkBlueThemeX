@@ -17,7 +17,7 @@
     "check": "pnpm run check-version && pnpm run check-shared-literals"
   },
   "devDependencies": {
-    "chrome-webstore-upload-cli": "3.5.0",
+    "chrome-webstore-upload-cli": "4.0.1",
     "sharp": "^0.35.1",
     "web-ext": "10.4.0"
   },
