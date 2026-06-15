@@ -1,6 +1,6 @@
 {
   "name": "dark-blue-theme-x",
-  "version": "1.0.45",
+  "version": "1.0.46",
   "type": "commonjs",
   "private": true,
   "description": "X (Twitter) のダークテーマをDarkBlue(Dim)テーマに変換するブラウザ拡張機能 (Chrome / Firefox)",
