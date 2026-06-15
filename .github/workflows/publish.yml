@@ -52,7 +52,7 @@ jobs:
       - name: Node セットアップ
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: 依存インストール（lockfile 厳密モード）
@@ -103,7 +103,7 @@ jobs:
       - name: Node セットアップ
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: 依存インストール（lockfile 厳密モード）
@@ -145,10 +145,11 @@ jobs:
     name: Firefox AMO に submission
     runs-on: ubuntu-latest
     needs: package
-    # Chrome publish が失敗 (同 version 重複 upload 等) しても Firefox AMO は独立 submit する。
-    # `if: success() || failure()` がないと「Chrome 失敗 → Firefox AMO 連鎖 skip」で
-    # リカバリーフロー全体が機能しなくなる (cancelled() 時のみ skip)。
-    if: ${{ success() || failure() }}
+    # publish-firefox は package のみに依存し publish-chrome には依存しないため、Chrome publish が
+    # 失敗 (同 version 重複 upload 等) しても Firefox AMO は独立して submit される (sibling job の失敗は波及しない)。
+    # 一方 package ジョブの検証 (check-version / check-shared-literals) 失敗時は両ストアへの公開を止めたいので、
+    # if: success() || failure() は付けず、既定の「package 成功時のみ実行」ゲートに委ねる
+    # (以前の if は「Chrome 失敗 → firefox skip」という誤った想定で付与されていた)。
     # Secrets (AMO_*) を扱うジョブは最小権限を明示し、トップレベル変更からの独立性を確保。
     permissions:
       contents: read
@@ -165,7 +166,7 @@ jobs:
       - name: Node セットアップ
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: 依存インストール（lockfile 厳密モード）
