@@ -36,8 +36,7 @@
 
   let isEnabled = true;
   let domObserver = null;
-  let _metaThemeColor = null;       // キャッシュ: <meta name="theme-color">
-  let _originalThemeColor = null;   // 元の theme-color 値（復元用）
+  let _themeColorMetas = [];        // 追跡: [{el, original}] <meta name="theme-color"> 群（X は media 別に複数枚 + JS で動的貼り替え）
   let _bodyThemeFixed = false;      // body の data-theme を変更したかどうか（jf-element 用）
   let _lastStoredState = null;      // localStorage 重複書き込み抑制用
   let _lastColorScheme = null;      // style 属性変化のフィルタリング用
@@ -181,21 +180,24 @@
   }
 
   function updateThemeColor(isDarkBlue) {
-    // キャッシュ済みノードが DOM から外れている場合は再クエリ（X の SPA が <meta> を差し替える可能性）
-    if (_metaThemeColor && !document.contains(_metaThemeColor)) {
-      _metaThemeColor = null;
+    // X は theme-color を「media 別の複数 meta（light=#FFFFFF / dark=#000000）」として持ち、
+    // さらにクライアント JS で動的に貼り替えるようになった（旧来の単一 meta 前提から仕様変更）。
+    // 「最初の1枚だけ querySelector で上書き」だと的を外すため、現存する全 meta を対象にする。
+    // DOM から外れたキャッシュは除去（SPA が貼り替えるため）。
+    _themeColorMetas = _themeColorMetas.filter((m) => document.contains(m.el));
+    const known = new Set(_themeColorMetas.map((m) => m.el));
+    // 未追跡の meta を元値退避付きで登録（拡張が設定した #15202B は original 扱いしない）
+    for (const el of document.querySelectorAll('meta[name="theme-color"]')) {
+      if (known.has(el)) continue;
+      const cur = el.getAttribute('content');
+      _themeColorMetas.push({ el, original: cur === BG_PRIMARY ? null : cur });
     }
-    if (!_metaThemeColor) {
-      _metaThemeColor = document.querySelector('meta[name="theme-color"]');
-      if (_metaThemeColor && _originalThemeColor === null) {
-        _originalThemeColor = _metaThemeColor.getAttribute('content');
+    for (const m of _themeColorMetas) {
+      if (isDarkBlue) {
+        m.el.setAttribute('content', BG_PRIMARY);
+      } else if (m.original != null) {
+        m.el.setAttribute('content', m.original);
       }
-    }
-    if (!_metaThemeColor) return;
-    if (isDarkBlue) {
-      _metaThemeColor.setAttribute('content', BG_PRIMARY);
-    } else if (_originalThemeColor) {
-      _metaThemeColor.setAttribute('content', _originalThemeColor);
     }
   }
 

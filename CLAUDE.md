@@ -185,7 +185,7 @@ When X introduces a new dark-theme color not yet handled:
 - **Notifications page** — `data-dbtx-page="notifications"` set on `<html>` for CSS to apply transparent backgrounds (avatar visibility)
 - **Body data-theme** — Some X pages (Creator Studio, analytics) set `data-theme="dark"` on `<body>` via jf-element framework. The script detects and converts this separately; `_bodyThemeFixed` flag tracks whether body was modified for cleanup on deactivation.
 - **Inline style color override** — CSS `[style*="..."]` attribute selectors in `darkblue.css` override React's hardcoded inline colors instantly (no JS needed). Covers background-color, color, and border-color variants.
-- **Theme color meta** — `<meta name="theme-color">` is cached on first access; original value is saved and restored on deactivation. SPA で X が `<meta>` を差し替えた場合に備え、`document.contains()` でキャッシュの生存を毎回確認して必要なら再クエリする。
+- **Theme color meta** — X は theme-color を「media 別の複数 meta（light=`#FFFFFF` / dark=`#000000`）」として持ち、さらにクライアント JS で動的に貼り替える（旧来の単一 meta 前提から仕様変更）。`updateThemeColor()` は**現存する全 `meta[name="theme-color"]` を `_themeColorMetas` 配列で追跡**し、各 meta の元値を退避してから DarkBlue 適用時に全枚 `#15202B` へ上書き、無効化時に元値へ復元する。`document.contains()` で各キャッシュの生存を毎回確認し、外れたものは除去・新規 meta は元値退避付きで登録する。
 
 ### State & Storage
 
@@ -245,7 +245,7 @@ Version の唯一の真実は `manifest.json` の `"version"` フィールド。
 - CSS sections are numbered and commented (e.g., `/* === 1. ルート・Body === */`)
 - `!important` is used in CSS to override X's inline styles — this is intentional
 - `run_at: "document_start"` in manifest for early CSS injection
-- DOM elements queried repeatedly are cached in module-scope variables (popup.js: `cacheElements()`, content.js: `_metaThemeColor`)
+- DOM elements queried repeatedly are cached in module-scope variables (popup.js: `cacheElements()`, content.js: `_themeColorMetas`)
 - `chrome.runtime.onMessage` ハンドラ冒頭で `sender.id === chrome.runtime.id` を必ず検証する（他拡張からの偽装メッセージブロック）
 
 ## Key Constraints
