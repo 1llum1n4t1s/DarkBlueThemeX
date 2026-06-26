@@ -43,6 +43,15 @@
   let _syntheticDim = false;        // color-scheme フォールバックで合成した dim（無効化時に属性削除 vs dark 復元を区別）
   let _stateResolved = false;       // storage.sync.get が解決済みか（解決前の visibilitychange/pageshow で誤適用しないため）
 
+  // ---- 発振ブレーカ（OOM 最終防衛線）----
+  // evaluateAndApply が「適用↔解除」を短時間に FLIP_LIMIT 回超えてフリップしたら、以降の適用を停止する。
+  // 自己誘発の無限フリップ（属性書き込み・querySelectorAll・MutationRecord を量産してメモリを食い潰し、
+  // 初期ロードが永久に完了しなくなる＝Brave で観測された OutOfMemory）を物理的に断つための保険。
+  let _flipCount = 0;
+  let _flipResetTimer = null;
+  let _loopBroken = false;
+  const FLIP_LIMIT = 50;
+
   // ---- デバッグログ（既定 OFF。localStorage 'dbtx_debug'==='1' で有効化。本番コンソールを汚さない）----
   // X の DOM 変更でテーマが壊れたとき、状態遷移を DevTools コンソールから観測できるようにする。
   let DEBUG = false;
@@ -77,9 +86,15 @@
     const dataTheme = docEl.dataset.theme;
     if (dataTheme) {
       // 拡張機能が設定した dim が color-scheme の実態を隠さないようにする:
-      // ユーザーがライトテーマに切り替えた場合、dim を無視してテーマ解除へ
-      if (dataTheme === 'dim' && docEl.classList.contains(GUARD_CLASS) && !isDarkScheme) {
-        return null;
+      // ユーザーがライトテーマに切り替えた場合、dim を無視してテーマ解除へ。
+      // ただし「color-scheme: dark の単なる欠落」では解除しない。明示的に light/normal の
+      // ときだけ null を返す。X の初期ロード中や Brave Shields による color-scheme 設定の
+      // 遅延・阻害で dark が一時的に欠落しただけのときに解除してしまうと、
+      // deactivate→data-theme="dark" 復元→再適用→… の無限フリップ（メモリ暴走・
+      // 初期ロード未完）に陥るため（Brave で観測された OOM の根本原因）。
+      if (dataTheme === 'dim' && docEl.classList.contains(GUARD_CLASS)) {
+        const isLightScheme = style.includes('color-scheme: light') || style.includes('color-scheme: normal');
+        return isLightScheme ? null : 'dim';
       }
       return dataTheme;
     }
@@ -128,12 +143,33 @@
   }
 
   /**
+   * テーマを評価し、必要に応じて DarkBlue を適用/解除する（発振ブレーカ付きラッパ）。
+   * 自己誘発の「適用↔解除」フリップが短時間に FLIP_LIMIT を超えたら以降の適用を停止し、
+   * 無限ループによる OOM・初期ロード未完を遮断する（最終防衛線）。
+   */
+  function evaluateAndApply() {
+    if (_loopBroken) return;
+    const before = document.documentElement.classList.contains(GUARD_CLASS);
+    _evaluateAndApplyImpl();
+    const after = document.documentElement.classList.contains(GUARD_CLASS);
+    if (before === after) return; // 適用状態が変わっていなければフリップではない
+    _flipCount++;
+    if (_flipResetTimer === null) {
+      _flipResetTimer = setTimeout(() => { _flipCount = 0; _flipResetTimer = null; }, 1000);
+    }
+    if (_flipCount > FLIP_LIMIT) {
+      _loopBroken = true;
+      dlog('発振検知: 適用↔解除フリップが閾値超過。ループを遮断し以降の適用を停止', _flipCount);
+    }
+  }
+
+  /**
    * テーマを評価し、必要に応じて DarkBlue を適用/解除する。
    * - data-theme="dark" → "dim" に変換し DarkBlue 適用
    * - data-theme="dim"  → ガードクラスを維持
    * - その他（light 等）→ DarkBlue を解除
    */
-  function evaluateAndApply() {
+  function _evaluateAndApplyImpl() {
     const docEl = document.documentElement;
     const theme = getCurrentTheme();
 
