@@ -23,7 +23,7 @@ jobs:
       # Dependabot (.github/dependabot.yml) が actions の更新 PR を作成する。
       # actions/* は commit SHA 固定済み（サプライチェーン対策）。# vN コメントを手掛かりに Dependabot が SHA を追従更新する。
       - name: リポジトリをチェックアウト
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: バージョンを取得
         id: version
@@ -93,7 +93,7 @@ jobs:
       contents: read
     steps:
       - name: リポジトリをチェックアウト
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: pnpm セットアップ
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
@@ -156,7 +156,7 @@ jobs:
     steps:
       - name: リポジトリをチェックアウト
         # web-ext は devDependencies なので package.json + lockfile が必要 (pnpm install で取得)
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: pnpm セットアップ
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
