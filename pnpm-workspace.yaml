@@ -8,5 +8,5 @@ allowBuilds:
 overrides:
   adm-zip: '>=0.6.0' # GHSA: 細工 ZIP による 4GB メモリ確保
   brace-expansion: '>=5.0.8' # GHSA-mh99-v99m-4gvg: 無制限展開による OOM
-  fast-uri: '>=3.1.4' # GHSA: バックスラッシュ authority 区切りによる host 混同
-  shell-quote: '>=1.8.5' # GHSA: parse() の二次計算量 DoS
+  shell-quote: '>=1.8.5' # GHSA-395f-4hp3-45gv: parse() の二次計算量 DoS
+  # fast-uri は上流 (ajv) が >=3.1.4 を要求するようになり override 不要になったため削除済み
