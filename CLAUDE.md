@@ -86,8 +86,8 @@ To test locally:
 
 Two layers work together to transform colors:
 
-1. **CSS layer** (`src/styles/darkblue.css`) — Static rules with two selector patterns: `html.darkbluethemex-active` (post-activation) and `html[data-theme="dark"]:not(.darkbluethemex-off)` (FOUC prevention). Overwrites `r-*` atomic classes and handles special cases. Sections are numbered 1–12:
-   1. ルート・Body  2. r-* アトミッククラス上書き  3. アバター背景透明化  4. 通知ページ stacking context  5. ホバー状態  6. スクロールバー  7. 検索バーボーダー  8. DM タブグラデーション  9. メニュー・ダイアログシャドウ  10. #layers ポップアップレイヤー  11. jf-element dim 対応  12. Analytics/JF ページ Tailwind CSS 変数上書き
+1. **CSS layer** (`src/styles/darkblue.css`) — Static rules with two selector patterns: `html.darkbluethemex-active` (post-activation) and `html[data-theme="dark"]:not(.darkbluethemex-off)` (FOUC prevention). Overwrites `r-*` atomic classes and handles special cases. Sections are numbered 1–13:
+   1. ルート・Body  2. r-* アトミッククラス上書き  3. アバター背景透明化  4. 通知ページ stacking context  5. ホバー状態  6. スクロールバー  7. 検索バーボーダー  8. DM タブグラデーション  9. メニュー・ダイアログシャドウ  10. #layers ポップアップレイヤー  11. jf-element 対応  12. Analytics/JF/ログイン画面 Tailwind CSS 変数上書き  13. `--x-*` デザイントークン上書き
 
    **FOUC セレクタ (layer 1) に追加する判断基準**: `<html>`/`<body>` 直下に即適用され JS 実行前に見える色のみ FOUC 系 (`html[data-theme="dark"]:not(.darkbluethemex-off)`) に追加する。コンポーネント内部色 (カード/ホバー/テキスト/ボーダー) は `html.darkbluethemex-active` のみで十分。
 
@@ -100,8 +100,18 @@ Theming state is controlled by two classes on `<html>`:
 - **`darkbluethemex-active`** (guard class) — Added when DarkBlue is applied. All main CSS rules are scoped under this. Removing it instantly disables the entire theme.
 - **`darkbluethemex-off`** (OFF class) — Added when the extension is explicitly disabled. Deactivates CSS FOUC prevention rules (`html[data-theme="dark"]:not(.darkbluethemex-off)`). Without this, CSS would continue forcing DarkBlue colors even after the user disables the extension, because `data-theme` reverts to `"dark"`.
 
-Enable flow: add guard class, remove OFF class, set `data-dbtx-intercept="on"` (MAIN world intercept を有効化).
-Disable flow (`deactivateTheme()`): set `data-dbtx-intercept="off"`, remove guard class, add OFF class, restore `<meta name="theme-color">`.
+Enable flow: add guard class, remove OFF class, set `data-dbtx-intercept="on"` (MAIN world intercept を有効化), `<body>` に `data-theme="dark"` マーカーを付与.
+Disable flow (`deactivateTheme()`): set `data-dbtx-intercept="off"`, remove guard class, add OFF class, `restoreDataTheme()` で `data-theme` を復元, `<body>` のマーカーを元値へ復元, restore `<meta name="theme-color">`.
+
+`restoreDataTheme()` は「拡張機能が設定した `data-theme="dim"` を戻す」処理の唯一の定義（合成 dim なら属性削除、そうでなければ `dark` へ）。intercept を OFF にした**後**に呼ぶこと（ON のままだと `dark` 書き込みが `dim` に戻される）。
+
+復元の可否は **`_dimAppliedByUs`**（`dark` → `dim` 変換を自分が行ったときだけ true）で決める。この区別が無いと次のどちらかが必ず壊れる:
+
+| 方式 | 黒テーマ利用者が OFF | X 公式 Dim 利用者が OFF |
+|---|---|---|
+| 無条件に復元（旧実装） | `dark` に戻る ✅ | `dark` に化ける ❌ |
+| 復元しない | `dim`（＝X 内蔵 DarkBlue）が残りトグルが効かなく見える ❌ | `dim` のまま ✅ |
+| **`_dimAppliedByUs` で判定（現行）** | `dark` に戻る ✅ | `dim` のまま ✅ |
 
 ### CSS FOUC Prevention (Multi-Layer)
 
@@ -134,7 +144,9 @@ content.js (isolated world) から intercept の ON/OFF を制御する手段と
 
 `getCurrentTheme()` は以下の優先順位でテーマを判定する:
 1. `document.documentElement.dataset.theme` が存在すればその値を使用（ただし拡張機能が設定した `"dim"` かつ GUARD_CLASS 付与済みの場合は `color-scheme` を優先確認し、ダークでなければ `null` を返す）
-2. `data-theme` がない場合、`<html>` の inline style から `color-scheme: dark` を検出すれば `"dark"` を返す（X が `data-theme` 属性を廃止したことへの対応）
+2. `data-theme` がない場合、`<html>` の inline style の `color-scheme` が `dark` 単独なら `"dark"` を返す（X が `data-theme` 属性を廃止した場合への備え。現状の X は inline style を持たず `data-theme` を inline script で設定するため、この経路は将来向けの防御）
+
+   値の取得は `getInlineColorScheme()` に集約し、**CSSOM の `documentElement.style.colorScheme` を使う**（style 属性の生文字列を `includes()` で部分一致させると、区切りの空白有無・プロパティ併記・大文字小文字で検出が外れる。実測で `color-scheme:dark` / `background:red;color-scheme:dark` / `COLOR-SCHEME: DARK` が旧実装では検出漏れしていた）。`only` 修飾子は除去して `only dark` を `dark` と同一視し、`light dark` のような複数値は OS 設定依存なので dark と断定しない。**`getComputedStyle` は使わない** — X の Tailwind CSS が `:root` へ `color-scheme` を宣言しており、外部スタイルシート由来の値まで拾うと「inline 指定の検出」という意味論が変わるため。
 3. いずれにも該当しなければ `null`（ライトテーマ等 → deactivate）
 
 判定結果の処理:
@@ -144,7 +156,8 @@ content.js (isolated world) から intercept の ON/OFF を制御する手段と
 
 ### MutationObserver Smart Filtering
 
-The observer watches `data-theme`, `class`, and `style` attributes on `<html>` (and `data-theme` on `<body>` for jf-element pages). The callback checks current attribute values to determine if a mutation was self-inflicted:
+The observer watches `data-theme`, `class`, and `style` attributes on `<html>` (and `data-theme` on `<body>`). The callback checks current attribute values to determine if a mutation was self-inflicted:
+- `<body>` の `data-theme` 変化: 有効かつ GUARD_CLASS 付与済みなら `markBodyDarkVariant()` で `"dark"` マーカーを貼り直す。既に `"dark"` なら同関数が即 return するため、書き込みの自己ループは発生しない。
 - `data-theme` change: **GUARD_CLASS 付与済みの `"dim"`** は自分が設定した値としてスキップ。GUARD_CLASS 未付与の `"dim"` は X 公式 Dim 設定や他拡張由来なので再評価する（この区別を入れないと自己変更誤検知で初期適用が漏れる）。extension 無効時は常にスキップ。
 - `class` change: only react if guard class was externally removed while theme is `"dim"`
 - `style` change: `color-scheme` の値が前回と異なる場合のみ再評価（X が `data-theme` を廃止し `color-scheme` で管理する方式に移行したため追加）。前回値キャッシュ (`_lastColorScheme`) でフィルタリングし、無関係な style 変更では発火しない。
@@ -183,7 +196,9 @@ When X introduces a new dark-theme color not yet handled:
 ### Special Element Handling
 
 - **Notifications page** — `data-dbtx-page="notifications"` set on `<html>` for CSS to apply transparent backgrounds (avatar visibility)
-- **Body data-theme** — Some X pages (Creator Studio, analytics) set `data-theme="dark"` on `<body>` via jf-element framework. The script detects and converts this separately; `_bodyThemeFixed` flag tracks whether body was modified for cleanup on deactivation.
+- **Body data-theme マーカー（Tailwind `dark:` バリアント維持）** — X の新しい画面（ログアウト時のランディング / ログインフロー、Grok、jf 系）は Tailwind 製で、`dark:` バリアントが `.dark\:X:where([data-theme=dark], [data-theme=dark] *)` にコンパイルされている。**これらの CSS には `data-theme="dim"` 用の定義が存在しない**ため、`<html>` を dim に変換すると `dark:` が一斉に外れてライト用の色（黒文字・白ダイアログ）だけが残り、そこへ本拡張が背景を DarkBlue に塗るので「ダークブルー背景に黒文字」になる。
+  セレクタが子孫 (`[data-theme=dark] *`) も対象にしていることを利用し、`<html data-theme="dim">`（X 内蔵 DarkBlue パレット）と `<body data-theme="dark">`（Tailwind `dark:` 有効化）を**両立**させる。`markBodyDarkVariant()` / `unmarkBodyDarkVariant()` が担当し、`_bodyThemeMarked` / `_bodyThemeOriginal` で「拡張が付けたマーカーか」を追跡して解除時に復元する。X 自身が既に `data-theme="dark"` を設定しているページ（jf 系）では何もせずそのまま活かす。
+  body に降ってくる `[data-theme=dark]` の黒系 CSS 変数は、darkblue.css セクション 12・13 が `html.darkbluethemex-active body` スコープで DarkBlue 値へ上書きする（この body セレクタ併記を外すと黒が子孫へ漏れる）。
 - **Inline style color override** — CSS `[style*="..."]` attribute selectors in `darkblue.css` override React's hardcoded inline colors instantly (no JS needed). Covers background-color, color, and border-color variants.
 - **Theme color meta** — X は theme-color を「media 別の複数 meta（light=`#FFFFFF` / dark=`#000000`）」として持ち、さらにクライアント JS で動的に貼り替える（旧来の単一 meta 前提から仕様変更）。`updateThemeColor()` は**現存する全 `meta[name="theme-color"]` を `_themeColorMetas` 配列で追跡**し、各 meta の元値を退避してから DarkBlue 適用時に全枚 `#15202B` へ上書き、無効化時に元値へ復元する。`document.contains()` で各キャッシュの生存を毎回確認し、外れたものは除去・新規 meta は元値退避付きで登録する。
 

@@ -37,10 +37,12 @@
   let isEnabled = true;
   let domObserver = null;
   let _themeColorMetas = [];        // 追跡: [{el, original}] <meta name="theme-color"> 群（X は media 別に複数枚 + JS で動的貼り替え）
-  let _bodyThemeFixed = false;      // body の data-theme を変更したかどうか（jf-element 用）
+  let _bodyThemeMarked = false;     // body に data-theme="dark" マーカーを付与したか（Tailwind dark: バリアント維持用）
+  let _bodyThemeOriginal = null;    // マーカー付与前の body[data-theme] 元値（解除時の復元用、無属性なら null）
   let _lastStoredState = null;      // localStorage 重複書き込み抑制用
   let _lastColorScheme = null;      // style 属性変化のフィルタリング用
   let _syntheticDim = false;        // color-scheme フォールバックで合成した dim（無効化時に属性削除 vs dark 復元を区別）
+  let _dimAppliedByUs = false;      // dark→dim 変換を自分が行ったか（X 公式 Dim / 他拡張由来の dim を戻さないため）
   let _stateResolved = false;       // storage.sync.get が解決済みか（解決前の visibilitychange/pageshow で誤適用しないため）
 
   // ---- 発振ブレーカ（OOM 最終防衛線）----
@@ -78,10 +80,31 @@
   // テーマ検出・適用
   // ========================================================
 
+  /**
+   * <html> の inline style に指定された color-scheme を正規化して返す（未指定なら空文字）。
+   *
+   * style 属性の生文字列を includes() で部分一致させると、区切りの空白有無・プロパティ順・
+   * 大文字小文字といった書式ゆれで判定が外れる。CSSOM の標準アクセサ
+   * (CSSStyleDeclaration.colorScheme) はブラウザがパース済みの値を返すため、
+   * X 側の出力形式が変わっても壊れない。この経路は「X が data-theme を廃止した場合」の
+   * 将来向け防御であり、書式を予測できないぶん標準アクセサの方が適する。
+   *
+   * getComputedStyle を使わないのは意図的: X の Tailwind CSS が :root へ color-scheme を
+   * 宣言しており、外部スタイルシート由来の値まで拾うと inline 指定の検出という意味論が変わるため。
+   */
+  function getInlineColorScheme() {
+    // 'only' は「OS 設定による上書きを許さない」修飾子で配色そのものではないため除去し、
+    // 'only dark' を 'dark' と同一視する。
+    return (document.documentElement.style.colorScheme || '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((token) => token && token !== 'only')
+      .join(' ');
+  }
+
   function getCurrentTheme() {
     const docEl = document.documentElement;
-    const style = docEl.getAttribute('style') || '';
-    const isDarkScheme = style.includes('color-scheme: dark');
+    const scheme = getInlineColorScheme();
 
     const dataTheme = docEl.dataset.theme;
     if (dataTheme) {
@@ -93,15 +116,52 @@
       // deactivate→data-theme="dark" 復元→再適用→… の無限フリップ（メモリ暴走・
       // 初期ロード未完）に陥るため（Brave で観測された OOM の根本原因）。
       if (dataTheme === 'dim' && docEl.classList.contains(GUARD_CLASS)) {
-        const isLightScheme = style.includes('color-scheme: light') || style.includes('color-scheme: normal');
+        const isLightScheme = scheme === 'light' || scheme === 'normal';
         return isLightScheme ? null : 'dim';
       }
       return dataTheme;
     }
     // X が data-theme 属性を廃止した場合の代替検出:
-    // html の inline style に color-scheme: dark が含まれる → 黒テーマと判断
-    if (isDarkScheme) return 'dark';
+    // html の inline style が color-scheme: dark 単独 → 黒テーマと判断。
+    // "light dark" のような複数値はユーザーの OS 設定次第で決まるため dark と断定しない。
+    if (scheme === 'dark') return 'dark';
     return null;
+  }
+
+  /**
+   * body に data-theme="dark" マーカーを付与する（Tailwind の dark: バリアント維持）。
+   *
+   * X の新しい画面（ログアウト時のランディング／ログインフロー、Grok、jf 系）は Tailwind 製で、
+   * dark: バリアントが `.dark\:X:where([data-theme=dark], [data-theme=dark] *)` にコンパイル
+   * されている。html を dim に書き換えると dark: が一斉に外れてライト用の色（黒文字・白背景）
+   * だけが残り、そこへ本拡張が背景を DarkBlue に塗るため「ダークブルー背景に黒文字」になる。
+   * これらの CSS には data-theme="dim" 用の定義が一切無いため、dim では成立しない。
+   *
+   * セレクタが子孫（[data-theme=dark] *）も対象にしていることを利用し、html は dim のまま
+   * body に data-theme="dark" を残すことで、X 内蔵の DarkBlue(Dim) パレットと Tailwind の
+   * dark: ユーティリティを両立させる。body 側に降ってくる黒系の CSS 変数は darkblue.css の
+   * セクション 12・13 が DarkBlue 値へ上書きする。
+   */
+  function markBodyDarkVariant() {
+    const body = document.body;
+    if (!body) return;
+    if (body.dataset.theme === 'dark') return;   // X 自身が dark を設定済み（jf 系）→ そのまま活かす
+    if (!_bodyThemeMarked) _bodyThemeOriginal = body.getAttribute('data-theme');
+    body.dataset.theme = 'dark';
+    _bodyThemeMarked = true;
+  }
+
+  /** markBodyDarkVariant が付けたマーカーを外し、元の状態へ戻す */
+  function unmarkBodyDarkVariant() {
+    const body = document.body;
+    if (!body || !_bodyThemeMarked) return;
+    if (_bodyThemeOriginal === null) {
+      body.removeAttribute('data-theme');
+    } else {
+      body.setAttribute('data-theme', _bodyThemeOriginal);
+    }
+    _bodyThemeMarked = false;
+    _bodyThemeOriginal = null;
   }
 
   /** 状態変化時のみ localStorage に書き込む（同期 I/O 削減） */
@@ -114,6 +174,30 @@
     } catch (e) { dlog('localStorage 書き込み不可', e); }
   }
 
+  /**
+   * 拡張機能が dark から変換した data-theme="dim" を元の状態へ戻す。
+   * 合成 dim（元々 data-theme 属性が無かった）なら属性ごと削除し、そうでなければ dark へ戻す。
+   *
+   * `_dimAppliedByUs` で「自分が変換した dim か」を判定するのが要点。
+   * X 公式 Dim 設定や他拡張由来の dim を dark へ書き換えると、拡張機能を無効にした利用者に
+   * 意図しない黒テーマを見せてしまうため、その場合は何もしない。
+   * 逆に「戻さない」方針にすると、本拡張の主対象である黒テーマ利用者が OFF にしたときに
+   * dim（＝X 内蔵 DarkBlue）が残り続け、トグルが効かないように見えるので採らない。
+   *
+   * 呼び出し前に intercept を OFF にしておくこと（ON のままだと dark 書き込みが dim に戻される）。
+   */
+  function restoreDataTheme() {
+    const docEl = document.documentElement;
+    if (!_dimAppliedByUs || docEl.dataset.theme !== 'dim') return;
+    if (_syntheticDim) {
+      docEl.removeAttribute('data-theme');
+    } else {
+      docEl.dataset.theme = 'dark';
+    }
+    _syntheticDim = false;
+    _dimAppliedByUs = false;
+  }
+
   /** DarkBlue テーマを解除し、状態をリセットする共通処理 */
   function deactivateTheme() {
     const docEl = document.documentElement;
@@ -122,21 +206,8 @@
     docEl.classList.remove(GUARD_CLASS);
     // CSS FOUC ルール無効化
     docEl.classList.add(OFF_CLASS);
-    // 拡張機能が設定した data-theme="dim" を復元/削除
-    if (docEl.dataset.theme === 'dim') {
-      if (_syntheticDim) {
-        docEl.removeAttribute('data-theme');
-      } else {
-        docEl.dataset.theme = 'dark';
-      }
-      _syntheticDim = false;
-    }
-    if (document.body) {
-      if (_bodyThemeFixed) {
-        document.body.dataset.theme = 'dark';
-        _bodyThemeFixed = false;
-      }
-    }
+    restoreDataTheme();
+    unmarkBodyDarkVariant();
     updateThemeColor(false);
     writeLastState(false);
     updatePageFlags();
@@ -173,17 +244,8 @@
     const docEl = document.documentElement;
     const theme = getCurrentTheme();
 
-    // 拡張機能が無効 → 解除
+    // 拡張機能が無効 → 解除（intercept OFF と data-theme 復元は deactivateTheme が担う）
     if (!isEnabled) {
-      docEl.setAttribute(INTERCEPT_ATTR, 'off');
-      // 拡張機能が設定した data-theme="dim" を復元/削除
-      if (docEl.dataset.theme === 'dim' && docEl.classList.contains(GUARD_CLASS)) {
-        if (_syntheticDim) {
-          docEl.removeAttribute('data-theme');
-        } else {
-          docEl.dataset.theme = 'dark';
-        }
-      }
       deactivateTheme();
       return;
     }
@@ -192,6 +254,8 @@
     if (theme === 'dark') {
       // レガシー（data-theme 属性あり）vs 合成（color-scheme フォールバック）を記録
       _syntheticDim = !docEl.hasAttribute('data-theme');
+      // 変換したのは自分だと記録（解除時にこの dim だけを戻す。既存の dim には触らない）
+      _dimAppliedByUs = true;
       docEl.dataset.theme = 'dim';
     }
 
@@ -200,11 +264,8 @@
       docEl.classList.add(GUARD_CLASS);
       docEl.classList.remove(OFF_CLASS);
       docEl.setAttribute(INTERCEPT_ATTR, 'on');
-      // body の data-theme も dim に変換（jf-element 用: Creator Studio 等で body が独自に持つ場合）
-      if (document.body && document.body.dataset.theme === 'dark') {
-        document.body.dataset.theme = 'dim';
-        _bodyThemeFixed = true;
-      }
+      // body には data-theme="dark" を残す（Tailwind の dark: バリアント維持。詳細は関数コメント）
+      markBodyDarkVariant();
       updateThemeColor(true);
       writeLastState(true);
       updatePageFlags();
@@ -279,11 +340,9 @@
 
       for (const mutation of mutations) {
         if (mutation.target === document.body) {
-          // body の data-theme が外部から dark に戻された場合、dim に再変換
-          if (isEnabled && hasGuard && document.body.dataset.theme === 'dark') {
-            document.body.dataset.theme = 'dim';
-            _bodyThemeFixed = true;
-          }
+          // body の data-theme が外部から書き換えられた場合、dark マーカーを貼り直す。
+          // 既に dark なら markBodyDarkVariant が即 return するため、書き込みの自己ループは発生しない。
+          if (isEnabled && hasGuard) markBodyDarkVariant();
           continue;
         }
         if (mutation.attributeName === 'data-theme') {
@@ -301,8 +360,7 @@
           }
         } else if (mutation.attributeName === 'style') {
           // color-scheme の変化を検出（X がテーマを切り替えた場合）
-          const style = docEl.getAttribute('style') || '';
-          const currentScheme = style.includes('color-scheme: dark') ? 'dark' : 'other';
+          const currentScheme = getInlineColorScheme() === 'dark' ? 'dark' : 'other';
           if (currentScheme !== _lastColorScheme) {
             _lastColorScheme = currentScheme;
             if (!isEnabled) continue;

@@ -334,21 +334,29 @@ html.darkbluethemex-active #layers > div > div {
    11. jf-element dim テーマ near-black 色の DarkBlue 化
    X の dim テーマは jf-element ヘッダー等に rgba(24,24,27) を定義している。
    j-cw4uj613 クラスがその色をあてているため DarkBlue に上書き。
+   body が dim / dark どちらでも成立するよう、data-theme への依存を持たせない
+   （content.js は Tailwind の dark: バリアント維持のため body に dark を残す）。
    ============================================================ */
 
-html.darkbluethemex-active [data-theme="dim"] .jf-element .j-cw4uj613 {
+html.darkbluethemex-active .jf-element .j-cw4uj613 {
   background-color: #15202B !important;
 }
 
 /* ============================================================
-   12. Analytics / JF ページ Tailwind CSS カスタムプロパティ上書き
+   12. Analytics / JF / ログイン画面 Tailwind CSS カスタムプロパティ上書き
    data-theme="dim" 変換後、このシステムの :root フォールバック（ライトテーマ値）が
    適用されてしまう問題を修正。ダークブルーパレットをインジェクト。
    FOUC 防止のため data-theme="dark" 時にも同じ値を適用する。
+
+   body セレクタを併記する理由: content.js は Tailwind の dark: バリアントを生かすため
+   body に data-theme="dark" を残す。X の CSS は [data-theme=dark] にこの変数群を再宣言
+   するので、body スコープでも同じ値で上書きしないと黒テーマ値が子孫へ降ってしまう。
    ============================================================ */
 
 html[data-theme="dark"]:not(.darkbluethemex-off),
-html.darkbluethemex-active {
+html[data-theme="dark"]:not(.darkbluethemex-off) body,
+html.darkbluethemex-active,
+html.darkbluethemex-active body {
   /* 背景・ニュートラルスケール: DarkBlue パレット */
   --color-background:    210 35% 13%;   /* #15202B メイン背景 */
   --color-gray-0:        210 35% 15%;   /* #192734 カード背景 */
@@ -368,6 +376,7 @@ html.darkbluethemex-active {
   --color-brand:         200 7% 91%;
   --color-nested-border: 207 9% 42%;
   --color-mark:          rgba(56, 68, 77, 0.4);
+  --color-modal-background: 210 35% 15%;   /* #192734 ダイアログ背景（黒テーマは 0 0% 8%） */
 
   /* ブルースケール: ダークテーマ値 */
   --color-blue-0:    225 94% 12%;
@@ -531,4 +540,36 @@ html.darkbluethemex-active {
   --chart-3:                 var(--color-red-500);
   --chart-4:                 var(--color-yellow-500);
   --chart-5:                 var(--color-purple-500);
+}
+
+/* ============================================================
+   13. --x-* デザイントークン（X の新デザインシステム）上書き
+   ログアウト時のランディング／ログインフロー、Grok 等が使う新しいトークン体系。
+   [data-theme=dark] で黒（var(--x-black) / --x-neutral-*）が入るため、面の色だけ
+   DarkBlue に差し替える。前景色・ブランド色は X の dark 値をそのまま使う
+   （コントラストは X 側が担保しているので触らない）。
+   --x-black / --x-white といったプリミティブは反転ボタン等で真の黒白が必要なため
+   上書きしない。セマンティックトークン側だけを差し替える。
+   ============================================================ */
+
+html[data-theme="dark"]:not(.darkbluethemex-off),
+html[data-theme="dark"]:not(.darkbluethemex-off) body,
+html.darkbluethemex-active,
+html.darkbluethemex-active body {
+  /* 面（背景） */
+  --x-bg-primary:   #15202B;
+  --x-bg-secondary: #192734;
+  --x-bg-tertiary:  #22303C;
+  --x-bg-modal:     #192734;
+  --x-bg-sheets:    #192734;
+
+  /* セカンダリ／ゴースト系ボタン */
+  --x-btn-secondary:         #22303C;
+  --x-btn-secondary-hover:   #2C3A47;
+  --x-btn-secondary-pressed: #38444D;
+
+  /* オーバーレイ・トースト */
+  --x-overlay-normal: rgba(21, 32, 43, 0.6);
+  --x-overlay-strong: rgba(21, 32, 43, 0.85);
+  --x-toast-bg:       rgba(25, 39, 52, 0.92);
 }
