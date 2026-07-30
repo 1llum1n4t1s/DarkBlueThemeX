@@ -42,3 +42,6 @@ debug/
 
 # Serena LSP プロジェクト設定
 .serena/
+
+# wrangler のローカル状態キャッシュ (web/ のデプロイ時に生成される)
+web/.wrangler/
