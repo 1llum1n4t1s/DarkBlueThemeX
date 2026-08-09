@@ -1,8 +1,8 @@
 ﻿# 帰ってきたDarkBlueテーマ(X) 拡張機能パッケージ生成スクリプト (Windows PowerShell版)
 # 使い方:
-#   powershell -ExecutionPolicy Bypass -File zip.ps1                    # Chrome + Firefox 両方
-#   powershell -ExecutionPolicy Bypass -File zip.ps1 -Target chrome     # Chrome のみ
-#   powershell -ExecutionPolicy Bypass -File zip.ps1 -Target firefox    # Firefox のみ
+#   pwsh -NoProfile -ExecutionPolicy Bypass -File zip.ps1                    # Chrome + Firefox 両方
+#   pwsh -NoProfile -ExecutionPolicy Bypass -File zip.ps1 -Target chrome     # Chrome のみ
+#   pwsh -NoProfile -ExecutionPolicy Bypass -File zip.ps1 -Target firefox    # Firefox のみ
 #
 # Firefox 版は manifest.firefox.json を manifest.json として同梱し、xpi 拡張子で出力する。
 # DarkBlueThemeX は Firefox 非対応 API (offscreen / tabCapture 等) を使っていないため、

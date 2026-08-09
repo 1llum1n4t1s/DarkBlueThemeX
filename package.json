@@ -6,7 +6,7 @@
   "description": "X (Twitter) のダークテーマをDarkBlue(Dim)テーマに変換するブラウザ拡張機能 (Chrome / Firefox)",
   "scripts": {
     "generate-icons": "node scripts/generate-icons.js",
-    "zip:win": "powershell -ExecutionPolicy Bypass -File zip.ps1",
+    "zip:win": "pwsh -NoProfile -ExecutionPolicy Bypass -File zip.ps1",
     "zip:nix": "bash zip.sh",
     "zip": "pnpm run zip:nix",
     "zip:chrome": "bash zip.sh chrome",
