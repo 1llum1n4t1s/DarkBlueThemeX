@@ -27,15 +27,24 @@
    ドキュメントが生成されると content.js #1 のインターセプトは失われるが、
    CSS は即座に再注入されるため空白期間なく背景色をカバーする。
    拡張機能の無効化時は content.js が darkbluethemex-off クラスを付与し、
-   この FOUC ルールを無効化して元の黒テーマに戻す。 */
+   この FOUC ルールを無効化して元の黒テーマに戻す。
+
+   color-scheme 系セレクタ（X が data-theme を廃止した場合の将来向けフォールバック）は、
+   style 属性の生文字列に対する部分一致なので書式ゆれに弱い。content.js の
+   getInlineColorScheme() は CSSOM 経由で小文字化・空白分割して正規化しており、CSS 側だけが
+   「コロン後の空白あり・小文字」に限定されていると、同じ状況で JS は検出できるのに CSS の
+   FOUC 防止だけが外れる。空白なし版を併記し、大小文字は属性セレクタの i フラグで吸収して
+   検出契約を JS と揃える。 */
 html[data-theme="dark"]:not(.darkbluethemex-off),
-html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) {
+html[style*="color-scheme: dark" i]:not([data-theme]):not(.darkbluethemex-off),
+html[style*="color-scheme:dark" i]:not([data-theme]):not(.darkbluethemex-off) {
   color-scheme: dark !important;
   background-color: #15202B !important;
 }
 
 html[data-theme="dark"]:not(.darkbluethemex-off) body,
-html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) body {
+html[style*="color-scheme: dark" i]:not([data-theme]):not(.darkbluethemex-off) body,
+html[style*="color-scheme:dark" i]:not([data-theme]):not(.darkbluethemex-off) body {
   background-color: #15202B !important;
 }
 
@@ -50,8 +59,10 @@ html.darkbluethemex-active body {
 /* フォールバック: React root コンテナ + ローディング画面 */
 html[data-theme="dark"]:not(.darkbluethemex-off) #react-root,
 html[data-theme="dark"]:not(.darkbluethemex-off) #react-root > div,
-html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) #react-root,
-html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) #react-root > div,
+html[style*="color-scheme: dark" i]:not([data-theme]):not(.darkbluethemex-off) #react-root,
+html[style*="color-scheme: dark" i]:not([data-theme]):not(.darkbluethemex-off) #react-root > div,
+html[style*="color-scheme:dark" i]:not([data-theme]):not(.darkbluethemex-off) #react-root,
+html[style*="color-scheme:dark" i]:not([data-theme]):not(.darkbluethemex-off) #react-root > div,
 html.darkbluethemex-active #react-root,
 html.darkbluethemex-active #react-root > div {
   background-color: #15202B !important;
@@ -66,8 +77,10 @@ html.darkbluethemex-active #react-root > div {
 /* 純黒背景 → メイン背景（FOUC 防止込み） */
 html[data-theme="dark"]:not(.darkbluethemex-off) [style*="background-color: rgb(0, 0, 0)"],
 html[data-theme="dark"]:not(.darkbluethemex-off) [style*="background-color:rgb(0, 0, 0)"],
-html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) [style*="background-color: rgb(0, 0, 0)"],
-html[style*="color-scheme: dark"]:not([data-theme]):not(.darkbluethemex-off) [style*="background-color:rgb(0, 0, 0)"],
+html[style*="color-scheme: dark" i]:not([data-theme]):not(.darkbluethemex-off) [style*="background-color: rgb(0, 0, 0)"],
+html[style*="color-scheme: dark" i]:not([data-theme]):not(.darkbluethemex-off) [style*="background-color:rgb(0, 0, 0)"],
+html[style*="color-scheme:dark" i]:not([data-theme]):not(.darkbluethemex-off) [style*="background-color: rgb(0, 0, 0)"],
+html[style*="color-scheme:dark" i]:not([data-theme]):not(.darkbluethemex-off) [style*="background-color:rgb(0, 0, 0)"],
 html.darkbluethemex-active [style*="background-color: rgb(0, 0, 0)"],
 html.darkbluethemex-active [style*="background-color:rgb(0, 0, 0)"] {
   background-color: #15202B !important;

@@ -1,10 +1,12 @@
 /**
- * content.js と popup.js に重複ハードコードされた共有リテラル
- * (STORAGE_KEY / MSG_GET_STATE) の値が一致するかを検証する。
+ * 実行コンテキストを跨いで重複ハードコードされた共有リテラルの値が一致するかを検証する。
  *
- * Chrome 拡張のコンテキスト分離 (isolated world / extension page) で共有モジュール不可のため、
- * これらの定数は両ファイルに重複定義されている。片側更新漏れ (特に改名時) が起きると
- * popup ↔ content のトグル伝播がサイレント停止する (例外もログも出ない) 事故になる。
+ * Chrome 拡張のコンテキスト分離 (isolated world / MAIN world / extension page) で共有モジュール
+ * 不可のため、これらの定数は複数ファイルに重複定義されている。片側更新漏れ (特に改名時) が
+ * 起きると、例外もログも出ないまま機能だけがサイレント停止する事故になる:
+ *   - STORAGE_KEY / MSG_GET_STATE (content ↔ popup): トグル伝播が止まる
+ *   - LOCATION_CHANGE_EVENT (content ↔ intercept): SPA 遷移の検出が止まり、
+ *     通知ページ専用 CSS が当たらなくなる
  * 従来はコメントの行番号併記で同期を担保していたが行ズレで腐るため、CI で機械検証する。
  * 不一致なら exit 1。
  */
@@ -12,11 +14,20 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const SHARED_KEYS = ['STORAGE_KEY', 'MSG_GET_STATE'];
-const FILES = {
-  'src/content.js': fs.readFileSync(path.join(root, 'src', 'content.js'), 'utf8'),
-  'src/popup/popup.js': fs.readFileSync(path.join(root, 'src', 'popup', 'popup.js'), 'utf8'),
-};
+
+/** 検証グループ: 同じ値を持つべき定数名と、それを重複定義しているファイル群 */
+const GROUPS = [
+  { keys: ['STORAGE_KEY', 'MSG_GET_STATE'], files: ['src/content.js', 'src/popup/popup.js'] },
+  { keys: ['LOCATION_CHANGE_EVENT'], files: ['src/content.js', 'src/intercept.js'] },
+];
+
+const sourceCache = new Map();
+function readSource(relPath) {
+  if (!sourceCache.has(relPath)) {
+    sourceCache.set(relPath, fs.readFileSync(path.join(root, relPath), 'utf8'));
+  }
+  return sourceCache.get(relPath);
+}
 
 /** `const NAME = 'value';` から value を抽出（最初の定義のみ。シングル/ダブルクォート両対応）。 */
 function extractLiteral(source, name) {
@@ -27,34 +38,38 @@ function extractLiteral(source, name) {
 }
 
 let failed = false;
-for (const key of SHARED_KEYS) {
-  const values = {};
-  for (const [file, source] of Object.entries(FILES)) {
-    values[file] = extractLiteral(source, key);
-  }
-
-  if (Object.values(values).some((v) => v === null)) {
-    console.error(`❌ ${key}: 定義が見つからないファイルがあります`);
-    for (const [file, v] of Object.entries(values)) {
-      console.error(`   ${file}=${v === null ? '(未検出)' : `'${v}'`}`);
+for (const group of GROUPS) {
+  for (const key of group.keys) {
+    const values = {};
+    for (const file of group.files) {
+      values[file] = extractLiteral(readSource(file), key);
     }
-    failed = true;
-    continue;
-  }
 
-  const unique = new Set(Object.values(values));
-  if (unique.size !== 1) {
-    console.error(`❌ ${key} 不一致:`);
-    for (const [file, v] of Object.entries(values)) {
-      console.error(`   ${file}='${v}'`);
+    if (Object.values(values).some((v) => v === null)) {
+      console.error(`❌ ${key}: 定義が見つからないファイルがあります`);
+      for (const [file, v] of Object.entries(values)) {
+        console.error(`   ${file}=${v === null ? '(未検出)' : `'${v}'`}`);
+      }
+      failed = true;
+      continue;
     }
-    failed = true;
+
+    const unique = new Set(Object.values(values));
+    if (unique.size !== 1) {
+      console.error(`❌ ${key} 不一致:`);
+      for (const [file, v] of Object.entries(values)) {
+        console.error(`   ${file}='${v}'`);
+      }
+      failed = true;
+    }
   }
 }
 
 if (failed) {
-  console.error('   content.js と popup.js の共有リテラルを一致させてください。');
+  console.error('   重複定義された共有リテラルを全ファイルで一致させてください。');
   process.exit(1);
 }
 
-console.log(`✅ 共有リテラル一致 (content.js ↔ popup.js): ${SHARED_KEYS.join(' / ')}`);
+for (const group of GROUPS) {
+  console.log(`✅ 共有リテラル一致 (${group.files.join(' ↔ ')}): ${group.keys.join(' / ')}`);
+}

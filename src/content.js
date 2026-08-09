@@ -28,6 +28,9 @@
   // ---- メッセージ型（MSG_GET_STATE は popup.js の同名定数と同期。CI: check-shared-literals.js）----
   const MSG_GET_STATE = 'darkblue:getState';
 
+  // ---- SPA ナビゲーション通知イベント名（intercept.js の同名定数と同期。CI: check-shared-literals.js）----
+  const LOCATION_CHANGE_EVENT = 'dbtx:locationchange';
+
   // ---- カラー定数（darkblue.css ヘッダと popup.css 変数を正として同期）----
   const BG_PRIMARY = '#15202B';
 
@@ -371,7 +374,7 @@
       }
 
       if (needsEval) evaluateAndApply();
-      // checkUrlChange() は History API フック + popstate で完全にカバー済み
+      // checkUrlChange() は intercept.js (MAIN world) の History フック中継 + popstate でカバー済み
     });
 
     domObserver.observe(document.documentElement, {
@@ -427,17 +430,13 @@
     startObserver();
     registerMessageListener();
 
-    // SPA ナビゲーション検出: History API をフック
-    const origPushState = history.pushState;
-    const origReplaceState = history.replaceState;
-    history.pushState = function (...args) {
-      origPushState.apply(this, args);
-      checkUrlChange();
-    };
-    history.replaceState = function (...args) {
-      origReplaceState.apply(this, args);
-      checkUrlChange();
-    };
+    // SPA ナビゲーション検出。
+    // history.pushState/replaceState のフックは intercept.js (MAIN world) 側にある。
+    // ここ (isolated world) で history を包んでも X のルーターは MAIN world の history を呼ぶため
+    // 捕捉できない (setAttribute intercept を MAIN world に分けたのと同じ世界の壁)。
+    // intercept.js が CustomEvent で中継してくるので、それを受けて URL 変化を反映する。
+    window.addEventListener(LOCATION_CHANGE_EVENT, checkUrlChange);
+    // 戻る/進む は pushState を経由せず popstate で飛んでくるため別途購読する。
     window.addEventListener('popstate', checkUrlChange);
 
     chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
@@ -456,9 +455,12 @@
     // popup.js からの sendMessage('darkblue:toggle') は廃止済み（二重発火の原因だった）。
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'sync' && changes[STORAGE_KEY]) {
-        const newVal = changes[STORAGE_KEY].newValue;
-        if (newVal === isEnabled) return; // 既に同値ならスキップ
-        isEnabled = newVal;
+        // キー削除時 newValue は undefined になる。そのまま代入すると isEnabled が真偽値でなくなり、
+        // 暗黙の falsy として解除され (init の既定 true と食い違う)、getState 応答の enabled も
+        // undefined を返してしまう。init の get({[STORAGE_KEY]: true}) と同じ既定へ正規化する。
+        const nextEnabled = changes[STORAGE_KEY].newValue !== false;
+        if (nextEnabled === isEnabled) return; // 既に同値ならスキップ
+        isEnabled = nextEnabled;
         evaluateAndApply();
       }
     });

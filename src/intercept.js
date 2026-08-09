@@ -12,6 +12,10 @@
  *
  * ON/OFF 制御は content.js (isolated world) から `<html>` の `data-dbtx-intercept` 属性経由で行う。
  * isolated / MAIN は DOM 実体を共有するため、属性値の読み取りは両世界で一致する。
+ *
+ * 同じ「世界の壁」の理由で、X のルーターが呼ぶ history.pushState/replaceState も MAIN world で
+ * しか捕捉できない。本ファイルは SPA ナビゲーションを検知して DOM イベントで isolated world へ
+ * 中継する役割も持つ (詳細は末尾の SPA ナビゲーション通知セクション)。
  */
 
 (function () {
@@ -22,6 +26,10 @@
   // `window` （= MAIN world グローバル）に印を残して判定する。
   if (window.__dbtx_intercept_installed__) return;
   window.__dbtx_intercept_installed__ = true;
+
+  // ---- SPA ナビゲーション通知イベント名（content.js の同名定数と同期。変更時は両ファイル同時更新必須。
+  //      CI: scripts/check-shared-literals.js が値の一致を機械検証する）----
+  const LOCATION_CHANGE_EVENT = 'dbtx:locationchange';
 
   const origSetAttribute = Element.prototype.setAttribute;
   const origRemoveAttribute = Element.prototype.removeAttribute;
@@ -54,5 +62,41 @@
       return origSetAttribute.call(this, 'data-theme', 'dim');
     }
     return origRemoveAttribute.call(this, name);
+  };
+
+  // ========================================================
+  // SPA ナビゲーション通知 (MAIN world → isolated world)
+  // ========================================================
+  //
+  // content.js 側で history.pushState を包んでも、X のルーターが呼ぶのは MAIN world の history
+  // なので捕捉できない (setAttribute と同じ世界の壁)。isolated world が包めるのは自分の世界の
+  // wrapper だけで、そこを X が通ることはない。
+  // popstate は戻る/進むでしか発火せず、pushState 由来のクライアント遷移では発火しないため、
+  // フックが効かないと「ホーム → 通知」の遷移で data-dbtx-page が更新されず、通知ページ専用の
+  // CSS (cellInnerDiv / article の透明化) が当たらないままになる。
+  //
+  // ここで MAIN world の history を包み、DOM イベントとして isolated world へ中継する。
+  // DOM は両世界で共有されるためイベントは境界を越える。detail は渡さない
+  // (世界を跨ぐオブジェクトは構造化複製の制約を受けるため、URL は受信側が location から読む)。
+  //
+  // intercept の ON/OFF (data-dbtx-intercept) では分岐しない。ページフラグの要否判定は
+  // content.js の updatePageFlags が GUARD_CLASS を見て行うため、通知自体は常に送る。
+  const origPushState = history.pushState;
+  const origReplaceState = history.replaceState;
+
+  function notifyLocationChange() {
+    window.dispatchEvent(new CustomEvent(LOCATION_CHANGE_EVENT));
+  }
+
+  history.pushState = function (...args) {
+    const result = origPushState.apply(this, args);
+    notifyLocationChange();
+    return result;
+  };
+
+  history.replaceState = function (...args) {
+    const result = origReplaceState.apply(this, args);
+    notifyLocationChange();
+    return result;
   };
 })();

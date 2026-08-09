@@ -18,19 +18,37 @@ async function generateIcons() {
 
   fs.mkdirSync(iconsDir, { recursive: true });
 
-  await Promise.all(sizes.map(async (size) => {
+  // 生成 PNG は .gitignore 対象でリポジトリに存在せず、CI (package / publish-firefox ジョブ) は
+  // 毎回ここでの生成物に依存する。個別サイズの失敗を握り潰すと exit 0 のまま zip/xpi 化へ進み、
+  // manifest.json が参照するアイコンを欠いたパッケージがストアへ提出されうるため、必ず失敗させる。
+  const results = await Promise.allSettled(sizes.map(async (size) => {
     const outputPath = path.join(iconsDir, `icon${size}.png`);
-    try {
-      await sharp(svgPath)
-        .resize(size, size)
-        .png()
-        .toFile(outputPath);
+    await sharp(svgPath)
+      .resize(size, size)
+      .png()
+      .toFile(outputPath);
 
-      console.log(`✅ ${size}x${size} アイコンを生成しました: ${path.basename(outputPath)}`);
-    } catch (error) {
-      console.error(`❌ ${size}x${size} アイコンの生成に失敗しました:`, error.message);
-    }
+    console.log(`✅ ${size}x${size} アイコンを生成しました: ${path.basename(outputPath)}`);
   }));
+
+  const failures = results
+    .map((r, i) => ({ size: sizes[i], reason: r.reason }))
+    .filter((r) => r.reason !== undefined);
+
+  if (failures.length > 0) {
+    for (const { size, reason } of failures) {
+      console.error(`❌ ${size}x${size} アイコンの生成に失敗しました:`, reason && reason.message ? reason.message : reason);
+    }
+    throw new Error(`${failures.length} 個のアイコン生成に失敗しました`);
+  }
+
+  // 書き込み自体が無言で空ファイルを作る事故 (ディスク full 等) まで含めて弾く
+  for (const size of sizes) {
+    const outputPath = path.join(iconsDir, `icon${size}.png`);
+    if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) {
+      throw new Error(`アイコンが生成されていないか空です: ${path.basename(outputPath)}`);
+    }
+  }
 
   console.log('\n🎉 アイコン生成が完了しました！');
 }

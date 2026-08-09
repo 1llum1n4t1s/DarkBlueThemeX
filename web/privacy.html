@@ -35,8 +35,9 @@
         <h3>storage</h3>
         <ul>
           <li>トグル（有効/無効）の状態を保存するために使用します</li>
-          <li>保存されるデータはブール値（true/false）1つのみです</li>
+          <li>この権限で保存されるデータはブール値（true/false）1つのみです</li>
           <li>Chrome の同期ストレージを使用し、同一アカウントのデバイス間で設定が同期されます</li>
+          <li>このほかに、権限を必要としない X ページ内の <code>localStorage</code> へ表示用のフラグを保存します（詳細は「データの保存」）</li>
         </ul>
         <h3>activeTab</h3>
         <ul>
@@ -66,7 +67,13 @@
       </section>
       <section>
         <h2>データの保存</h2>
-        <p>Chrome の <code>chrome.storage.sync</code> API を通じて、トグルの有効/無効状態（ブール値1つ）のみを保存します。このデータは Chrome のアカウント同期機能を通じて同期されますが、外部には送信されません。</p>
+        <p>本拡張機能が保存するのは、以下の動作設定のみです。いずれも個人を識別しうる情報を含まず、外部には送信されません。</p>
+        <ul>
+          <li><strong><code>chrome.storage.sync</code></strong>: トグルの有効/無効状態（ブール値1つ）。Chrome のアカウント同期機能を通じてデバイス間で同期されます</li>
+          <li><strong>x.com / twitter.com の <code>localStorage</code></strong>: 前回テーマを適用していたかのフラグ（<code>darkbluethemex_was_active</code>）。ページ表示直後の一瞬だけ黒い画面が見える現象（FOUC）を防ぐため、設定の非同期読み込みを待たずに配色を決めるのに使います</li>
+          <li><strong>x.com / twitter.com の <code>localStorage</code></strong>: デバッグログの有効フラグ（<code>dbtx_debug</code>、既定では未設定）。不具合調査時に利用者自身が手動で設定した場合のみ読み取ります</li>
+        </ul>
+        <p><code>localStorage</code> のデータは X のページ内にのみ保存され、ブラウザの閲覧データ削除でいつでも消去できます。</p>
       </section>
       <section>
         <h2>第三者への提供</h2>

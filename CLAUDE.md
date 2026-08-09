@@ -10,7 +10,7 @@ Cross-browser Manifest V3 拡張機能 (Chrome / Edge / Brave / Firefox 142+) �
 
 ```bash
 # Windows (Chrome + Firefox 両方)
-powershell -File zip.ps1
+pwsh -File zip.ps1
 pnpm run zip:win                  # package.json 経由 (同じ処理)
 
 # Unix/macOS (Chrome + Firefox 両方)
@@ -20,8 +20,8 @@ pnpm run zip                      # = pnpm run zip:nix
 # variant 個別
 bash zip.sh chrome                # Chrome のみ
 bash zip.sh firefox               # Firefox のみ
-powershell -File zip.ps1 -Target chrome
-powershell -File zip.ps1 -Target firefox
+pwsh -File zip.ps1 -Target chrome
+pwsh -File zip.ps1 -Target firefox
 ```
 
 成果物:
@@ -60,7 +60,7 @@ To test locally:
 - GitHub Actions は `actions/*` を含めすべて commit SHA で固定（サプライチェーン対策）。`# vN` コメントを手掛かりに Dependabot が SHA を追従更新する。
 - ワークフローはトップレベル `concurrency`（`group: publish-${{ github.ref }}` / `cancel-in-progress: false`）で直列化し、`release/**` への連続 push 時に publish が並走して CWS の `--auto-publish` が競合するのを防ぐ。publish は不可逆な外部副作用を持つため、進行中ランをキャンセルせずキューイングして中断による部分公開を避ける。
 - Chrome 公開ジョブは Firefox ジョブと対称に、`CWS_*` Secrets 欠落時の事前ガード（`-z` チェック）で fail-fast する。Secrets を扱う publish 2 ジョブは job レベル `permissions: contents: read` を明示。
-- `pnpm run check-shared-literals`（CI）で `STORAGE_KEY` / `MSG_GET_STATE` の content↔popup 一致も検証する。
+- `pnpm run check-shared-literals`（CI）で `STORAGE_KEY` / `MSG_GET_STATE` の content↔popup 一致と、`LOCATION_CHANGE_EVENT` の content↔intercept 一致も検証する。
 
 ### 公開後のロールバック / ロールフォワード（インシデント時 runbook）
 
@@ -162,7 +162,7 @@ The observer watches `data-theme`, `class`, and `style` attributes on `<html>` (
 - `class` change: only react if guard class was externally removed while theme is `"dim"`
 - `style` change: `color-scheme` の値が前回と異なる場合のみ再評価（X が `data-theme` を廃止し `color-scheme` で管理する方式に移行したため追加）。前回値キャッシュ (`_lastColorScheme`) でフィルタリングし、無関係な style 変更では発火しない。
 
-SPA navigation detection is handled separately by History API hooks (`pushState`/`replaceState`) and `popstate` listener — not by the observer.
+SPA navigation detection is handled separately by History API hooks and a `popstate` listener — not by the observer. **History のフックは `src/intercept.js` (MAIN world) 側にある**: content.js (isolated world) で `history.pushState` を包んでも、X のルーターが呼ぶのは MAIN world の `history` なので捕捉できない（`setAttribute` intercept を MAIN world に分けたのと同じ世界の壁）。intercept.js が `pushState`/`replaceState` を包み、`CustomEvent('dbtx:locationchange')` を `window` に dispatch して isolated world へ中継する。DOM は両世界で共有されるためイベントは境界を越える（`detail` は構造化複製の制約を避けるため渡さず、URL は受信側が `location` から読む）。content.js はこのイベントと `popstate`（戻る/進む は `pushState` を経由しないため別途必要）を購読して `checkUrlChange()` を呼ぶ。この中継が壊れると「ホーム → 通知」のクライアント遷移で `data-dbtx-page` が更新されず、通知ページ専用 CSS が当たらなくなる。
 
 ### DarkBlue Color Palette
 
@@ -214,7 +214,7 @@ When X introduces a new dark-theme color not yet handled:
 
 トグル自体は `chrome.storage.sync.set` → `storage.onChanged` 経由で全タブに伝播する設計（sendMessage 経由の toggle は二重発火の原因になるため廃止）。
 
-**重複リテラル管理**: `STORAGE_KEY = 'darkblue_enabled'` と `MSG_GET_STATE = 'darkblue:getState'` は content.js と popup.js の両方に独立してハードコードされている（Chrome 拡張のコンテキスト分離で共有モジュール不可）。変更時は必ず両ファイルを同時更新すること。各リテラル定義箇所には対応箇所を**定数名で**コメント併記している（行番号は行ズレで腐るため付さない）。一致は `scripts/check-shared-literals.js`（`pnpm run check-shared-literals`、CI でも実行）が機械検証し、片側更新漏れを CI で検出する。
+**重複リテラル管理**: `STORAGE_KEY = 'darkblue_enabled'` と `MSG_GET_STATE = 'darkblue:getState'` は content.js と popup.js の両方に、`LOCATION_CHANGE_EVENT = 'dbtx:locationchange'` は content.js と intercept.js の両方に、独立してハードコードされている（Chrome 拡張のコンテキスト分離で共有モジュール不可）。変更時は必ず対になるファイルを同時更新すること。各リテラル定義箇所には対応箇所を**定数名で**コメント併記している（行番号は行ズレで腐るため付さない）。一致は `scripts/check-shared-literals.js`（`pnpm run check-shared-literals`、CI でも実行）が機械検証し、片側更新漏れを CI で検出する。
 
 ### File Roles
 
@@ -238,7 +238,7 @@ When X introduces a new dark-theme color not yet handled:
 |------|------|
 | `scripts/generate-icons.js` | 拡張機能アイコン (16/48/128px) 生成スクリプト (Node.js + sharp) |
 | `scripts/check-version.js` | `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証 (CI 実行) |
-| `scripts/check-shared-literals.js` | content.js / popup.js の共有リテラル (`STORAGE_KEY` / `MSG_GET_STATE`) 値の一致を検証 (CI 実行) |
+| `scripts/check-shared-literals.js` | 実行コンテキストを跨ぐ共有リテラル値の一致を検証 (CI 実行)。content↔popup: `STORAGE_KEY` / `MSG_GET_STATE`、content↔intercept: `LOCATION_CHANGE_EVENT` |
 | `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store + Firefox AMO に同時自動公開 |
 | `zip.ps1` / `zip.sh` | Chrome/Firefox 両対応のパッケージ生成 (`-Target chrome|firefox|both` / `bash zip.sh chrome|firefox|both`) |
 | `.github/dependabot.yml` | GitHub Actions と npm 依存の週次自動更新 |
@@ -270,5 +270,5 @@ Version の唯一の真実は `manifest.json` の `"version"` フィールド。
 - Permissions: `storage` + `activeTab` (minimal)
 - `content_security_policy.extension_pages`: `script-src 'self'; object-src 'self'` を明示 (デフォルトと同等だが将来のリグレッション防止のため)
 - No background/service worker — all logic in 2 content scripts (isolated + MAIN) + popup
-- 3 実行コンテキスト (content.js = isolated world / intercept.js = MAIN world / popup = extension page) は共有モジュール不可。定数は `STORAGE_KEY` と `'darkblue:getState'` のみ重複、両側同時更新必須
+- 3 実行コンテキスト (content.js = isolated world / intercept.js = MAIN world / popup = extension page) は共有モジュール不可。重複定数は `STORAGE_KEY` / `'darkblue:getState'` (content↔popup) と `'dbtx:locationchange'` (content↔intercept) のみ、対になるファイルの同時更新必須
 - X frequently changes its DOM structure and class names — CSS selectors may need updates when X deploys changes
