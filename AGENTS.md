@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code and other coding agents working in this repository.
+This file provides guidance to Codex and other coding agents working in this repository.
 
 ## Project Overview
 
@@ -247,7 +247,7 @@ When X introduces a new dark-theme color not yet handled:
 | `docs/privacy-policy*.md` | プライバシーポリシー (日本語・英語) |
 | `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (`.gitignore` 対象) |
 
-> `CLAUDE.md` をこのリポジトリの唯一の正規エージェントガイドとして維持する。更新はこのファイルに集約し、同内容の別ファイルは作らない。
+> `AGENTS.md` をこのリポジトリの唯一の正規エージェントガイドとして維持する。更新はこのファイルに集約し、同内容の別ファイルは作らない。
 
 ## Version Update
 
