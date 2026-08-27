@@ -226,3 +226,14 @@ body {
   color: var(--db-text-sub);
   opacity: 0.7;
 }
+
+/* ---- Support footer ---- */
+/* お問い合わせ / 評価ボタンは Kagayoi.Support の共通部品 <kagayoi-support-footer> が描画する。
+   ここは配色の受け渡しだけで、ボタンの構造と見た目は共通部品側に持たせる。 */
+
+kagayoi-support-footer {
+  --kgs-radius: 12px;
+  --kgs-surface: var(--db-bg-card);
+  --kgs-border: var(--db-border);
+  --kgs-accent: var(--db-accent);
+}
