@@ -1,10 +1,10 @@
 # Privacy Policy - DarkBlueThemeX
 
-Last Updated: February 18, 2026
+Last Updated: August 27, 2026
 
 ## Overview
 
-"DarkBlueThemeX" (the "Extension") is a Chrome extension that converts X's (formerly Twitter) dark theme (Lights Out) into the classic DarkBlue (Dim) theme. This Extension respects user privacy and does not collect any personal information.
+"DarkBlueThemeX" (the "Extension") is a Chrome extension that converts X's (formerly Twitter) dark theme (Lights Out) into the classic DarkBlue (Dim) theme. This Extension respects user privacy and collects no personal information as part of the theme conversion. The only exception is the contact form you submit yourself (see "Contact form").
 
 ## Permissions Used
 
@@ -24,16 +24,26 @@ Last Updated: February 18, 2026
 
 ## Data Collection
 
-This Extension does **not** collect any of the following data:
-- Personal information (name, email address, etc.)
+This Extension never collects any of the following automatically:
 - Browsing history
 - Cookies
 - Location data
 - Analytics data
 
+Your name and email address are received only when you type them into the contact form and submit it. If you do not use the form, they are never received.
+
 ## External Communication
 
-This Extension does **not** communicate with any external servers. All processing is performed entirely within the browser.
+Apart from the contact form below, this Extension does **not** communicate with any external servers. All theme conversion is performed entirely within the browser.
+
+## Contact form
+
+Only when you press "Contact support" in the settings popup and submit the form does the Extension send the following to Kagayoi Support (`https://support.kagayoi.com`). No such request happens unless you press the button.
+
+- The email address, optional name, inquiry category, subject, and message you entered
+- Product ID, extension version, and locale
+
+On first use, the six-digit code delivered by email is sent to Kagayoi Support to verify you. After verification, Kagayoi Support stores the inquiry and replies so that you and support staff can access them. Nothing you view on X (twitter.com) and none of your theme settings are sent.
 
 ## Data Storage
 
@@ -49,7 +59,7 @@ The `localStorage` data is stored only within X pages and can be cleared at any 
 
 ## Third-Party Sharing
 
-Since this Extension does not collect any data, no data is shared with third parties.
+Apart from what you submit through the contact form, this Extension collects no data, so there is nothing to share with third parties. Contact form content goes to the developer's (Kagayoi) support desk and is never passed to advertising or analytics third parties.
 
 ## Contact
 
