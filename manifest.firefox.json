@@ -8,14 +8,17 @@
       "id": "{6a3c2b7e-9d4f-4a1c-b8e5-2f7d8c9e1a3b}",
       "strict_min_version": "142.0",
       "data_collection_permissions": {
-        "required": ["personallyIdentifyingInfo", "authenticationInfo"]
+        "required": ["none"],
+        "optional": ["personallyIdentifyingInfo", "authenticationInfo", "personalCommunications", "technicalAndInteraction"]
       }
     }
   },
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://x.com/*",
-    "https://twitter.com/*",
+    "https://twitter.com/*"
+  ],
+  "optional_host_permissions": [
     "https://support.kagayoi.com/*"
   ],
   "icons": {

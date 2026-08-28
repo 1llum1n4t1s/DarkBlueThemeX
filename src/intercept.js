@@ -31,6 +31,11 @@
   //      CI: scripts/check-shared-literals.js が値の一致を機械検証する）----
   const LOCATION_CHANGE_EVENT = 'dbtx:locationchange';
 
+  // ---- data-theme 操作通知（content.js の同名定数と同期。CI: check-shared-literals.js）----
+  const THEME_DARK_CONVERTED_EVENT = 'dbtx:themedarkconverted';
+  const THEME_REMOVED_CONVERTED_EVENT = 'dbtx:themeremovedconverted';
+  const THEME_DIM_SELECTED_EVENT = 'dbtx:themedimselected';
+
   const origSetAttribute = Element.prototype.setAttribute;
   const origRemoveAttribute = Element.prototype.removeAttribute;
 
@@ -44,10 +49,18 @@
     if (
       this === document.documentElement &&
       name === 'data-theme' &&
-      value === 'dark' &&
       isActive()
     ) {
-      return origSetAttribute.call(this, name, 'dim');
+      if (value === 'dark') {
+        const result = origSetAttribute.call(this, name, 'dim');
+        window.dispatchEvent(new CustomEvent(THEME_DARK_CONVERTED_EVENT));
+        return result;
+      }
+      if (value === 'dim') {
+        const result = origSetAttribute.call(this, name, value);
+        window.dispatchEvent(new CustomEvent(THEME_DIM_SELECTED_EVENT));
+        return result;
+      }
     }
     return origSetAttribute.call(this, name, value);
   };
@@ -59,7 +72,9 @@
       isActive()
     ) {
       // 削除ではなく "dim" に再設定 (silently 無視だと X や他拡張の前提を破壊するため)
-      return origSetAttribute.call(this, 'data-theme', 'dim');
+      const result = origSetAttribute.call(this, 'data-theme', 'dim');
+      window.dispatchEvent(new CustomEvent(THEME_REMOVED_CONVERTED_EVENT));
+      return result;
     }
     return origRemoveAttribute.call(this, name);
   };
@@ -99,4 +114,5 @@
     notifyLocationChange();
     return result;
   };
+
 })();

@@ -31,6 +31,11 @@
   // ---- SPA ナビゲーション通知イベント名（intercept.js の同名定数と同期。CI: check-shared-literals.js）----
   const LOCATION_CHANGE_EVENT = 'dbtx:locationchange';
 
+  // ---- MAIN world での data-theme 操作通知（intercept.js の同名定数と同期。CI: check-shared-literals.js）----
+  const THEME_DARK_CONVERTED_EVENT = 'dbtx:themedarkconverted';
+  const THEME_REMOVED_CONVERTED_EVENT = 'dbtx:themeremovedconverted';
+  const THEME_DIM_SELECTED_EVENT = 'dbtx:themedimselected';
+
   // ---- カラー定数（darkblue.css ヘッダと popup.css 変数を正として同期）----
   const BG_PRIMARY = '#15202B';
 
@@ -46,7 +51,7 @@
   let _lastColorScheme = null;      // style 属性変化のフィルタリング用
   let _syntheticDim = false;        // color-scheme フォールバックで合成した dim（無効化時に属性削除 vs dark 復元を区別）
   let _dimAppliedByUs = false;      // dark→dim 変換を自分が行ったか（X 公式 Dim / 他拡張由来の dim を戻さないため）
-  let _stateResolved = false;       // storage.sync.get が解決済みか（解決前の visibilitychange/pageshow で誤適用しないため）
+  let _stateResolved = false;       // storage.sync.get が解決済みか（未解決中の observer/visibilitychange/pageshow 誤適用を防ぐ）
 
   // ---- 発振ブレーカ（OOM 最終防衛線）----
   // evaluateAndApply が「適用↔解除」を短時間に FLIP_LIMIT 回超えてフリップしたら、以降の適用を停止する。
@@ -62,6 +67,22 @@
   let DEBUG = false;
   try { DEBUG = localStorage.getItem('dbtx_debug') === '1'; } catch (e) { /* 取得不可なら既定 OFF のまま */ }
   function dlog(...args) { if (DEBUG) console.debug('[dbtx]', ...args); }
+
+  // MAIN world の intercept が変換した dim の復元元を同期イベントで受け取る。
+  // リスナーを楽観的 intercept ON より先に登録し、document_start の初期 dark 書き込みも取りこぼさない。
+  window.addEventListener(THEME_DARK_CONVERTED_EVENT, () => {
+    _syntheticDim = false;
+    _dimAppliedByUs = true;
+  });
+  window.addEventListener(THEME_REMOVED_CONVERTED_EVENT, () => {
+    _syntheticDim = true;
+    _dimAppliedByUs = true;
+  });
+  window.addEventListener(THEME_DIM_SELECTED_EVENT, () => {
+    // X が公式 Dim を明示した場合は、過去の dark→dim 変換履歴を現在値へ持ち越さない。
+    _syntheticDim = false;
+    _dimAppliedByUs = false;
+  });
 
   // ---- localStorage 早期読み込みによる楽観的 GUARD_CLASS 付与（FOUC 防止強化）----
   // storage.sync の非同期解決を待たずに、前回セッションで有効だったなら即 GUARD_CLASS を付ける。
@@ -191,7 +212,13 @@
    */
   function restoreDataTheme() {
     const docEl = document.documentElement;
-    if (!_dimAppliedByUs || docEl.dataset.theme !== 'dim') return;
+    if (docEl.dataset.theme !== 'dim') {
+      // X が light 等へ切り替えた後に、過去の dim 復元情報を次のテーマへ持ち越さない。
+      _syntheticDim = false;
+      _dimAppliedByUs = false;
+      return;
+    }
+    if (!_dimAppliedByUs) return;
     if (_syntheticDim) {
       docEl.removeAttribute('data-theme');
     } else {
@@ -336,6 +363,10 @@
     if (domObserver) domObserver.disconnect();
 
     domObserver = new MutationObserver((mutations) => {
+      // storage の状態が確定するまでは暫定 isEnabled=true でテーマを誤適用しない。
+      // 初期適用と BFCache 復帰時の再適用は storage 取得後の evaluateAndApply() が担う。
+      if (!_stateResolved) return;
+
       const docEl = document.documentElement;
       const theme = getCurrentTheme();
       const hasGuard = docEl.classList.contains(GUARD_CLASS);
@@ -407,6 +438,7 @@
           enabled: isEnabled,
           isBlackTheme: theme === 'dark' || (isActive && theme === 'dim'),
           isDarkBlueApplied: isActive,
+          isOfficialDim: theme === 'dim' && !isActive,
           theme,                                  // デバッグ表示用
           hasGuard: isActive,
         });
@@ -477,6 +509,7 @@
   // bfcache からの復元時、MutationObserver が disconnect されている可能性がある
   window.addEventListener('pageshow', (event) => {
     if (event.persisted && _initialized && !domObserver) {
+      _stateResolved = false;
       // bfcache 復元直後は URL が変わっている可能性 → ページフラグを再同期してから再評価。
       _lastUrl = location.href;
       updatePageFlags();

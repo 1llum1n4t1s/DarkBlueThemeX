@@ -25,7 +25,7 @@
 
   <main id="main" class="legal section-shell">
     <h1>プライバシー<br>ポリシー</h1>
-    <p class="legal-lead">最終更新日: 2026年8月27日</p>
+    <p class="legal-lead">最終更新日: 2026年8月28日</p>
       <section>
         <h2>概要</h2>
         <p>「帰ってきたDarkBlueテーマ(X)」（以下「本拡張機能」）は、ユーザーのプライバシーを尊重します。テーマ変換の動作で個人情報を収集することはありません。例外は、利用者が自分でお問い合わせフォームを送信したときだけです（「お問い合わせフォーム」の項を参照）。</p>
@@ -37,7 +37,7 @@
           <li>トグル（有効/無効）の状態を保存するために使用します</li>
           <li>この権限で保存されるデータはブール値（true/false）1つのみです</li>
           <li>Chrome の同期ストレージを使用し、同一アカウントのデバイス間で設定が同期されます</li>
-          <li>このほかに、権限を必要としない X ページ内の <code>localStorage</code> へ表示用のフラグを保存します（詳細は「データの保存」）</li>
+          <li>このほかに、権限を必要としない <code>localStorage</code> へ表示用のフラグと、お問い合わせ利用時の認証セッションを保存します（詳細は「データの保存」）</li>
         </ul>
         <h3>activeTab</h3>
         <ul>
@@ -47,7 +47,17 @@
         <h3>ホスト権限 (x.com, twitter.com)</h3>
         <ul>
           <li>X のページにテーマ変換用の CSS を適用するために必要です</li>
-          <li>これらのサイト以外では一切動作しません</li>
+          <li>テーマ変換機能が動作するのはこれらのサイトだけです</li>
+        </ul>
+        <h3>Kagayoi Support のホスト権限 (support.kagayoi.com)</h3>
+        <ul>
+          <li>お問い合わせフォームの認証と送信に使う API との通信にだけ使用します</li>
+          <li>Chrome / Edge / Brave / Firefox のいずれも任意のホスト権限として宣言し、「お問い合わせ」を押したときにブラウザが許可を求めます。許可しなければ権限は付与されず、テーマ変換はそのまま利用できます</li>
+        </ul>
+        <h3>Firefox の任意データ収集権限</h3>
+        <ul>
+          <li>メールアドレスと任意のお名前を <code>personallyIdentifyingInfo</code>、6桁の確認コードと認証セッションを <code>authenticationInfo</code>、件名と本文を <code>personalCommunications</code>、製品ID・拡張機能バージョン・ロケールを <code>technicalAndInteraction</code> として宣言しています</li>
+          <li>いずれも任意権限で、「お問い合わせ」を押したときに Firefox が利用者へ同意を求めます。拒否してもテーマ変換はそのまま利用できます</li>
         </ul>
       </section>
       <section>
@@ -76,13 +86,14 @@
       </section>
       <section>
         <h2>データの保存</h2>
-        <p>本拡張機能が保存するのは、以下の動作設定のみです。いずれも個人を識別しうる情報を含まず、外部には送信されません。</p>
+        <p>本拡張機能は、以下の動作設定と、お問い合わせを利用したときの認証セッションを保存します。</p>
         <ul>
           <li><strong><code>chrome.storage.sync</code></strong>: トグルの有効/無効状態（ブール値1つ）。Chrome のアカウント同期機能を通じてデバイス間で同期されます</li>
           <li><strong>x.com / twitter.com の <code>localStorage</code></strong>: 前回テーマを適用していたかのフラグ（<code>darkbluethemex_was_active</code>）。ページ表示直後の一瞬だけ黒い画面が見える現象（FOUC）を防ぐため、設定の非同期読み込みを待たずに配色を決めるのに使います</li>
           <li><strong>x.com / twitter.com の <code>localStorage</code></strong>: デバッグログの有効フラグ（<code>dbtx_debug</code>、既定では未設定）。不具合調査時に利用者自身が手動で設定した場合のみ読み取ります</li>
+          <li><strong>拡張機能の <code>localStorage</code></strong>: メールアドレス、アクセストークン、有効期限（<code>kagayoi-support-session</code>）。お問い合わせのたびに確認コードを入力し直さず、利用者本人として Kagayoi Support へ送信するために使います。ブラウザ間では同期されません</li>
         </ul>
-        <p><code>localStorage</code> のデータは X のページ内にのみ保存され、ブラウザの閲覧データ削除でいつでも消去できます。</p>
+        <p>期限切れの認証セッションは次にお問い合わせを使ったときに削除されます。これらの <code>localStorage</code> は、ブラウザの閲覧データまたは拡張機能のデータを削除することでも消去できます。</p>
       </section>
       <section>
         <h2>第三者への提供</h2>
@@ -95,6 +106,7 @@
       <section>
         <h2>変更履歴</h2>
         <ul>
+          <li>2026年8月28日: お問い合わせの任意権限と認証セッションの保存内容を明記</li>
           <li>2026年2月18日: 初版公開</li>
         </ul>
       </section>

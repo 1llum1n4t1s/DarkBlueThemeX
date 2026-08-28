@@ -6,6 +6,7 @@
 :root {
   --db-bg-primary: #15202B;
   --db-bg-card: #192734;
+  --db-bg-hover: #22303C;
   --db-border: #38444D;
   --db-text-main: #E7E9EA;
   --db-text-sub: #8B98A5;
@@ -228,8 +229,51 @@ body {
 }
 
 /* ---- Support footer ---- */
-/* お問い合わせ / 評価ボタンは Kagayoi.Support の共通部品 <kagayoi-support-footer> が描画する。
-   ここは配色の受け渡しだけで、ボタンの構造と見た目は共通部品側に持たせる。 */
+
+.support-footer {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+/* 権限同意をボタン操作へ結び付けるため、フォーム部品の公開 open() API を使う。 */
+.support-contact {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.72rem 0.85rem;
+  border: 1px solid var(--db-border);
+  border-radius: 12px;
+  background: var(--db-bg-card);
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.support-contact:hover {
+  background: var(--db-bg-hover);
+}
+
+.support-contact:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: 2px;
+}
+
+.support-contact:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.support-permission-status {
+  color: var(--db-text-sub);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.support-footer > kagayoi-contact-popup {
+  position: absolute;
+  --ks-accent: var(--db-accent);
+}
 
 kagayoi-support-footer {
   --kgs-radius: 12px;

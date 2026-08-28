@@ -4,7 +4,7 @@ This file provides guidance to Codex and other coding agents working in this rep
 
 ## Project Overview
 
-Cross-browser Manifest V3 拡張機能 (Chrome / Edge / Brave / Firefox 142+) で、X (旧 Twitter) の黒/Lights Out テーマを旧 DarkBlue(Dim) テーマに変換する。Chrome Web Store には「帰ってきたDarkBlueテーマ(X)」として公開、Firefox AMO 対応済み (ストアリスティングは別途申請)。**Version の真実の源は `manifest.json`** で、`manifest.firefox.json` と `package.json` は CI の `pnpm run check-version` で 3 ファイル同期を強制。popup は `chrome.runtime.getManifest().version` で動的取得。Zero external dependencies — pure vanilla JS と CSS のみ。
+Cross-browser Manifest V3 拡張機能 (Chrome / Edge / Brave / Firefox 142+) で、X (旧 Twitter) の黒/Lights Out テーマを旧 DarkBlue(Dim) テーマに変換する。Chrome Web Store と Firefox AMO に「帰ってきたDarkBlueテーマ(X)」として公開済み。**Version の真実の源は `manifest.json`** で、`manifest.firefox.json` と `package.json` は CI の `pnpm run check-version` で 3 ファイル同期を強制。popup は `chrome.runtime.getManifest().version` で動的取得。Zero external dependencies — pure vanilla JS と CSS のみ。
 
 ## Build & Package
 
@@ -72,13 +72,15 @@ To test locally:
 
 ## Firefox AMO 対応の構造
 
-- `manifest.firefox.json` が Firefox 専用 manifest。差分は **`browser_specific_settings.gecko`** のみ:
+- `manifest.firefox.json` が Firefox 専用 manifest。主な差分は **`browser_specific_settings.gecko`**:
   - `id`: `{6a3c2b7e-9d4f-4a1c-b8e5-2f7d8c9e1a3b}` (UUID 形式、初回 AMO 公開後は変更不可)
   - `strict_min_version`: `"142.0"` (`data_collection_permissions` 利用と `world: "MAIN"` content script の安全マージン)
-  - `data_collection_permissions.required`: `["none"]` (収集なし宣言、AMO レビュアー向けの明示シグナル)
+  - `data_collection_permissions.required`: `["none"]`（問い合わせを使わない通常動作では収集なし）
+  - `data_collection_permissions.optional`: `["personallyIdentifyingInfo", "authenticationInfo", "personalCommunications", "technicalAndInteraction"]`（問い合わせボタン操作時に `permissions.request({ data_collection: ... })` で同意を取得）
+- `support.kagayoi.com` は Chrome / Firefox とも `optional_host_permissions` とし、問い合わせボタン操作時に要求する。Firefox は同じ `permissions.request()` で任意データ収集権限も一括要求する。
 - DarkBlueThemeX は `chrome.offscreen` / `chrome.tabCapture` 等の Firefox 非対応 API を一切使っていないため、WebRestrictionRemoval が採用する `__FIREFOX_STRIP_BEGIN__` マーカー方式のコード物理削除は不要。`chrome.runtime` / `chrome.storage` / `chrome.tabs` のみで完結している。
 - `content_scripts.world: "MAIN"` は Firefox 128+ でサポート済 (本プロジェクトは 142+ 必須)。
-- web-ext lint 結果: **errors 0 / warnings 0**（2026-05-27 確認）。
+- web-ext lint 結果: **errors 0 / notices 0 / warnings 0**（2026-08-28 確認）。
 
 ## Architecture
 
@@ -103,7 +105,7 @@ Theming state is controlled by two classes on `<html>`:
 Enable flow: add guard class, remove OFF class, set `data-dbtx-intercept="on"` (MAIN world intercept を有効化), `<body>` に `data-theme="dark"` マーカーを付与.
 Disable flow (`deactivateTheme()`): set `data-dbtx-intercept="off"`, remove guard class, add OFF class, `restoreDataTheme()` で `data-theme` を復元, `<body>` のマーカーを元値へ復元, restore `<meta name="theme-color">`.
 
-`restoreDataTheme()` は「拡張機能が設定した `data-theme="dim"` を戻す」処理の唯一の定義（合成 dim なら属性削除、そうでなければ `dark` へ）。intercept を OFF にした**後**に呼ぶこと（ON のままだと `dark` 書き込みが `dim` に戻される）。
+`restoreDataTheme()` は「拡張機能が設定した `data-theme="dim"` を戻す」処理の唯一の定義（合成 dim なら属性削除、そうでなければ `dark` へ）。intercept を OFF にした**後**に呼ぶこと（ON のままだと `dark` 書き込みが `dim` に戻される）。現在値が dim 以外なら過去の復元情報を破棄し、後続テーマへ持ち越さない。
 
 復元の可否は **`_dimAppliedByUs`**（`dark` → `dim` 変換を自分が行ったときだけ true）で決める。この区別が無いと次のどちらかが必ず壊れる:
 
@@ -138,7 +140,9 @@ X's main.js re-sets `data-theme="dark"` after page load. MutationObserver is asy
 
 content.js (isolated world) から intercept の ON/OFF を制御する手段として、`<html>` の `data-dbtx-intercept="on|off"` 属性を使う。intercept.js はこの属性値を毎回読んで動作を切り替える。intercept.js は **二重インストール防止用に `window.__dbtx_intercept_installed__` をグローバル印として使う**。
 
-`removeAttribute('data-theme')` は「削除して X のリセット」ではなく「`data-theme="dim"` に再設定」するよう変換し、silently 無視による混乱を避ける設計。
+前回有効時は content.js が storage.sync 解決前に intercept を ON にするため、X の初期 `dark` 書き込みが先に `dim` へ変換される。この変換元を失わないよう、intercept.js は `THEME_DARK_CONVERTED_EVENT` / `THEME_REMOVED_CONVERTED_EVENT` / `THEME_DIM_SELECTED_EVENT` を同期 dispatch し、content.js が `_dimAppliedByUs` / `_syntheticDim` を更新する。リスナーは楽観的 intercept ON より先に登録すること。公式 Dim の明示では過去の変換履歴を消し、OFF 時に `dark` へ誤復元しない。
+
+`removeAttribute('data-theme')` は「削除して X のリセット」ではなく「`data-theme="dim"` に再設定」するよう変換し、silently 無視による混乱を避ける設計。変換時は削除由来イベントを送り、OFF 時には属性なしへ復元する。
 
 ### Theme Detection (data-theme + color-scheme フォールバック)
 
@@ -157,6 +161,7 @@ content.js (isolated world) から intercept の ON/OFF を制御する手段と
 ### MutationObserver Smart Filtering
 
 The observer watches `data-theme`, `class`, and `style` attributes on `<html>` (and `data-theme` on `<body>`). The callback checks current attribute values to determine if a mutation was self-inflicted:
+- `chrome.storage.sync` の状態が未解決の間は callback 冒頭で即 return し、暫定 `isEnabled=true` による誤適用を防ぐ。初期化と BFCache 復帰では storage 取得完了後の `evaluateAndApply()` が初回評価を担う。
 - `<body>` の `data-theme` 変化: 有効かつ GUARD_CLASS 付与済みなら `markBodyDarkVariant()` で `"dark"` マーカーを貼り直す。既に `"dark"` なら同関数が即 return するため、書き込みの自己ループは発生しない。
 - `data-theme` change: **GUARD_CLASS 付与済みの `"dim"`** は自分が設定した値としてスキップ。GUARD_CLASS 未付与の `"dim"` は X 公式 Dim 設定や他拡張由来なので再評価する（この区別を入れないと自己変更誤検知で初期適用が漏れる）。extension 無効時は常にスキップ。
 - `class` change: only react if guard class was externally removed while theme is `"dim"`
@@ -214,19 +219,19 @@ When X introduces a new dark-theme color not yet handled:
 
 トグル自体は `chrome.storage.sync.set` → `storage.onChanged` 経由で全タブに伝播する設計（sendMessage 経由の toggle は二重発火の原因になるため廃止）。
 
-**重複リテラル管理**: `STORAGE_KEY = 'darkblue_enabled'` と `MSG_GET_STATE = 'darkblue:getState'` は content.js と popup.js の両方に、`LOCATION_CHANGE_EVENT = 'dbtx:locationchange'` は content.js と intercept.js の両方に、独立してハードコードされている（Chrome 拡張のコンテキスト分離で共有モジュール不可）。変更時は必ず対になるファイルを同時更新すること。各リテラル定義箇所には対応箇所を**定数名で**コメント併記している（行番号は行ズレで腐るため付さない）。一致は `scripts/check-shared-literals.js`（`pnpm run check-shared-literals`、CI でも実行）が機械検証し、片側更新漏れを CI で検出する。
+**重複リテラル管理**: `STORAGE_KEY = 'darkblue_enabled'` と `MSG_GET_STATE = 'darkblue:getState'` は content.js と popup.js の両方に、`LOCATION_CHANGE_EVENT` と3つの `THEME_*_EVENT` は content.js と intercept.js の両方に、独立してハードコードされている（Chrome 拡張のコンテキスト分離で共有モジュール不可）。変更時は必ず対になるファイルを同時更新すること。各リテラル定義箇所には対応箇所を**定数名で**コメント併記している（行番号は行ズレで腐るため付さない）。一致は `scripts/check-shared-literals.js`（`pnpm run check-shared-literals`、CI でも実行）が機械検証し、片側更新漏れを CI で検出する。
 
 ### File Roles
 
 | File | Role |
 |------|------|
 | `manifest.json` | Chrome / Edge / Brave 用 manifest, version (single source of truth), permissions, 2 content scripts (isolated + MAIN world) |
-| `manifest.firefox.json` | Firefox AMO 用 manifest, **差分は `browser_specific_settings.gecko` のみ** (id / strict_min_version / data_collection_permissions) |
+| `manifest.firefox.json` | Firefox AMO 用 manifest。主な差分は `browser_specific_settings.gecko` (id / strict_min_version / data_collection_permissions) |
 | `src/content.js` | Main theme engine (isolated world) — `data-theme` switching, MutationObserver, intercept ON/OFF 属性制御 |
-| `src/intercept.js` | MAIN world から `Element.prototype.setAttribute`/`removeAttribute` を同期的にラップ (FOUC 防止最終防衛線) |
+| `src/intercept.js` | MAIN world から `Element.prototype.setAttribute`/`removeAttribute` を同期的にラップし、変換元をイベント中継 (FOUC 防止最終防衛線) |
 | `src/styles/darkblue.css` | Static CSS theme rules, FOUC prevention, scoped under guard class and data-theme selectors |
 | `src/popup/popup.html` | Extension popup UI |
-| `src/popup/popup.js` | Toggle logic, storage writes, tab state queries, message passing to content script |
+| `src/popup/popup.js` | Toggle logic, storage writes, tab state queries, message passing to content script, 問い合わせ用の任意権限要求 |
 | `src/popup/popup.css` | Popup styling with DarkBlue palette CSS variables (all swatch colors reference these variables) |
 | `.amo-metadata.json` | Firefox AMO submission の metadata (`categories.firefox: ["appearance"]`, `version.license: "MIT"`)。 `web-ext sign --amo-metadata=` で毎回付与 |
 
@@ -239,6 +244,8 @@ When X introduces a new dark-theme color not yet handled:
 | `scripts/generate-icons.js` | 拡張機能アイコン (16/48/128px) 生成スクリプト (Node.js + sharp) |
 | `scripts/check-version.js` | `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証 (CI 実行) |
 | `scripts/check-shared-literals.js` | 実行コンテキストを跨ぐ共有リテラル値の一致を検証 (CI 実行)。content↔popup: `STORAGE_KEY` / `MSG_GET_STATE`、content↔intercept: `LOCATION_CHANGE_EVENT` |
+| `scripts/check-support-permissions.js` | Chrome の任意ホスト権限、Firefox の任意データ収集権限、許可／拒否時の popup 分岐を Node 標準機能だけで検証 (`pnpm run check`) |
+| `scripts/check-theme-state.js` | MAIN / isolated world を分離した VM で storage 未解決時の OFF 維持、再訪時の dark、公式 Dim、属性削除、通常初期化の OFF 復元契約を検証 (`pnpm run check`) |
 | `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store + Firefox AMO に同時自動公開 |
 | `zip.ps1` / `zip.sh` | Chrome/Firefox 両対応のパッケージ生成 (`-Target chrome|firefox|both` / `bash zip.sh chrome|firefox|both`) |
 | `.github/dependabot.yml` | GitHub Actions と npm 依存の週次自動更新 |
@@ -266,9 +273,9 @@ Version の唯一の真実は `manifest.json` の `"version"` フィールド。
 ## Key Constraints
 
 - Target: Chrome 110+ / Firefox 142+ (MV3 の `world: "MAIN"` content script を使うため。Firefox は 128 から MAIN world 対応だが、`data_collection_permissions` を使うため 142+ に統一)
-- Host permissions: `x.com/*` and `twitter.com/*` only
+- Theme host permissions: `x.com/*` and `twitter.com/*` only。Kagayoi Support API は Chrome / Firefox とも `optional_host_permissions` に宣言する
 - Permissions: `storage` + `activeTab` (minimal)
 - `content_security_policy.extension_pages`: `script-src 'self'; object-src 'self'` を明示 (デフォルトと同等だが将来のリグレッション防止のため)
 - No background/service worker — all logic in 2 content scripts (isolated + MAIN) + popup
-- 3 実行コンテキスト (content.js = isolated world / intercept.js = MAIN world / popup = extension page) は共有モジュール不可。重複定数は `STORAGE_KEY` / `'darkblue:getState'` (content↔popup) と `'dbtx:locationchange'` (content↔intercept) のみ、対になるファイルの同時更新必須
+- 3 実行コンテキスト (content.js = isolated world / intercept.js = MAIN world / popup = extension page) は共有モジュール不可。重複定数は `STORAGE_KEY` / `MSG_GET_STATE` (content↔popup)、`LOCATION_CHANGE_EVENT` / `THEME_*_EVENT` (content↔intercept) で、対になるファイルの同時更新必須
 - X frequently changes its DOM structure and class names — CSS selectors may need updates when X deploys changes

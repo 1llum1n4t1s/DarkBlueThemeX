@@ -27,7 +27,7 @@ X（旧Twitter）のダークテーマ(黒/Lights Out)を、かつて存在し�
 [帰ってきたDarkBlueテーマ(X) - Chrome ウェブストア](https://chromewebstore.google.com/detail/faoeaifiekkencilijamigcljnlaodkg?authuser=0&hl=ja)
 
 ### Firefox Add-ons (AMO) から
-Firefox 142 以降に対応しています。AMO ストアリスティングのリンクは公開後にここへ追記します。
+Firefox 142 以降に対応しています。[帰ってきたDarkBlueテーマ(X) - Firefox Add-ons](https://addons.mozilla.org/ja/firefox/addon/darkblue-theme-x/) からインストールできます。
 
 ### 開発者モード（ソースから導入する場合）
 
@@ -60,7 +60,7 @@ Firefox 142 以降に対応しています。AMO ストアリスティングの�
 
 ## プライバシー
 
-この拡張機能はユーザーの個人情報を一切収集しません。詳細は [プライバシーポリシー](docs/privacy-policy.md) をご覧ください。
+テーマ変換では個人情報を収集しません。利用者がお問い合わせフォームを開いて権限を許可し、送信した場合だけ、入力した情報を Kagayoi Support へ送ります。詳細は [プライバシーポリシー](docs/privacy-policy.md) をご覧ください。
 
 ## ライセンス
 

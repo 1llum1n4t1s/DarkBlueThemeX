@@ -7,6 +7,7 @@
  *   - STORAGE_KEY / MSG_GET_STATE (content ↔ popup): トグル伝播が止まる
  *   - LOCATION_CHANGE_EVENT (content ↔ intercept): SPA 遷移の検出が止まり、
  *     通知ページ専用 CSS が当たらなくなる
+ *   - THEME_*_EVENT (content ↔ intercept): dim の変換元を失い、OFF 時の復元先を誤る
  * 従来はコメントの行番号併記で同期を担保していたが行ズレで腐るため、CI で機械検証する。
  * 不一致なら exit 1。
  */
@@ -18,7 +19,15 @@ const root = path.join(__dirname, '..');
 /** 検証グループ: 同じ値を持つべき定数名と、それを重複定義しているファイル群 */
 const GROUPS = [
   { keys: ['STORAGE_KEY', 'MSG_GET_STATE'], files: ['src/content.js', 'src/popup/popup.js'] },
-  { keys: ['LOCATION_CHANGE_EVENT'], files: ['src/content.js', 'src/intercept.js'] },
+  {
+    keys: [
+      'LOCATION_CHANGE_EVENT',
+      'THEME_DARK_CONVERTED_EVENT',
+      'THEME_REMOVED_CONVERTED_EVENT',
+      'THEME_DIM_SELECTED_EVENT',
+    ],
+    files: ['src/content.js', 'src/intercept.js'],
+  },
 ];
 
 const sourceCache = new Map();

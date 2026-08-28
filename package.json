@@ -14,7 +14,9 @@
     "zip:both": "bash zip.sh both",
     "check-version": "node scripts/check-version.js",
     "check-shared-literals": "node scripts/check-shared-literals.js",
-    "check": "pnpm run check-version && pnpm run check-shared-literals"
+    "check-support-permissions": "node scripts/check-support-permissions.js",
+    "check-theme-state": "node scripts/check-theme-state.js",
+    "check": "pnpm run check-version && pnpm run check-shared-literals && pnpm run check-support-permissions && pnpm run check-theme-state"
   },
   "devDependencies": {
     "chrome-webstore-upload-cli": "4.0.1",

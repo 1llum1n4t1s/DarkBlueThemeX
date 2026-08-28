@@ -1,10 +1,10 @@
 # Privacy Policy - DarkBlueThemeX
 
-Last Updated: August 27, 2026
+Last Updated: August 28, 2026
 
 ## Overview
 
-"DarkBlueThemeX" (the "Extension") is a Chrome extension that converts X's (formerly Twitter) dark theme (Lights Out) into the classic DarkBlue (Dim) theme. This Extension respects user privacy and collects no personal information as part of the theme conversion. The only exception is the contact form you submit yourself (see "Contact form").
+"DarkBlueThemeX" (the "Extension") is a browser extension that converts X's (formerly Twitter) dark theme (Lights Out) into the classic DarkBlue (Dim) theme. This Extension respects user privacy and collects no personal information as part of the theme conversion. The only exception is the contact form you submit yourself (see "Contact form").
 
 ## Permissions Used
 
@@ -12,7 +12,7 @@ Last Updated: August 27, 2026
 - Used to save the toggle (enabled/disabled) state
 - The only data stored under this permission is a single boolean value (true/false)
 - Uses Chrome's sync storage so the setting is synchronized across devices signed into the same account
-- Separately, display-related flags are stored in `localStorage` on X pages, which requires no permission (see "Data Storage")
+- Separately, display-related flags and the contact authentication session are stored in `localStorage`, which requires no permission (see "Data Storage")
 
 ### activeTab
 - Used to check the state of the active tab from the popup
@@ -20,7 +20,15 @@ Last Updated: August 27, 2026
 
 ### Host Permissions (x.com, twitter.com)
 - Required to apply theme conversion CSS to X pages
-- The Extension does not operate on any other websites
+- The theme conversion feature operates only on these websites
+
+### Kagayoi Support Host Permission (support.kagayoi.com)
+- Used only to communicate with the API that authenticates and submits the contact form
+- On Chrome, Edge, Brave, and Firefox, this is declared as an optional host permission. The browser asks for it when you press "Contact support"; if you decline, it is not granted and the theme conversion continues to work
+
+### Optional Firefox Data Collection Permissions
+- The email address and optional name are declared as `personallyIdentifyingInfo`; the six-digit verification code and authentication session as `authenticationInfo`; the subject and message as `personalCommunications`; and the product ID, extension version, and locale as `technicalAndInteraction`
+- All are optional. Firefox asks for your consent when you press "Contact support"; declining does not affect theme conversion
 
 ## Data Collection
 
@@ -47,15 +55,16 @@ On first use, the six-digit code delivered by email is sent to Kagayoi Support t
 
 ## Data Storage
 
-The Extension stores only the following operational settings. None of them contain personally identifiable information, and none are transmitted externally.
+The Extension stores the following operational settings and, if you use the contact form, an authentication session.
 
 | Location | Data | Purpose |
 |---|---|---|
 | `chrome.storage.sync` | Toggle enabled/disabled state (a single boolean value) | Persists your setting. Synchronized across devices through Chrome's account sync feature |
 | `localStorage` on x.com / twitter.com | Flag for whether the theme was active last time (`darkbluethemex_was_active`) | Prevents the brief flash of the black theme on page load (FOUC) by deciding colors without waiting for the asynchronous settings read |
 | `localStorage` on x.com / twitter.com | Debug logging flag (`dbtx_debug`, unset by default) | Read only when you set it yourself while troubleshooting |
+| Extension `localStorage` | Email address, access token, and expiration time (`kagayoi-support-session`) | Lets Kagayoi Support recognize your authenticated session without asking for a verification code for every inquiry. It is not synchronized between browsers |
 
-The `localStorage` data is stored only within X pages and can be cleared at any time by clearing your browsing data.
+An expired authentication session is removed the next time you use the contact form. You can also remove these `localStorage` entries by clearing browser or extension data.
 
 ## Third-Party Sharing
 
@@ -67,4 +76,5 @@ For questions regarding this privacy policy, please open an Issue on the GitHub 
 
 ## Changelog
 
+- August 28, 2026: Documented optional contact permissions and authentication session storage
 - February 18, 2026: Initial release
