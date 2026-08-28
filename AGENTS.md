@@ -34,7 +34,7 @@ No build tools, no compilation step — `package.json` の scripts はシェル�
 
 アイコン再生成が必要な場合は `pnpm run generate-icons` (Node.js + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成) と `chrome-webstore-upload-cli` (CWS CI 用) と `web-ext` (AMO CI 用) の 3 つに固定。**ランタイム依存はゼロ**。
 
-`pnpm run check-version` で `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証できる (CI ステップでも実行される)。
+通常の必須検証は `pnpm run check`。version 三者一致、実行コンテキスト間の共有リテラル、問い合わせ権限、テーマ復元契約をまとめて検証する。version だけを個別確認する場合は `pnpm run check-version` を使う。
 
 To test locally:
 - **Chrome / Edge / Brave**: `chrome://extensions` で「パッケージ化されていない拡張機能を読み込む」からプロジェクトフォルダを選択
@@ -53,14 +53,14 @@ To test locally:
 - Secrets 必須:
   - **Chrome Web Store**: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID`, `CWS_EXTENSION_ID`（`CWS_PUBLISHER_ID` は v4 で新規必須 — CWS Developer Dashboard の Settings で取得 → `gh secret set CWS_PUBLISHER_ID`）
   - **Firefox AMO**: `AMO_JWT_ISSUER`, `AMO_JWT_SECRET`（[AMO Developer Hub](https://addons.mozilla.org/ja/developers/addon/api/key/) で発行 → `gh secret set` で登録）
-- Firefox AMO ジョブは `needs: package` のみで `publish-chrome` に依存しないため、Chrome 公開が失敗しても独立して submit される（sibling job の失敗は波及しない）。`if: success() || failure()` は付けない（付けると `package` の検証 = `check-version` / `check-shared-literals` 失敗時にも firefox が走り、壊れた拡張を AMO に submit してしまうため。既定の「package 成功時のみ実行」ゲートに委ねる）。
+- Firefox AMO ジョブは `needs: package` のみで `publish-chrome` に依存しないため、Chrome 公開が失敗しても独立して submit される（sibling job の失敗は波及しない）。`if: success() || failure()` は付けない（付けると `package` の `pnpm run check` 失敗時にも firefox が走り、壊れた拡張を AMO に submit してしまうため。既定の「package 成功時のみ実行」ゲートに委ねる）。
 - CI の Node は **22 固定**（pnpm 11 が Node 22+ 必須のため。ローカル開発環境とも一致）。
 - `web-ext sign --channel=listed` は submission 受理後 15 分で `Approval: timeout exceeded` を返して exit 1 になる既知挙動があり、CI はそれだけは warning 扱いに変換して green 化する（submission 自体は AMO に届いている）。
 - リリース手順は `vava` スキル（`/vava`）が自動化: バージョン +1 → main に push → `release/x.y.z` ブランチ作成 → 古いリリースブランチ削除。
 - GitHub Actions は `actions/*` を含めすべて commit SHA で固定（サプライチェーン対策）。`# vN` コメントを手掛かりに Dependabot が SHA を追従更新する。
 - ワークフローはトップレベル `concurrency`（`group: publish-${{ github.ref }}` / `cancel-in-progress: false`）で直列化し、`release/**` への連続 push 時に publish が並走して CWS の `--auto-publish` が競合するのを防ぐ。publish は不可逆な外部副作用を持つため、進行中ランをキャンセルせずキューイングして中断による部分公開を避ける。
 - Chrome 公開ジョブは Firefox ジョブと対称に、`CWS_*` Secrets 欠落時の事前ガード（`-z` チェック）で fail-fast する。Secrets を扱う publish 2 ジョブは job レベル `permissions: contents: read` を明示。
-- `pnpm run check-shared-literals`（CI）で `STORAGE_KEY` / `MSG_GET_STATE` の content↔popup 一致と、`LOCATION_CHANGE_EVENT` の content↔intercept 一致も検証する。
+- `pnpm run check-shared-literals`（CI）で `STORAGE_KEY` / `MSG_GET_STATE` の content↔popup 一致と、`LOCATION_CHANGE_EVENT` / 3つの `THEME_*_EVENT` の content↔intercept 一致も検証する。
 
 ### 公開後のロールバック / ロールフォワード（インシデント時 runbook）
 
@@ -243,7 +243,7 @@ When X introduces a new dark-theme color not yet handled:
 |------|------|
 | `scripts/generate-icons.js` | 拡張機能アイコン (16/48/128px) 生成スクリプト (Node.js + sharp) |
 | `scripts/check-version.js` | `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証 (CI 実行) |
-| `scripts/check-shared-literals.js` | 実行コンテキストを跨ぐ共有リテラル値の一致を検証 (CI 実行)。content↔popup: `STORAGE_KEY` / `MSG_GET_STATE`、content↔intercept: `LOCATION_CHANGE_EVENT` |
+| `scripts/check-shared-literals.js` | 実行コンテキストを跨ぐ共有リテラル値の一致を検証 (CI 実行)。content↔popup: `STORAGE_KEY` / `MSG_GET_STATE`、content↔intercept: `LOCATION_CHANGE_EVENT` / 3つの `THEME_*_EVENT` |
 | `scripts/check-support-permissions.js` | Chrome の任意ホスト権限、Firefox の任意データ収集権限、許可／拒否時の popup 分岐を Node 標準機能だけで検証 (`pnpm run check`) |
 | `scripts/check-theme-state.js` | MAIN / isolated world を分離した VM で storage 未解決時の OFF 維持、再訪時の dark、公式 Dim、属性削除、通常初期化の OFF 復元契約を検証 (`pnpm run check`) |
 | `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store + Firefox AMO に同時自動公開 |

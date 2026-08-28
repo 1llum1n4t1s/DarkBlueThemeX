@@ -22,7 +22,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 | `src/intercept.js` | MAIN worldでテーマ属性の書き換えとHistory APIによるSPA遷移を同期捕捉する | X本体と同じJavaScript worldでのみ有効 |
 | `src/content.js` | 有効状態、テーマ判定、DOM状態、復元処理を管理する | isolated worldで動作し、Xのアプリケーション状態を直接所有しない |
 | `src/styles/darkblue.css` | FOUC防止、DarkBlueパレット、X固有セレクタとデザイントークンを上書きする | ガードクラスまたは初期dark判定のスコープ内だけで有効 |
-| `src/popup/` | トグル操作、現在タブの状態表示、バージョン表示を提供する | 永続的な有効状態を書き込む唯一のUI |
+| `src/popup/` | トグル操作、現在タブの状態表示、バージョン表示、問い合わせ時の任意権限要求を提供する | 永続的な有効状態を書き込む唯一のUIであり、問い合わせ権限要求の起点 |
 | `src/shared/` | Kagayoi Supportの問い合わせポップアップと共通フッターを提供する | テーマエンジンとは状態を共有せず、API通信は`support.kagayoi.com`に限定する |
 | `scripts/`、`zip.ps1`、`zip.sh` | バージョン／共有リテラル検証、アイコン生成、ブラウザ別パッケージ作成を担う | 製品実行時には同梱しない |
 | `.github/workflows/publish.yml` | `release/**`を検証し、Chrome Web StoreとFirefox AMOへ提出する | ストア認証情報はGitHub Secretsからのみ受け取る |
@@ -34,12 +34,12 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 
 1. ブラウザは`document_start`でCSSを注入し、Xが`data-theme="dark"`を設定している間もDarkBlueのルート色を先行適用する。
 2. `intercept.js`がMAIN worldで`Element.prototype.setAttribute`／`removeAttribute`を包み、有効時の`data-theme="dark"`書き込みを同期的に`dim`へ変換する。
-3. `content.js`は`localStorage`の前回状態をFOUC防止の楽観値として使い、その後`chrome.storage.sync`の正式な有効状態を取得する。
+3. `content.js`は`localStorage`の前回状態をFOUC防止の楽観値として使い、その後`chrome.storage.sync`の正式な有効状態を取得する。正式状態の解決前はMutationObserverによるテーマ再評価を行わない。
 4. 有効かつ黒テーマなら、`<html>`へ`darkbluethemex-active`を付与し、`data-theme`、`<body>`のdarkマーカー、`meta[name="theme-color"]`を整合させる。
 5. MutationObserverは`<html>`／`<body>`の関連属性だけを監視し、Xによる再描画やテーマ変更を再評価する。定期的なDOM全走査は行わない。
 6. `intercept.js`が`history.pushState`／`replaceState`を捕捉して`dbtx:locationchange`を送出し、`content.js`が通知ページ用の`data-dbtx-page`を更新する。戻る／進むは`popstate`で補完する。
 
-MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept`属性とdetailを持たない`CustomEvent`を使う。実行worldをまたぐ共有JavaScriptモジュールは前提にしない。
+MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept`属性とdetailを持たない`CustomEvent`を使う。`intercept.js`はdark変換、属性削除由来の変換、X公式Dim選択を3つのテーマイベントで通知し、`content.js`が`_dimAppliedByUs`／`_syntheticDim`を更新する。実行worldをまたぐ共有JavaScriptモジュールは前提にしない。
 
 ### 有効状態の変更
 
@@ -51,7 +51,7 @@ MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept
 
 ### 問い合わせ
 
-`kagayoi-support-footer`が共通ポップアップを開き、利用者が明示送信した内容だけを`kagayoi-support-popup`がKagayoi Support APIへ送る。APIアクセスとデータ収集の許可範囲は各manifestを正本とし、セッション情報はコンポーネントの設定に応じて`sessionStorage`または`localStorage`へ保存する。問い合わせ状態はテーマの有効状態と分離する。
+利用者が問い合わせボタンを押したときだけ、popupが`permissions.request()`で`support.kagayoi.com`の任意ホスト権限を要求する。Firefoxでは任意のデータ収集権限も同時に要求し、許可された場合だけ`kagayoi-support-footer`が共通ポップアップを開く。利用者が明示送信した内容だけを`kagayoi-support-popup`がKagayoi Support APIへ送り、セッション情報はコンポーネントの設定に応じて`sessionStorage`または`localStorage`へ保存する。問い合わせ状態はテーマの有効状態と分離する。
 
 ## 状態の所有権
 
@@ -68,7 +68,8 @@ MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept
 ## 重要な不変条件
 
 - `manifest.json`、`manifest.firefox.json`、`package.json`のversionは一致させる。popupはmanifestから動的に表示する。
-- `STORAGE_KEY`と`MSG_GET_STATE`はcontent／popup間、`LOCATION_CHANGE_EVENT`はcontent／intercept間で同じ値を保ち、`scripts/check-shared-literals.js`で検証する。
+- `STORAGE_KEY`と`MSG_GET_STATE`はcontent／popup間、`LOCATION_CHANGE_EVENT`と3つの`THEME_*_EVENT`はcontent／intercept間で同じ値を保ち、`scripts/check-shared-literals.js`で検証する。
+- 問い合わせ用ホスト権限は任意権限とし、利用者の明示操作と許可が完了するまでSupportポップアップを開かない。Firefoxのデータ収集権限も同じ操作で要求する。
 - 拡張が変換した`dark → dim`だけを復元する。X公式Dimや他の主体が設定した`dim`は変更しない。
 - 無効化時はinterceptをOFFにしてからテーマ属性を復元し、CSSの先行適用は`darkbluethemex-off`で抑止する。
 - Tailwindの`dark:`バリアント維持用に付けた`<body data-theme="dark">`は、拡張が付与した場合だけ元値へ戻す。
@@ -104,4 +105,4 @@ Firefox固有設定だけを別manifestに分離し、JavaScriptとCSSは共通�
 
 ## 検証と配布の境界
 
-ローカル検証とパッケージコマンドは[AGENTS.md](AGENTS.md)を参照する。CIは`release/**`でversion整合と共有リテラルを検証し、同一パッケージ工程の成果物をChrome／Firefoxの独立ジョブへ渡す。公開処理は直列化し、進行中の提出をキャンセルしない。ランディングページの配備はこのストア公開ワークフローに含まれない。
+ローカル検証とパッケージコマンドは[AGENTS.md](AGENTS.md)を参照する。CIは`release/**`でversion整合、共有リテラル、問い合わせ権限、テーマ復元契約を検証し、同一パッケージ工程の成果物をChrome／Firefoxの独立ジョブへ渡す。公開処理は直列化し、進行中の提出をキャンセルしない。ランディングページの配備はこのストア公開ワークフローに含まれない。
