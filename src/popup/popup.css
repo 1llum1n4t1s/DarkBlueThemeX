@@ -272,10 +272,17 @@ body {
 
 .support-footer > kagayoi-contact-popup {
   position: absolute;
+  --kgs-color-scheme: dark;
   --ks-accent: var(--db-accent);
+  --ks-surface: var(--db-bg-card);
+  --ks-surface-soft: var(--db-bg-hover);
+  --ks-border: var(--db-border);
+  --ks-text: var(--db-text-main);
+  --ks-muted: var(--db-text-sub);
 }
 
 kagayoi-support-footer {
+  --kgs-color-scheme: dark;
   --kgs-radius: 12px;
   --kgs-surface: var(--db-bg-card);
   --kgs-border: var(--db-border);

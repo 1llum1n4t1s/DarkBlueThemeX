@@ -16,6 +16,9 @@ importers:
       chrome-webstore-upload-cli:
         specifier: 4.0.1
         version: 4.0.1
+      kagayoi-support-extension:
+        specifier: 1.0.3
+        version: 1.0.3
       sharp:
         specifier: ^0.35.4
         version: 0.35.4
@@ -933,6 +936,11 @@ packages:
 
   jws@4.0.1:
     resolution: {integrity: sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==}
+
+  kagayoi-support-extension@1.0.3:
+    resolution: {integrity: sha512-/Oadpc9XM7VhJalVpamqHGqVN/oWbIiQNcJHBBGXVlU4alJWKlsYdXdgmhCjmyJezFML08dPT7KhFc4IsE9y+g==}
+    engines: {node: '>=22'}
+    hasBin: true
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
@@ -2272,6 +2280,8 @@ snapshots:
     dependencies:
       jwa: 2.0.1
       safe-buffer: 5.2.1
+
+  kagayoi-support-extension@1.0.3: {}
 
   keyv@4.5.4:
     dependencies:

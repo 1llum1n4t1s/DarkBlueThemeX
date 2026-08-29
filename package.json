@@ -5,6 +5,8 @@
   "private": true,
   "description": "X (Twitter) のダークテーマをDarkBlue(Dim)テーマに変換するブラウザ拡張機能 (Chrome / Firefox)",
   "scripts": {
+    "sync:support": "node --preserve-symlinks-main ./node_modules/kagayoi-support-extension/bin/kagayoi-support-sync.mjs",
+    "prebuild": "pnpm sync:support",
     "generate-icons": "node scripts/generate-icons.js",
     "zip:win": "pwsh -NoProfile -ExecutionPolicy Bypass -File zip.ps1",
     "zip:nix": "bash zip.sh",
@@ -20,6 +22,7 @@
   },
   "devDependencies": {
     "chrome-webstore-upload-cli": "4.0.1",
+    "kagayoi-support-extension": "1.0.3",
     "sharp": "^0.35.4",
     "web-ext": "10.6.0"
   },
