@@ -4,7 +4,7 @@ This file provides guidance to Codex and other coding agents working in this rep
 
 ## Project Overview
 
-Cross-browser Manifest V3 拡張機能 (Chrome / Edge / Brave / Firefox 142+) で、X (旧 Twitter) の黒/Lights Out テーマを旧 DarkBlue(Dim) テーマに変換する。Chrome Web Store と Firefox AMO に「帰ってきたDarkBlueテーマ(X)」として公開済み。**Version の真実の源は `manifest.json`** で、`manifest.firefox.json` と `package.json` は CI の `pnpm run check-version` で 3 ファイル同期を強制。popup は `chrome.runtime.getManifest().version` で動的取得。Zero external dependencies — pure vanilla JS と CSS のみ。
+Cross-browser Manifest V3 拡張機能 (Chrome / Edge / Brave / Firefox 142+) で、X (旧 Twitter) の黒/Lights Out テーマを旧 DarkBlue(Dim) テーマに変換する。Chrome Web Store と Firefox AMO に「帰ってきたDarkBlueテーマ(X)」として公開済み。**Version の真実の源は `manifest.json`** で、`manifest.firefox.json` と `package.json` は CI の `pnpm run check-version` で 3 ファイル同期を強制。popup は `chrome.runtime.getManifest().version` で動的取得。製品実行時の外部依存はなく、配布物はローカル同梱した vanilla JS と CSS だけで動作する。
 
 ## Build & Package
 
@@ -28,13 +28,15 @@ pwsh -File zip.ps1 -Target firefox
 - **`DarkBlueThemeX-chrome.zip`** — Chrome Web Store にアップロードする ZIP
 - **`DarkBlueThemeX-firefox.xpi`** — Firefox AMO にアップロードする XPI (中身は ZIP、`manifest.firefox.json` を `manifest.json` にリネームして同梱)
 
-No build tools, no compilation step — `package.json` の scripts はシェルスクリプトの薄いラッパー。Included: variant 別 manifest, `src/`, `icons/`. Excluded: editor/system files (`*.DS_Store`, `*.swp`, `*~`), docs, dev files。
+No compilation step — パッケージ処理は同期済みのソースをそのまま格納する。Included: variant 別 manifest, `src/`, `icons/`. Excluded: editor/system files (`*.DS_Store`, `*.swp`, `*~`), docs, dev files。
 
 **Windows の zip.ps1 は `System.IO.Compression.ZipFile` を直接使い、エントリ名を forward slash に正規化**している (Windows PowerShell 5.1 の `Compress-Archive` は backslash separator で zip を作る既知バグがあり、Firefox AMO の web-ext lint と一部の unzip ツールが弾くため)。
 
-アイコン再生成が必要な場合は `pnpm run generate-icons` (Node.js + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成) と `chrome-webstore-upload-cli` (CWS CI 用) と `web-ext` (AMO CI 用) の 3 つに固定。**ランタイム依存はゼロ**。
+アイコン再生成が必要な場合は `pnpm run generate-icons` (Node.js + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成)、`chrome-webstore-upload-cli` (CWS CI 用)、`web-ext` (AMO CI 用)、`kagayoi-support-extension` (問い合わせ共通部品の同期元) に限定する。**ランタイム依存はゼロ**。
 
-通常の必須検証は `pnpm run check`。version 三者一致、実行コンテキスト間の共有リテラル、問い合わせ権限、テーマ復元契約をまとめて検証する。version だけを個別確認する場合は `pnpm run check-version` を使う。
+問い合わせ共通部品は、固定した `kagayoi-support-extension` から `pnpm run sync:support` で `src/shared/kagayoi-support-{footer,popup}.{js,css}` と `kagayoi-support-form.css` へ同期する。依存更新後は同期を実行し、共通仕様の変更は上流パッケージ、DarkBlueThemeX 固有の見た目は `src/popup/popup.css` の上書きへ置く。
+
+通常の必須検証は `pnpm exec kagayoi-support-sync --check` と `pnpm run check`。前者は同期生成物、後者は version 三者一致、実行コンテキスト間の共有リテラル、問い合わせ権限、テーマ復元契約を検証する。version だけを個別確認する場合は `pnpm run check-version` を使う。
 
 To test locally:
 - **Chrome / Edge / Brave**: `chrome://extensions` で「パッケージ化されていない拡張機能を読み込む」からプロジェクトフォルダを選択
@@ -49,6 +51,7 @@ To test locally:
 - zip は `bash zip.sh both` を CI 内で直接呼び出す形に統一済み（過去はインラインコマンドだったが、パッケージ内容物定義を 1 箇所に集約するため）。
 - Chrome Web Store CLI は `devDependencies` 固定バージョン (`chrome-webstore-upload-cli@4.0.1`, CWS API v2) で、CI は `./node_modules/.bin/chrome-webstore-upload` のデフォルトコマンド (サブコマンド無し = upload+publish、`--auto-publish` は廃止) を使う。v4 は認証を `CLIENT_ID` / `CLIENT_SECRET` / `REFRESH_TOKEN` / `PUBLISHER_ID` 環境変数で受け取り (v3 の secret フラグは廃止)、**`PUBLISHER_ID` が新規必須** (CWS Developer Dashboard の Settings で確認)。GitHub Secret は `CWS_` プレフィックスのまま CLI 期待名に env で alias する。
 - Firefox AMO は `web-ext sign --channel=listed` で提出。`.amo-metadata.json` で `version.license: "MIT"` を毎回付与（AMO API v5 では各 version 提出時に license 明示必須、過去 version から継承しないため）。
+- `vava.config.json` は AMO の slug、日英ストア説明文、日英プライバシーポリシーの対応を定義する。`/vava` は `webstore/store-listing.firefox.{ja,en}.txt` と `docs/privacy-policy*.md` を正本として AMO 掲載情報を更新する。
 - GitHub Actions 依存と npm 依存は `.github/dependabot.yml` で週次自動更新。
 - Secrets 必須:
   - **Chrome Web Store**: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID`, `CWS_EXTENSION_ID`（`CWS_PUBLISHER_ID` は v4 で新規必須 — CWS Developer Dashboard の Settings で取得 → `gh secret set CWS_PUBLISHER_ID`）
@@ -233,7 +236,9 @@ When X introduces a new dark-theme color not yet handled:
 | `src/popup/popup.html` | Extension popup UI |
 | `src/popup/popup.js` | Toggle logic, storage writes, tab state queries, message passing to content script, 問い合わせ用の任意権限要求 |
 | `src/popup/popup.css` | Popup styling with DarkBlue palette CSS variables (all swatch colors reference these variables) |
+| `src/shared/kagayoi-support-*` | `kagayoi-support-extension` から同期する問い合わせ UI の配布用 JS / CSS。製品固有の上書きは `src/popup/popup.css` に置く |
 | `.amo-metadata.json` | Firefox AMO submission の metadata (`categories.firefox: ["appearance"]`, `version.license: "MIT"`)。 `web-ext sign --amo-metadata=` で毎回付与 |
+| `vava.config.json` | `/vava` が AMO 掲載情報を更新するときの slug と日英正本ファイルの対応 |
 
 ### Repository Layout (Reference)
 
@@ -251,6 +256,7 @@ When X introduces a new dark-theme color not yet handled:
 | `.github/dependabot.yml` | GitHub Actions と npm 依存の週次自動更新 |
 | `webstore/images/` | Chrome Web Store 掲載用タイル画像と生成スクリプト |
 | `webstore/screenshots/` | ストアリスティング用スクリーンショットと生成スクリプト |
+| `webstore/store-listing.firefox.{ja,en}.txt` | Firefox AMO の日英 Summary / Description の正本 |
 | `docs/privacy-policy*.md` | プライバシーポリシー (日本語・英語) |
 | `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (`.gitignore` 対象) |
 

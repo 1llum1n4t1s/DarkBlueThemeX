@@ -23,7 +23,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 | `src/content.js` | 有効状態、テーマ判定、DOM状態、復元処理を管理する | isolated worldで動作し、Xのアプリケーション状態を直接所有しない |
 | `src/styles/darkblue.css` | FOUC防止、DarkBlueパレット、X固有セレクタとデザイントークンを上書きする | ガードクラスまたは初期dark判定のスコープ内だけで有効 |
 | `src/popup/` | トグル操作、現在タブの状態表示、バージョン表示、問い合わせ時の任意権限要求を提供する | 永続的な有効状態を書き込む唯一のUIであり、問い合わせ権限要求の起点 |
-| `src/shared/` | Kagayoi Supportの問い合わせポップアップと共通フッターを提供する | テーマエンジンとは状態を共有せず、API通信は`support.kagayoi.com`に限定する |
+| `src/shared/` | Kagayoi Supportの問い合わせポップアップと共通フッターを提供する | `kagayoi-support-extension`から同期した配布用コードであり、テーマエンジンとは状態を共有せず、API通信は`support.kagayoi.com`に限定する |
 | `scripts/`、`zip.ps1`、`zip.sh` | バージョン／共有リテラル検証、アイコン生成、ブラウザ別パッケージ作成を担う | 製品実行時には同梱しない |
 | `.github/workflows/publish.yml` | `release/**`を検証し、Chrome Web StoreとFirefox AMOへ提出する | ストア認証情報はGitHub Secretsからのみ受け取る |
 | `web/worker.js` | 許可した静的パスをセキュリティヘッダー付きで返す | 未知のパスは404、GET／HEAD以外は405 |
@@ -70,6 +70,7 @@ MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept
 - `manifest.json`、`manifest.firefox.json`、`package.json`のversionは一致させる。popupはmanifestから動的に表示する。
 - `STORAGE_KEY`と`MSG_GET_STATE`はcontent／popup間、`LOCATION_CHANGE_EVENT`と3つの`THEME_*_EVENT`はcontent／intercept間で同じ値を保ち、`scripts/check-shared-literals.js`で検証する。
 - 問い合わせ用ホスト権限は任意権限とし、利用者の明示操作と許可が完了するまでSupportポップアップを開かない。Firefoxのデータ収集権限も同じ操作で要求する。
+- `src/shared/`の問い合わせ用JS／CSSは固定した`kagayoi-support-extension`と一致させ、製品固有の見た目は`src/popup/popup.css`で上書きする。
 - 拡張が変換した`dark → dim`だけを復元する。X公式Dimや他の主体が設定した`dim`は変更しない。
 - 無効化時はinterceptをOFFにしてからテーマ属性を復元し、CSSの先行適用は`darkbluethemex-off`で抑止する。
 - Tailwindの`dark:`バリアント維持用に付けた`<body data-theme="dark">`は、拡張が付与した場合だけ元値へ戻す。
@@ -98,6 +99,10 @@ XのDOMは頻繁に変化するため、要素全体の周期走査ではなく�
 ### 実行コンテキストごとの重複定数
 
 content script、MAIN world、extension pageは共有モジュール化せず、必要なリテラルを各コンテキストに置く。単純な配布構成と早期実行を維持できる一方で更新漏れが起きるため、CIで値の一致を機械検証する。
+
+### 問い合わせ共通部品を配布用コードへ同期
+
+`kagayoi-support-extension`を開発時の正本として、同期コマンドで問い合わせ用JS／CSSを`src/shared/`へコピーする。拡張機能は同期済みファイルをローカル同梱するため、実行時のnpmモジュール解決やリモートコードに依存せず、Manifest V3の配布境界を維持できる。共通仕様は上流パッケージ、DarkBlueThemeX固有の調整はpopup側のCSSへ分離する。
 
 ### ブラウザ別manifestと共通ソース
 
