@@ -1,0 +1,74 @@
+■ Name
+帰ってきたDarkBlueテーマ(X)
+
+■ Summary (250 characters maximum)
+Converts X's black Lights Out theme into the calm classic DarkBlue (Dim) theme.
+
+■ Description (16,000 characters maximum)
+X (formerly Twitter) once offered two dark themes:
+
+• Lights Out — a pure black background
+• Dim (DarkBlue) — a calm dark-blue background
+
+DarkBlueThemeX converts the current black dark theme into the classic DarkBlue (Dim) theme.
+
+■ Main features
+
+• Automatically converts X's black theme into the classic DarkBlue theme
+• One-click ON/OFF control from the extension popup
+• Does not affect users of X's light theme
+• Supports SPA navigation and dynamically loaded content
+• Adjusts timelines, notifications, direct messages, search, settings, and other X screens
+• Provides an optional contact form in the extension popup
+• Opens the Firefox Add-ons rating page directly
+
+■ DarkBlue color palette
+
+Primary background: #15202B
+Card background: #192734
+Hover background: #22303C
+Border: #38444D
+Accent: #1D9BF0
+
+■ How to use
+
+1. Select the black Lights Out theme on X (x.com)
+2. Install the extension; DarkBlue is applied automatically
+3. Click the extension icon to turn theme conversion ON or OFF
+
+■ Contact form
+
+The extension requests optional permission to connect to Kagayoi Support and send contact information only when you press “Contact support” in the extension popup.
+
+If you decline, the contact form does not open, but theme conversion continues to work normally.
+
+Only after you enter and submit the form does the extension send the following information to Kagayoi Support (support.kagayoi.com):
+
+• Email address
+• Optional name
+• Inquiry category, subject, and message
+• Product ID, extension version, and locale
+• The six-digit verification code and authentication information used to verify your identity
+
+After verification, the extension stores your email address, access token, and expiration time in its localStorage. This information is not synchronized between browsers. Expired sessions are removed the next time you use the contact form.
+
+■ Privacy
+
+Theme conversion is performed entirely inside your browser. The extension does not automatically collect or transmit your browsing history, cookies, location, analytics data, posts or messages displayed on X, or X theme settings.
+
+External communication occurs only when you choose “Contact support,” grant the required optional permissions, and submit the form. Contact information is not used for advertising or analytics and is not sold to third parties.
+
+See the privacy policy for complete details.
+
+■ Requirements
+
+• Firefox 142 or later
+• X's black Lights Out theme must be enabled
+
+■ Source code
+
+https://github.com/1llum1n4t1s/DarkBlueThemeX
+
+■ License
+
+MIT License

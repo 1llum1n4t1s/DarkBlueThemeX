@@ -1,0 +1,13 @@
+{
+  "amo": {
+    "slug": "darkblue-theme-x",
+    "listingFiles": {
+      "ja": "webstore/store-listing.firefox.ja.txt",
+      "en-US": "webstore/store-listing.firefox.en.txt"
+    },
+    "privacyFiles": {
+      "ja": "docs/privacy-policy.md",
+      "en-US": "docs/privacy-policy-en.md"
+    }
+  }
+}
