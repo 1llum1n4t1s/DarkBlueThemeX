@@ -256,6 +256,7 @@ When X introduces a new dark-theme color not yet handled:
 | `.github/dependabot.yml` | GitHub Actions と npm 依存の週次自動更新 |
 | `webstore/images/` | Chrome Web Store 掲載用タイル画像と生成スクリプト |
 | `webstore/screenshots/` | ストアリスティング用スクリーンショットと生成スクリプト |
+| `webstore/store-listing.txt` | Chrome Web Store の日本語掲載文の正本。Developer Dashboard で手動更新するときに使用 |
 | `webstore/store-listing.firefox.{ja,en}.txt` | Firefox AMO の日英 Summary / Description の正本 |
 | `docs/privacy-policy*.md` | プライバシーポリシー (日本語・英語) |
 | `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (`.gitignore` 対象) |
