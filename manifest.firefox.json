@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "帰ってきたDarkBlueテーマ(X)",
-  "version": "1.0.51",
+  "version": "1.0.52",
   "description": "X（旧Twitter）のダークテーマ(黒)を、かつて存在したDarkBlue(Dim)テーマに変換するブラウザ拡張機能",
   "browser_specific_settings": {
     "gecko": {
