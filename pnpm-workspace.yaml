@@ -5,6 +5,7 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - kagayoi-support-extension@1.0.3
+  - kagayoi-support-extension@1.0.5
 
 # 脆弱性のある推移的依存を修正版へ引き上げる（いずれも web-ext 配下の devDependency）。
 # 上流の web-ext / addons-linter が修正版を取り込んだらこの項目を削除する。
