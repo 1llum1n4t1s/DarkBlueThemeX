@@ -9,7 +9,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 リポジトリには次の2つの配布単位がある。
 
 - `manifest.json`／`manifest.firefox.json`、`src/`、`icons/`から構成するブラウザ拡張機能
-- `web/`から構成する製品ランディングページ用Cloudflare Worker
+- `../vps-web/lp/darkblue/`からVPSへ配信する製品ランディングページ
 
 ランディングページはストアへの導線と静的情報を提供するだけで、拡張機能本体の配布やテーマ処理は担わない。
 
@@ -26,7 +26,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 | `src/shared/` | Kagayoi Supportの問い合わせポップアップと共通フッターを提供する | `kagayoi-support-extension`から同期した配布用コードであり、テーマエンジンとは状態を共有せず、API通信は`support.kagayoi.com`に限定する |
 | `scripts/`、`zip.ps1`、`zip.sh` | バージョン／共有リテラル検証、アイコン生成、ブラウザ別パッケージ作成を担う | 製品実行時には同梱しない |
 | `.github/workflows/publish.yml` | `release/**`を検証し、Chrome Web StoreとFirefox AMOへ提出する | ストア認証情報はGitHub Secretsからのみ受け取る |
-| `web/worker.js` | 許可した静的パスをセキュリティヘッダー付きで返す | 未知のパスは404、GET／HEAD以外は405 |
+| `../vps-web/deploy/caddy-sites/lp-darkblue.caddy` | 許可した静的パスをセキュリティヘッダー付きで返す | 未知のパスは404、GET／HEAD以外は405 |
 
 ## 実行時データフロー
 
@@ -111,3 +111,9 @@ Firefox固有設定だけを別manifestに分離し、JavaScriptとCSSは共通�
 ## 検証と配布の境界
 
 ローカル検証とパッケージコマンドは[AGENTS.md](AGENTS.md)を参照する。CIは`release/**`でversion整合、共有リテラル、問い合わせ権限、テーマ復元契約を検証し、同一パッケージ工程の成果物をChrome／Firefoxの独立ジョブへ渡す。公開処理は直列化し、進行中の提出をキャンセルしない。ランディングページの配備はこのストア公開ワークフローに含まれない。
+
+## 製品ページの配信先
+
+製品ページの配信HTMLは `../vps-web/lp/darkblue/`（編集元は `../vps-web/tools/lp/templates/`）、公開実体はVPSの `/srv/www/lp/darkblue/`。
+直接配信の設定は `../vps-web/deploy/caddy-sites/lp-darkblue.caddy` に置く。
+公開URLを維持し、静的ファイルの配信は `vps-web/deploy/deploy-lp.ps1` へ統一する。
