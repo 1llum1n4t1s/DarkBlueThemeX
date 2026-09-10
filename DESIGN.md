@@ -6,7 +6,7 @@
 
 DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkBlue（Dim）配色へ変換するManifest V3ブラウザ拡張機能である。Chrome、Edge、BraveなどのChromium系ブラウザとFirefoxを対象とし、ライトテーマには適用しない。
 
-リポジトリには次の2つの配布単位がある。
+拡張機能と製品ページは別のリポジトリ・配布経路で管理する。
 
 - `manifest.json`／`manifest.firefox.json`、`src/`、`icons/`から構成するブラウザ拡張機能
 - `../vps-web/lp/darkblue/`からVPSへ配信する製品ランディングページ
@@ -26,7 +26,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 | `src/shared/` | Kagayoi Supportの問い合わせポップアップと共通フッターを提供する | `@kagayoi/support-extension`から同期した配布用コードであり、テーマエンジンとは状態を共有せず、API通信は`support.kagayoi.com`に限定する |
 | `scripts/`、`zip.ps1`、`zip.sh` | バージョン／共有リテラル検証、アイコン生成、ブラウザ別パッケージ作成を担う | 製品実行時には同梱しない |
 | `.github/workflows/publish.yml` | `release/**`を検証し、Chrome Web StoreとFirefox AMOへ提出する | ストア認証情報はGitHub Secretsからのみ受け取る |
-| `../vps-web/deploy/caddy-sites/lp-darkblue.caddy` | 許可した静的パスをセキュリティヘッダー付きで返す | 未知のパスは404、GET／HEAD以外は405 |
+| `../vps-web/deploy/caddy-sites/lp-darkblue.caddy` | 許可した静的パスをセキュリティヘッダー付きで返す | 未知のパスは404、許可パスでGET／HEAD以外は405 |
 
 ## 実行時データフロー
 
@@ -51,7 +51,7 @@ MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept
 
 ### 問い合わせ
 
-利用者が問い合わせボタンを押したときだけ、popupが`permissions.request()`で`support.kagayoi.com`の任意ホスト権限を要求する。Firefoxでは任意のデータ収集権限も同時に要求し、許可された場合だけ`kagayoi-support-footer`が共通ポップアップを開く。利用者が明示送信した内容だけを`kagayoi-support-popup`がKagayoi Support APIへ送り、セッション情報はコンポーネントの設定に応じて`sessionStorage`または`localStorage`へ保存する。問い合わせ状態はテーマの有効状態と分離する。
+利用者が問い合わせボタンを押したときだけ、popupが`permissions.request()`で`support.kagayoi.com`の任意ホスト権限を要求する。Firefoxでは任意のデータ収集権限も同時に要求し、許可された場合だけ`popup.js`が`kagayoi-contact-popup.open()`を呼ぶ。共通フッターは`hide-contact`で内蔵の問い合わせ導線を隠し、製品側のボタンを入口とする。フォームはメール確認コードの要求・検証後に問い合わせを送信する。製品ID、manifest由来の製品名・バージョンを受け取り、送信ペイロードにはバージョンや言語も含む。この製品では`storage`属性を指定しないため、認証セッションは既定の`sessionStorage`へ保存する。問い合わせ状態はテーマの有効状態と分離する。
 
 ## 状態の所有権
 
@@ -70,13 +70,38 @@ MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept
 - `manifest.json`、`manifest.firefox.json`、`package.json`のversionは一致させる。popupはmanifestから動的に表示する。
 - `STORAGE_KEY`と`MSG_GET_STATE`はcontent／popup間、`LOCATION_CHANGE_EVENT`と3つの`THEME_*_EVENT`はcontent／intercept間で同じ値を保ち、`scripts/check-shared-literals.js`で検証する。
 - 問い合わせ用ホスト権限は任意権限とし、利用者の明示操作と許可が完了するまでSupportポップアップを開かない。Firefoxのデータ収集権限も同じ操作で要求する。
-- `src/shared/`の問い合わせ用JS／CSSは固定した`@kagayoi/support-extension`と一致させ、製品固有の見た目は`src/popup/popup.css`で上書きする。
-- 拡張が変換した`dark → dim`だけを復元する。X公式Dimや他の主体が設定した`dim`は変更しない。
+- 拡張が作った`dim`だけを復元する。dark由来はdarkへ、属性削除・属性なしのフォールバック由来は属性なしへ戻す。X公式Dimや他の主体が設定した`dim`は復元対象にしない。
 - 無効化時はinterceptをOFFにしてからテーマ属性を復元し、CSSの先行適用は`darkbluethemex-off`で抑止する。
 - Tailwindの`dark:`バリアント維持用に付けた`<body data-theme="dark">`は、拡張が付与した場合だけ元値へ戻す。
-- `meta[name="theme-color"]`は複数存在し得るため、各要素の元値を個別に保持して復元する。
+- `meta[name="theme-color"]`は複数存在し得るため、各要素を追跡し、保存された元値があるものを復元する。
 - 拡張パッケージには選択したmanifest、`src/`、`icons/`だけを含める。Firefox版ではFirefox manifestを`manifest.json`へ置き換える。
 - 製品実行時のnpm依存とbackground／service workerを持たず、すべての実行コードをローカル同梱する。
+
+## テーマ判定と復元の詳細
+
+`getCurrentTheme()`は非空の`data-theme`を優先する。ただし`dim`かつガード付与中は、正規化したinline `color-scheme`が明示的に`light`または`normal`のときだけ解除対象とする。値の欠落や複数値で解除すると、darkへの復元と再適用が循環する可能性があるため、dimを維持する。
+
+属性値がない場合だけ、inline `color-scheme`が`dark`単独ならdarkと判定する。`getInlineColorScheme()`はCSSOMの`style.colorScheme`を小文字化・空白分割し、`only`を除く。`light dark`はdarkと断定しない。外部スタイルの値を含む`getComputedStyle()`は、このinline検出の契約と異なる。
+
+MAIN worldの3つのテーマイベントは、楽観的ONより先に登録されたリスナーへ同期通知される。dark書き込みは通常の復元情報、`removeAttribute('data-theme')`は合成dimの復元情報を残し、明示的なdim選択は両方を消す。`restoreDataTheme()`は現在値がdim以外でも過去の由来情報を破棄し、後続テーマへ持ち越さない。
+
+### 属性監視とライフサイクル
+
+- htmlの`data-theme`変更は、有効時にガード付きdim以外を再評価する。`class`変更は有効かつdimでガードが失われた場合を対象にする。
+- htmlの`style`変更は、inline color-schemeの分類（dark／その他）が前回と変わったときだけ再評価する。
+- bodyの`data-theme`変更は、有効かつガード付きならdarkマーカーを貼り直す。既にdarkなら書き込まない。
+- storage未解決時は属性監視と表示復帰イベントによる評価を抑止する。`pagehide`で監視を切り、BFCache復帰時にURLと監視を再同期し、storageを再取得して評価する。取得できない場合はメモリ上の状態で継続する。
+- `evaluateAndApply()`は最初のフリップから1秒の窓で50回を超える適用／解除を検知すると、そのドキュメントで以後の評価を停止する。これは発振による資源消費を止める最後の防御である。
+
+### 配色の補助処理
+
+`<html data-theme="dim">`でX内蔵パレットを利用し、`<body data-theme="dark">`でTailwindの`dark:`バリアントを維持する。後者がないと黒文字や白ダイアログが残るため、body側に降りる変数もCSSセクション12・13で上書きする。元からdarkのbodyは復元対象にせず、拡張が付けたマーカーだけ元値へ戻す。
+
+通知ページは`data-dbtx-page="notifications"`でアバター周辺の透明背景を切り替える。HistoryイベントはinterceptのON/OFFによらず通知し、content側でガードとURLを判定する。
+
+`updateThemeColor()`は適用・解除時に現存する全theme-color metaを走査し、切り離された要素をキャッシュから外して新要素を登録する。meta自体の変更は常時監視しない。元値が未指定または既にDarkBlue色なら復元値を持たず、それ以外を個別に復元する。
+
+カラーパレットの値の正本は`src/popup/popup.css`のCSS変数であり、`src/styles/darkblue.css`とcontentの`BG_PRIMARY`を対応させる。CSSはr-*クラス、inline style属性、Xのデザイントークンを上書きするため、色の周期的なJS走査は不要である。
 
 ## 採用済みの設計判断
 
@@ -110,10 +135,10 @@ Firefox固有設定だけを別manifestに分離し、JavaScriptとCSSは共通�
 
 ## 検証と配布の境界
 
-ローカル検証とパッケージコマンドは[AGENTS.md](AGENTS.md)を参照する。CIは`release/**`でversion整合、共有リテラル、問い合わせ権限、テーマ復元契約を検証し、同一パッケージ工程の成果物をChrome／Firefoxの独立ジョブへ渡す。公開処理は直列化し、進行中の提出をキャンセルしない。ランディングページの配備はこのストア公開ワークフローに含まれない。
+ローカル検証とパッケージコマンドは[AGENTS.md](AGENTS.md)を参照する。CIは`release/**`でversion整合、共有リテラル、問い合わせ権限、テーマ復元契約を検証し、packageジョブで両ブラウザのアーカイブを作成する。ChromeジョブはZIP artifactを使用し、Firefoxジョブは同じソースから`firefox-build/`を再構築して`web-ext sign`へ渡す。両公開ジョブはpackage成功を条件とする独立ジョブである。公開処理は同じreleaseブランチ内で直列化し、進行中の提出をキャンセルしない。同期生成物の一致確認はローカル必須検証であり、現行CIは同期コマンドや`--check`を実行しない。ランディングページの配備はこのストア公開ワークフローに含まれない。
 
 ## 製品ページの配信先
 
 製品ページの配信HTMLは `../vps-web/lp/darkblue/`（編集元は `../vps-web/tools/lp/templates/`）、公開実体はVPSの `/srv/www/lp/darkblue/`。
 直接配信の設定は `../vps-web/deploy/caddy-sites/lp-darkblue.caddy` に置く。
-公開URLを維持し、静的ファイルの配信は `vps-web/deploy/deploy-lp.ps1` へ統一する。
+静的ファイルの配備は別リポジトリの `../vps-web/deploy/deploy-lp.ps1` が担う。
