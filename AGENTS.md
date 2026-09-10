@@ -32,9 +32,9 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 
 **Windows の zip.ps1 は `System.IO.Compression.ZipFile` を直接使い、エントリ名を forward slash に正規化**している (Windows PowerShell 5.1 の `Compress-Archive` は backslash separator で zip を作る既知バグがあり、Firefox AMO の web-ext lint と一部の unzip ツールが弾くため)。
 
-アイコン再生成が必要な場合は `pnpm run generate-icons` (Node.js + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成)、`chrome-webstore-upload-cli` (CWS CI 用)、`web-ext` (AMO CI 用)、`kagayoi-support-extension` (問い合わせ共通部品の同期元) に限定する。**ランタイム依存はゼロ**。
+アイコン再生成が必要な場合は `pnpm run generate-icons` (Node.js + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成)、`chrome-webstore-upload-cli` (CWS CI 用)、`web-ext` (AMO CI 用)、`@kagayoi/support-extension` (問い合わせ共通部品の同期元) に限定する。**ランタイム依存はゼロ**。
 
-問い合わせ共通部品は、固定した `kagayoi-support-extension` から `pnpm run sync:support` で `src/shared/kagayoi-support-{footer,popup}.{js,css}` と `kagayoi-support-form.css` へ同期する。依存更新後は同期を実行し、共通仕様の変更は上流パッケージ、DarkBlueThemeX 固有の見た目は `src/popup/popup.css` の上書きへ置く。
+問い合わせ共通部品は、固定した `@kagayoi/support-extension` から `pnpm run sync:support` で `src/shared/kagayoi-support-{footer,popup}.{js,css}` と `kagayoi-support-form.css` へ同期する。依存更新後は同期を実行し、共通仕様の変更は上流パッケージ、DarkBlueThemeX 固有の見た目は `src/popup/popup.css` の上書きへ置く。
 
 通常の必須検証は `pnpm exec kagayoi-support-sync --check` と `pnpm run check`。前者は同期生成物、後者は version 三者一致、実行コンテキスト間の共有リテラル、問い合わせ権限、テーマ復元契約を検証する。version だけを個別確認する場合は `pnpm run check-version` を使う。
 
@@ -236,7 +236,7 @@ When X introduces a new dark-theme color not yet handled:
 | `src/popup/popup.html` | Extension popup UI |
 | `src/popup/popup.js` | Toggle logic, storage writes, tab state queries, message passing to content script, 問い合わせ用の任意権限要求 |
 | `src/popup/popup.css` | Popup styling with DarkBlue palette CSS variables (all swatch colors reference these variables) |
-| `src/shared/kagayoi-support-*` | `kagayoi-support-extension` から同期する問い合わせ UI の配布用 JS / CSS。製品固有の上書きは `src/popup/popup.css` に置く |
+| `src/shared/kagayoi-support-*` | `@kagayoi/support-extension` から同期する問い合わせ UI の配布用 JS / CSS。製品固有の上書きは `src/popup/popup.css` に置く |
 | `.amo-metadata.json` | Firefox AMO submission の metadata (`categories.firefox: ["appearance"]`, `version.license: "MIT"`)。 `web-ext sign --amo-metadata=` で毎回付与 |
 | `vava.config.json` | `/vava` が AMO 掲載情報を更新するときの slug と日英正本ファイルの対応 |
 
