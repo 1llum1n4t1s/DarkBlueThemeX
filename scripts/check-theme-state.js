@@ -1,5 +1,5 @@
 /**
- * MAIN world の intercept と isolated world の content 間で、dim の変換元が失われないことを検証する。
+ * MAIN world と isolated world 間の dim 変換元、および非同期 storage 状態の順序を検証する。
  *
  * 両 world で Element.prototype は分離しつつ DOM 状態とイベントだけを共有する fake DOM を構築し、
  * 実際の src/intercept.js / src/content.js を VM 上でそのまま実行する。
@@ -80,7 +80,7 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
     contains() { return true; },
   };
 
-  let storageGetCallback = null;
+  const storageGetCallbacks = [];
   let storageChangeListener = null;
   let runtimeMessageListener = null;
   const chrome = {
@@ -91,7 +91,7 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
     },
     storage: {
       sync: {
-        get(_defaults, callback) { storageGetCallback = callback; },
+        get(_defaults, callback) { storageGetCallbacks.push(callback); },
       },
       onChanged: {
         addListener(listener) { storageChangeListener = listener; },
@@ -161,22 +161,31 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
     clearTimeout() {},
   }), { filename: 'src/content.js' });
 
-  assert.equal(typeof storageGetCallback, 'function', 'storage.sync.get の callback が登録されること');
+  assert.equal(storageGetCallbacks.length, 1, 'storage.sync.get の callback が登録されること');
   assert.equal(typeof storageChangeListener, 'function', 'storage.onChanged の listener が登録されること');
   assert.equal(typeof runtimeMessageListener, 'function', 'runtime.onMessage の listener が登録されること');
 
   return {
     get theme() { return htmlState.attributes.get('data-theme') ?? null; },
     get intercept() { return htmlState.attributes.get('data-dbtx-intercept') ?? null; },
+    get hasGuard() { return htmlState.classes.has('darkbluethemex-active'); },
     get lastState() { return storage.get('darkbluethemex_was_active') ?? null; },
     xSetTheme(theme) { mainDocumentElement.setAttribute('data-theme', theme); },
     xRemoveTheme() { mainDocumentElement.removeAttribute('data-theme'); },
+    xSetColorScheme(scheme) {
+      htmlState.style.colorScheme = scheme;
+      flushAttributeMutation(isolatedDocumentElement, 'style');
+    },
     flushHtmlMutation(attributeName = 'data-theme') {
       flushAttributeMutation(isolatedDocumentElement, attributeName);
     },
     pageHide() { isolatedWindow.dispatchEvent({ type: 'pagehide' }); },
     pageShowPersisted() { isolatedWindow.dispatchEvent({ type: 'pageshow', persisted: true }); },
-    resolveStorage(enabled) { storageGetCallback({ darkblue_enabled: enabled }); },
+    resolveStorage(enabled, requestIndex = 0) {
+      const [callback] = storageGetCallbacks.splice(requestIndex, 1);
+      assert.equal(typeof callback, 'function', '指定した storage.sync.get の callback が存在すること');
+      callback({ darkblue_enabled: enabled });
+    },
     setEnabled(enabled) {
       storageChangeListener({ darkblue_enabled: { newValue: enabled } }, 'sync');
     },
@@ -204,6 +213,22 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
 }
 
 {
+  const harness = createHarness({ initialTheme: 'dark' });
+  harness.setEnabled(false);
+  harness.resolveStorage(true);
+  assert.equal(harness.theme, 'dark', '初期 get より先に確定した OFF を古い get 結果で巻き戻さないこと');
+  assert.equal(harness.getState().enabled, false, '初期 get 後着時も確定済みの OFF を返すこと');
+}
+
+{
+  const harness = createHarness({ initialTheme: 'dark' });
+  harness.setEnabled(true);
+  harness.resolveStorage(false);
+  assert.equal(harness.theme, 'dim', '暫定値と同じ ON 通知も初期 get より優先して適用すること');
+  assert.equal(harness.getState().enabled, true, '初期 get 後着時も確定済みの ON を返すこと');
+}
+
+{
   const harness = createHarness({ lastState: 'true' });
   harness.xSetTheme('dark');
   harness.resolveStorage(true);
@@ -214,6 +239,38 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
   assert.equal(harness.lastState, 'true', 'BFCache 復帰時の storage 再取得前は古い状態で再評価しないこと');
   harness.resolveStorage(false);
   assert.equal(harness.lastState, 'false', 'BFCache 復帰時は storage の最新 OFF 状態を反映すること');
+}
+
+{
+  const harness = createHarness({ initialTheme: 'dark' });
+  harness.resolveStorage(true);
+  harness.pageHide();
+  harness.pageShowPersisted();
+  harness.setEnabled(false);
+  harness.resolveStorage(true);
+  assert.equal(harness.theme, 'dark', 'BFCache get より先に確定した OFF を古い get 結果で巻き戻さないこと');
+  assert.equal(harness.getState().enabled, false, 'BFCache get 後着時も確定済みの OFF を返すこと');
+}
+
+{
+  const harness = createHarness({ initialTheme: 'dark' });
+  harness.resolveStorage(true);
+  harness.pageHide();
+  harness.pageShowPersisted();
+  harness.setEnabled(true);
+  harness.resolveStorage(false);
+  assert.equal(harness.theme, 'dim', 'BFCache 中の状態と同じ ON 通知も古い get 結果より優先すること');
+  assert.equal(harness.getState().enabled, true, 'BFCache get 後着時も確定済みの ON を返すこと');
+}
+
+{
+  const harness = createHarness({ initialTheme: 'dark' });
+  harness.pageHide();
+  harness.pageShowPersisted();
+  harness.resolveStorage(false, 1);
+  harness.resolveStorage(true);
+  assert.equal(harness.theme, 'dark', '新しい BFCache get を古い初期 get の後着結果で巻き戻さないこと');
+  assert.equal(harness.getState().enabled, false, '複数 get の完了順が逆でも新しい結果を返すこと');
 }
 
 {
@@ -264,6 +321,25 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
   assert.equal(harness.theme, 'dim', '過去の dark 変換情報を後続の公式 Dim へ持ち越さないこと');
 }
 
+for (const lightScheme of ['light', 'normal']) {
+  const harness = createHarness({ initialTheme: 'dark' });
+  harness.resolveStorage(true);
+  assert.equal(harness.theme, 'dim', `${lightScheme} 遷移前は DarkBlue を適用すること`);
+  harness.xSetColorScheme(lightScheme);
+  assert.equal(harness.theme, 'dark', `inline color-scheme が ${lightScheme} なら所有する dim を dark へ復元すること`);
+  assert.equal(harness.hasGuard, false, `inline color-scheme が ${lightScheme} ならガードを解除すること`);
+
+  // 実ブラウザでは上の復元で生じた data-theme mutation が次の microtask で配送される。
+  // 旧実装は dark→dim→dark を繰り返し、発振ブレーカが評価を停止する。
+  for (let i = 0; i < 55; i++) harness.flushHtmlMutation();
+  assert.equal(harness.theme, 'dark', `復元した dark の mutation で ${lightScheme} 中に DarkBlue を再適用しないこと`);
+  assert.equal(harness.hasGuard, false, `${lightScheme} の間は重複 mutation 後も解除状態を維持すること`);
+
+  harness.xSetColorScheme('dark');
+  assert.equal(harness.theme, 'dim', `${lightScheme} から dark に戻ったら評価を再開して DarkBlue を適用すること`);
+  assert.equal(harness.hasGuard, true, `${lightScheme} 遷移で発振ブレーカを作動させず再適用できること`);
+}
+
 {
   const harness = createHarness({ lastState: 'true' });
   harness.xRemoveTheme();
@@ -281,4 +357,4 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
   assert.equal(harness.theme, 'dark', '通常初期化で変換した dim は OFF で dark へ戻ること');
 }
 
-console.log('✅ テーマ復元契約一致 (storage未解決OFF / BFCache再取得 / 再訪 dark / storage不一致 / 公式 Dim / 途中切替 / light遷移 / 属性削除 / 通常初期化)');
+console.log('✅ テーマ復元契約一致 (storage未解決OFF / storage競合 / BFCache再取得・競合 / 再訪 dark / storage不一致 / 公式 Dim / 途中切替 / light・normal遷移 / 属性削除 / 通常初期化)');

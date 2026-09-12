@@ -51,7 +51,8 @@
   let _lastColorScheme = null;      // style 属性変化のフィルタリング用
   let _syntheticDim = false;        // color-scheme フォールバックで合成した dim（無効化時に属性削除 vs dark 復元を区別）
   let _dimAppliedByUs = false;      // dark→dim 変換を自分が行ったか（X 公式 Dim / 他拡張由来の dim を戻さないため）
-  let _stateResolved = false;       // storage.sync.get が解決済みか（未解決中の observer/visibilitychange/pageshow 誤適用を防ぐ）
+  let _stateResolved = false;       // storage の正式状態が確定済みか（未確定中の observer/visibilitychange 誤適用を防ぐ）
+  let _storageReadGeneration = 0;   // onChanged より古い非同期 get の後着結果を破棄するための世代
 
   // ---- 発振ブレーカ（OOM 最終防衛線）----
   // evaluateAndApply が「適用↔解除」を短時間に FLIP_LIMIT 回超えてフリップしたら、以降の適用を停止する。
@@ -139,9 +140,13 @@
       // 遅延・阻害で dark が一時的に欠落しただけのときに解除してしまうと、
       // deactivate→data-theme="dark" 復元→再適用→… の無限フリップ（メモリ暴走・
       // 初期ロード未完）に陥るため（Brave で観測された OOM の根本原因）。
-      if (dataTheme === 'dim' && docEl.classList.contains(GUARD_CLASS)) {
-        const isLightScheme = scheme === 'light' || scheme === 'normal';
-        return isLightScheme ? null : 'dim';
+      const isLightScheme = scheme === 'light' || scheme === 'normal';
+      if (isLightScheme) {
+        if (dataTheme === 'dim' && docEl.classList.contains(GUARD_CLASS)) return null;
+        // 上の解除で所有する dim を dark へ復元すると、その data-theme mutation が次の
+        // microtask で届く。OFF 中は light/normal を優先しないと dark を再適用して発振する。
+        // 属性自体は消さず、拡張が変更した値だけを元へ戻す復元契約を維持する。
+        if (dataTheme === 'dark' && docEl.classList.contains(OFF_CLASS)) return null;
       }
       return dataTheme;
     }
@@ -471,10 +476,13 @@
     // 戻る/進む は pushState を経由せず popstate で飛んでくるため別途購読する。
     window.addEventListener('popstate', checkUrlChange);
 
+    const storageReadGeneration = ++_storageReadGeneration;
     chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
-      if (chrome.runtime.lastError) {
+      const storageError = chrome.runtime.lastError;
+      if (storageReadGeneration !== _storageReadGeneration) return;
+      if (storageError) {
         // storage 障害時は既定値 (true) で続行し、無言にしない
-        dlog('storage.sync.get 失敗、既定値で続行', chrome.runtime.lastError);
+        dlog('storage.sync.get 失敗、既定値で続行', storageError);
         isEnabled = true;
       } else {
         isEnabled = result[STORAGE_KEY];
@@ -487,11 +495,16 @@
     // popup.js からの sendMessage('darkblue:toggle') は廃止済み（二重発火の原因だった）。
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'sync' && changes[STORAGE_KEY]) {
+        // onChanged は現在確定した値なので、先行する get の callback が後着しても採用しない。
+        // storage 未解決中に暫定 isEnabled と同じ値が届いた場合も、正式状態として一度評価する。
+        const wasResolved = _stateResolved;
+        _storageReadGeneration++;
+        _stateResolved = true;
         // キー削除時 newValue は undefined になる。そのまま代入すると isEnabled が真偽値でなくなり、
         // 暗黙の falsy として解除され (init の既定 true と食い違う)、getState 応答の enabled も
         // undefined を返してしまう。init の get({[STORAGE_KEY]: true}) と同じ既定へ正規化する。
         const nextEnabled = changes[STORAGE_KEY].newValue !== false;
-        if (nextEnabled === isEnabled) return; // 既に同値ならスキップ
+        if (nextEnabled === isEnabled && wasResolved) return; // 解決後の同値通知だけスキップ
         isEnabled = nextEnabled;
         evaluateAndApply();
       }
@@ -518,17 +531,20 @@
       // 拡張更新後などコンテキスト失効時は chrome.storage が無効化され、get が throw / undefined になりうる。
       // 二重防御 (存在ガード + try/catch) で、取得不可でもメモリ上の状態で適用を継続する。
       const resolveAndApply = () => { _stateResolved = true; evaluateAndApply(); };
+      const storageReadGeneration = ++_storageReadGeneration;
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
         try {
           chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
-            if (!chrome.runtime?.lastError && result) {
+            const storageError = chrome.runtime?.lastError;
+            if (storageReadGeneration !== _storageReadGeneration) return;
+            if (!storageError && result) {
               isEnabled = result[STORAGE_KEY];
             }
             resolveAndApply();
           });
         } catch (e) {
           dlog('bfcache 復元時の storage.sync.get が失効、メモリ状態で続行', e);
-          resolveAndApply();
+          if (storageReadGeneration === _storageReadGeneration) resolveAndApply();
         }
       } else {
         resolveAndApply();
