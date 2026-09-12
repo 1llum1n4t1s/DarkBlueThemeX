@@ -14,6 +14,8 @@ const optionalData = [
   'technicalAndInteraction',
 ];
 const popupSource = fs.readFileSync(path.join(root, 'src/popup/popup.js'), 'utf8');
+const popupHtml = fs.readFileSync(path.join(root, 'src/popup/popup.html'), 'utf8');
+const toggleStartsDisabled = /<input(?=[^>]*\bid="toggleSwitch")(?=[^>]*\bdisabled\b)[^>]*>/.test(popupHtml);
 const chromeManifest = readJson('manifest.json');
 const firefoxManifest = readJson('manifest.firefox.json');
 
@@ -54,7 +56,15 @@ function fakeElement() {
   };
 }
 
-async function runPopupScenario({ manifest, exposeBrowser = false, granted, tabResponse = null, clickSupport = true }) {
+async function runPopupScenario({
+  manifest,
+  exposeBrowser = false,
+  granted,
+  tabResponse = null,
+  clickSupport = true,
+  storageGet = async (defaults) => defaults,
+  onInitializationStarted = null,
+}) {
   const ids = new Map([
     ['toggleSwitch', fakeElement()],
     ['toggleLabel', fakeElement()],
@@ -65,6 +75,7 @@ async function runPopupScenario({ manifest, exposeBrowser = false, granted, tabR
     ['supportButton', fakeElement()],
     ['supportPermissionStatus', fakeElement()],
   ]);
+  ids.get('toggleSwitch').disabled = toggleStartsDisabled;
   const pageListeners = new Map();
   const permissionRequests = [];
   let supportPopup = null;
@@ -74,7 +85,7 @@ async function runPopupScenario({ manifest, exposeBrowser = false, granted, tabR
     runtime: { getManifest: () => manifest },
     storage: {
       sync: {
-        get: async (defaults) => defaults,
+        get: storageGet,
         set: async () => undefined,
       },
     },
@@ -116,7 +127,9 @@ async function runPopupScenario({ manifest, exposeBrowser = false, granted, tabR
   if (exposeBrowser) context.browser = api;
 
   vm.runInNewContext(popupSource, context, { filename: 'src/popup/popup.js' });
-  await pageListeners.get('DOMContentLoaded')();
+  const initialization = pageListeners.get('DOMContentLoaded')();
+  onInitializationStarted?.(ids);
+  await initialization;
   await new Promise((resolve) => setImmediate(resolve));
 
   const supportButton = ids.get('supportButton');
@@ -128,6 +141,8 @@ async function runPopupScenario({ manifest, exposeBrowser = false, granted, tabR
     permissionRequests,
     popupOpened,
     permissionStatus: ids.get('supportPermissionStatus'),
+    toggleSwitch: ids.get('toggleSwitch'),
+    toggleLabel: ids.get('toggleLabel').textContent,
     statusMessage: ids.get('statusMessage').textContent,
     statusClasses: ids.get('statusDot').classes,
   };
@@ -135,10 +150,36 @@ async function runPopupScenario({ manifest, exposeBrowser = false, granted, tabR
 
 async function main() {
   verifyManifestContracts();
+  assert.equal(toggleStartsDisabled, true, '設定の読込前からトグルを無効にすること');
 
   const chromeGranted = await runPopupScenario({ manifest: chromeManifest, granted: true });
   assert.deepEqual(chromeGranted.permissionRequests, [{ origins: [supportOrigin] }]);
   assert.equal(chromeGranted.popupOpened, true, 'Chrome はホスト権限の許可後にフォームを開くこと');
+  assert.equal(chromeGranted.toggleSwitch.disabled, false, '設定の読込成功後はトグルを有効にすること');
+  assert.equal(
+    typeof chromeGranted.toggleSwitch.listeners.get('change'),
+    'function',
+    '設定の読込成功後はトグル変更を購読すること',
+  );
+
+  const storageFailure = await runPopupScenario({
+    manifest: chromeManifest,
+    granted: false,
+    clickSupport: false,
+    storageGet: async () => { throw new Error('storage unavailable'); },
+    onInitializationStarted(ids) {
+      assert.equal(ids.get('toggleSwitch').disabled, true, '設定の読込中はトグルを無効にすること');
+    },
+  });
+  assert.equal(storageFailure.toggleSwitch.disabled, true, '設定の読込失敗後もトグルを無効に保つこと');
+  assert.equal(
+    storageFailure.toggleSwitch.listeners.has('change'),
+    false,
+    '設定の読込失敗時はトグル変更を購読しないこと',
+  );
+  assert.equal(storageFailure.statusMessage, '設定を読み込めませんでした');
+  assert.equal(storageFailure.toggleLabel, '未確認', '読込失敗時に有効・無効を断定しないこと');
+  assert(storageFailure.statusClasses.has('inactive'), '設定の読込失敗をエラー状態として表示すること');
 
   const firefoxGranted = await runPopupScenario({ manifest: firefoxManifest, exposeBrowser: true, granted: true });
   assert.deepEqual(firefoxGranted.permissionRequests, [{ data_collection: optionalData, origins: [supportOrigin] }]);
@@ -164,7 +205,7 @@ async function main() {
   assert.equal(officialDim.statusMessage, 'X 公式の Dim テーマを使用中');
   assert(officialDim.statusClasses.has('info'), 'X 公式 Dim は情報状態として表示すること');
 
-  console.log('✅ popup 契約一致 (Chrome optional host / Firefox optional data / X 公式 Dim 表示)');
+  console.log('✅ popup 契約一致 (初期設定読込 / Chrome optional host / Firefox optional data / X 公式 Dim 表示)');
 }
 
 main().catch((error) => {

@@ -42,10 +42,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     setSupportPermissionStatus('お問い合わせ機能を読み込めませんでした。');
   });
 
-  const result = await chrome.storage.sync.get({ [STORAGE_KEY]: true });
+  let result;
+  try {
+    result = await chrome.storage.sync.get({ [STORAGE_KEY]: true });
+  } catch {
+    _toggleLabel.textContent = '未確認';
+    setStatus('inactive', '設定を読み込めませんでした');
+    return;
+  }
   applyToggleUI(result[STORAGE_KEY]);
 
   _toggleSwitch.addEventListener('change', onToggleChange);
+  _toggleSwitch.disabled = false;
   await queryTabState();
 });
 
