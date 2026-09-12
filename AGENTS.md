@@ -90,10 +90,11 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 
 - テーマ判定は `getCurrentTheme()`、inline color-scheme 取得は `getInlineColorScheme()`、復元は `restoreDataTheme()` に集約する。外部スタイルの computed 値と区別し、CSSOM の inline 値を使用する。
 - MAIN world のテーマイベントリスナーは楽観的 intercept ON より先に登録する。解除は intercept OFF → ガード解除・OFF クラス付与 → 属性復元の順を維持する。
-- テーマ変更時は storage 未解決、BFCache 復帰、再訪 dark、公式 Dim、属性削除、ライト遷移、ON/OFF 復元を検証する。通知への SPA 遷移と戻る／進む、body の Tailwind 配色、複数 theme-color meta は実ブラウザでも確認する。
+- テーマ変更時は storage 未解決、初期取得・BFCache 再取得と変更通知の競合、複数取得の完了順逆転、再訪 dark、公式 Dim、属性削除、light／normal への遷移後の重複 mutation と dark 復帰、ON/OFF 復元を検証する。通知への SPA 遷移と戻る／進む、body の Tailwind 配色、複数 theme-color meta は実ブラウザでも確認する。
 - X の新しい色を扱うときは DevTools で `r-*` クラスと computed RGB を確認し、`src/popup/popup.css` のパレットへ対応付ける。`src/styles/darkblue.css` の該当節にクラス上書きとセクション 1 の inline style セレクタを追加する。クラス名の永続的な安定性を仮定せず実 DOM と照合する。
 - FOUC セレクタへの追加は JS 実行前に見えるルート・body 周辺の色を対象とし、コンポーネント内部色は `html.darkbluethemex-active` にスコープする。セクション 12・13 の body 側変数上書きを維持する。
 - 共有リテラル変更時は `scripts/check-shared-literals.js` の対応グループを同時更新し、参照コメントには行番号の代わりに定数名を記す。
+- popup の設定読込を変更するときは、読込中の操作禁止、成功後の操作可能化、失敗時の「未確認」表示と操作禁止を `pnpm run check-support-permissions` で検証する。状態の設計は [DESIGN.md](DESIGN.md#有効状態の変更) を参照する。
 - Firefox の Gecko ID `{6a3c2b7e-9d4f-4a1c-b8e5-2f7d8c9e1a3b}` を維持する。任意データ収集権限は `manifest.firefox.json` と popup の要求経路を合わせ、許可／拒否を検証する。
 
 ## 補助ファイルと正本
@@ -105,8 +106,8 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 | `scripts/generate-icons.js` | 拡張機能アイコン (16/48/128px) 生成スクリプト (Node.js + sharp) |
 | `scripts/check-version.js` | `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者一致を検証 (CI 実行) |
 | `scripts/check-shared-literals.js` | 実行コンテキストを跨ぐ共有リテラル値の一致を検証 (CI 実行)。content↔popup: `STORAGE_KEY` / `MSG_GET_STATE`、content↔intercept: `LOCATION_CHANGE_EVENT` / 3つの `THEME_*_EVENT` |
-| `scripts/check-support-permissions.js` | Chrome の任意ホスト権限、Firefox の任意データ収集権限、許可／拒否時の popup 分岐を Node 標準機能だけで検証 (`pnpm run check`) |
-| `scripts/check-theme-state.js` | MAIN / isolated world を分離した VM で storage 未解決時の OFF 維持、再訪時の dark、公式 Dim、属性削除、通常初期化の OFF 復元契約を検証 (`pnpm run check`) |
+| `scripts/check-support-permissions.js` | Chrome の任意ホスト権限、Firefox の任意データ収集権限、許可／拒否時の popup 分岐と設定読込時の操作制御を Node 標準機能だけで検証 (`pnpm run check`) |
+| `scripts/check-theme-state.js` | MAIN / isolated world を分離した VM で storage 未解決・競合、BFCache 再取得、light／normal 遷移と dark 復帰、Dim の由来別復元契約を検証 (`pnpm run check`) |
 | `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store + Firefox AMO に同時自動公開 |
 | `zip.ps1` / `zip.sh` | Chrome/Firefox 両対応のパッケージ生成 (`-Target chrome|firefox|both` / `bash zip.sh chrome|firefox|both`) |
 | `.github/dependabot.yml` | GitHub Actions と npm 依存の週次自動更新 |

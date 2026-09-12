@@ -34,7 +34,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 
 1. ブラウザは`document_start`でCSSを注入し、Xが`data-theme="dark"`を設定している間もDarkBlueのルート色を先行適用する。
 2. `intercept.js`がMAIN worldで`Element.prototype.setAttribute`／`removeAttribute`を包み、有効時の`data-theme="dark"`書き込みを同期的に`dim`へ変換する。
-3. `content.js`は`localStorage`の前回状態をFOUC防止の楽観値として使い、その後`chrome.storage.sync`の正式な有効状態を取得する。正式状態の解決前はMutationObserverによるテーマ再評価を行わない。取得中に`storage.onChanged`が届いた場合は通知値を優先し、先行する非同期取得の後着結果を破棄する。
+3. `content.js`は`localStorage`の前回状態をFOUC防止の楽観値として使い、その後`chrome.storage.sync`の正式な有効状態を取得する。正式状態の解決前はMutationObserverによるテーマ再評価を行わない。初期取得・BFCache再取得・`storage.onChanged`で世代を進め、最新世代の取得結果だけを採用する。通知は暫定値と同値でも正式状態を確定し、先行する取得の後着結果を破棄する。
 4. 有効かつ黒テーマなら、`<html>`へ`darkbluethemex-active`を付与し、`data-theme`、`<body>`のdarkマーカー、`meta[name="theme-color"]`を整合させる。
 5. MutationObserverは`<html>`／`<body>`の関連属性だけを監視し、Xによる再描画やテーマ変更を再評価する。定期的なDOM全走査は行わない。
 6. `intercept.js`が`history.pushState`／`replaceState`を捕捉して`dbtx:locationchange`を送出し、`content.js`が通知ページ用の`data-dbtx-page`を更新する。戻る／進むは`popstate`で補完する。
@@ -43,9 +43,10 @@ MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept
 
 ### 有効状態の変更
 
-1. popupが`darkblue_enabled`を`chrome.storage.sync`へ書き込む。
-2. 各タブの`content.js`が`storage.onChanged`で変更を受け取り、適用または復元を行う。
-3. popupの状態照会は`darkblue:getState`メッセージで現在タブのcontent scriptへ問い合わせる。受信側は`sender.id === chrome.runtime.id`を検証する。
+1. popupはHTMLの初期状態からトグルを無効にし、設定読込成功後に表示を反映して変更イベントを購読し、操作を許可する。読込失敗時は「未確認」「設定を読み込めませんでした」を表示して操作禁止を維持し、タブ状態の照会へ進まない。問い合わせの初期化は独立して進める。
+2. 利用者がトグルを操作すると、popupが`darkblue_enabled`を`chrome.storage.sync`へ書き込む。保存失敗時はトグル表示を操作前へ戻して失敗を表示する。
+3. 各タブの`content.js`が`storage.onChanged`で変更を受け取り、適用または復元を行う。
+4. popupの状態照会は`darkblue:getState`メッセージで現在タブのcontent scriptへ問い合わせる。受信側は`sender.id === chrome.runtime.id`を検証する。
 
 トグル伝播をメッセージとstorageの二重経路にせず、`storage.onChanged`を唯一の変更通知経路とする。
 
@@ -79,7 +80,7 @@ MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept
 
 ## テーマ判定と復元の詳細
 
-`getCurrentTheme()`は非空の`data-theme`を優先する。ただし`dim`かつガード付与中は、正規化したinline `color-scheme`が明示的に`light`または`normal`のときだけ解除対象とする。解除時は拡張が作った`dim`を元の`dark`へ復元したうえで、OFFクラスと`light`／`normal`が共存する間はライト遷移中として扱い、復元で生じた`data-theme`変更を再適用へつなげない。inline値の欠落や複数値では解除せず、`dark`へ戻るstyle変更で再適用する。
+`getCurrentTheme()`は非空の`data-theme`を優先する。ただし`dim`かつガード付与中は、正規化したinline `color-scheme`が明示的に`light`または`normal`のときだけ解除対象とする。解除時は拡張が作った`dim`を由来に応じて復元する。dark由来では、OFFクラスと`light`／`normal`が共存する間はライト遷移中として扱い、復元で生じた`data-theme`変更を再適用へつなげない。inline値の欠落や複数値では解除せず、`dark`へ戻るstyle変更で再適用する。
 
 属性値がない場合だけ、inline `color-scheme`が`dark`単独ならdarkと判定する。`getInlineColorScheme()`はCSSOMの`style.colorScheme`を小文字化・空白分割し、`only`を除く。`light dark`はdarkと断定しない。外部スタイルの値を含む`getComputedStyle()`は、このinline検出の契約と異なる。
 
