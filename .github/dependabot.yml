@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # GitHub Actions の自動更新 (SHA ピン化まで将来的に段階移行推奨)
+  # GitHub Actions の自動更新（workflow 側は commit SHA 固定）
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -15,7 +15,7 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-  # npm devDependencies (sharp / chrome-webstore-upload-cli) の自動更新
+  # npm devDependencies の自動更新
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
