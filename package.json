@@ -24,7 +24,7 @@
     "chrome-webstore-upload-cli": "4.0.1",
     "@kagayoi/support-extension": "1.0.6",
     "sharp": "^0.35.4",
-    "web-ext": "10.6.0"
+    "web-ext": "10.7.0"
   },
   "license": "MIT"
 }
