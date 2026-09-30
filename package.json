@@ -21,10 +21,10 @@
     "check": "pnpm run check-version && pnpm run check-shared-literals && pnpm run check-support-permissions && pnpm run check-theme-state"
   },
   "devDependencies": {
-    "chrome-webstore-upload-cli": "4.0.1",
     "@kagayoi/support-extension": "1.0.6",
-    "sharp": "^0.35.4",
-    "web-ext": "10.6.0"
+    "chrome-webstore-upload-cli": "4.0.1",
+    "sharp": "^0.35.5",
+    "web-ext": "10.7.0"
   },
   "license": "MIT"
 }
