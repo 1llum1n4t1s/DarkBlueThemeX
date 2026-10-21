@@ -35,6 +35,8 @@
   const THEME_DARK_CONVERTED_EVENT = 'dbtx:themedarkconverted';
   const THEME_REMOVED_CONVERTED_EVENT = 'dbtx:themeremovedconverted';
   const THEME_DIM_SELECTED_EVENT = 'dbtx:themedimselected';
+  // 通話ShadowRootの生成通知（intercept.js の CALLS_SHADOW_EVENT と同期）。
+  const CALLS_SHADOW_EVENT = 'dbtx:callsshadowready';
 
   // ---- カラー定数（darkblue.css ヘッダと popup.css 変数を正として同期）----
   const BG_PRIMARY = '#15202B';
@@ -66,7 +68,7 @@
   // ---- デバッグログ（既定 OFF。localStorage 'dbtx_debug'==='1' で有効化。本番コンソールを汚さない）----
   // X の DOM 変更でテーマが壊れたとき、状態遷移を DevTools コンソールから観測できるようにする。
   let DEBUG = false;
-  try { DEBUG = localStorage.getItem('dbtx_debug') === '1'; } catch (e) { /* 取得不可なら既定 OFF のまま */ }
+  try { DEBUG = localStorage.getItem('dbtx_debug') === '1'; } catch { /* 取得不可なら既定 OFF のまま */ }
   function dlog(...args) { if (DEBUG) console.debug('[dbtx]', ...args); }
 
   // MAIN world の intercept が変換した dim の復元元を同期イベントで受け取る。
@@ -241,6 +243,7 @@
     docEl.classList.remove(GUARD_CLASS);
     // CSS FOUC ルール無効化
     docEl.classList.add(OFF_CLASS);
+    stopCallsTheme();
     restoreDataTheme();
     unmarkBodyDarkVariant();
     updateThemeColor(false);
@@ -304,6 +307,7 @@
       updateThemeColor(true);
       writeLastState(true);
       updatePageFlags();
+      syncCallsTheme();
       return;
     }
 
@@ -334,6 +338,83 @@
   }
 
   // ========================================================
+  // 通話画面: Shadow DOM の独立パレットを既存の --x-* 配色へ接続
+  // ========================================================
+
+  const CALLS_HOST_SELECTOR = '[data-testid="xcallsRemoteHost"]';
+  const CALLS_THEME_CSS = `
+    :host, [data-xcalls-root], [data-xcalls-portal] {
+      --x-bg-primary: inherit !important;
+      --x-bg-secondary: inherit !important;
+      --x-bg-tertiary: inherit !important;
+      --x-bg-modal: inherit !important;
+      --x-bg-sheets: inherit !important;
+      --x-btn-secondary: inherit !important;
+      --x-btn-secondary-hover: inherit !important;
+      --x-btn-secondary-pressed: inherit !important;
+      --x-overlay-normal: inherit !important;
+      --x-overlay-strong: inherit !important;
+      --x-toast-bg: inherit !important;
+    }
+  `;
+  let _callsObserver = null;
+  const _callsRoots = new Map();
+
+  function addCallsTheme(host) {
+    const root = host.shadowRoot;
+    if (!host.isConnected || !root || _callsRoots.has(root)) return;
+    const style = document.createElement('style');
+    style.setAttribute('data-dbtx-calls', '');
+    // Shadow 側の再宣言だけを外す。色の正本は darkblue.css セクション13のままにする。
+    style.textContent = CALLS_THEME_CSS;
+    root.appendChild(style);
+    const observer = new MutationObserver(() => {
+      // X が ShadowRoot の中身を再構築した場合も、所有スタイルだけを戻す。
+      if (host.isConnected && style.parentNode !== root) root.appendChild(style);
+    });
+    observer.observe(root, { childList: true });
+    _callsRoots.set(root, { style, observer });
+  }
+
+  function stopCallsTheme() {
+    if (_callsObserver) { _callsObserver.disconnect(); _callsObserver = null; }
+    for (const { style, observer } of _callsRoots.values()) {
+      observer.disconnect();
+      style.remove();
+    }
+    _callsRoots.clear();
+  }
+
+  function syncCallsTheme() {
+    const isCallsPage = location.pathname === '/i/calls' || location.pathname.startsWith('/i/calls/');
+    if (!_stateResolved || !isCallsPage || !document.documentElement.classList.contains(GUARD_CLASS)) {
+      stopCallsTheme();
+      return;
+    }
+    if (_callsObserver) return;
+
+    _callsObserver = new MutationObserver((mutations) => {
+      // SPAで取り外されたホストを保持し続けない。
+      for (const [root, entry] of _callsRoots) {
+        if (!root.host.isConnected) {
+          entry.observer.disconnect();
+          entry.style.remove();
+          _callsRoots.delete(root);
+        }
+      }
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType !== 1 || !node.isConnected) continue;
+          if (node.matches(CALLS_HOST_SELECTOR)) addCallsTheme(node);
+          for (const host of node.querySelectorAll(CALLS_HOST_SELECTOR)) addCallsTheme(host);
+        }
+      }
+    });
+    _callsObserver.observe(document.body, { childList: true, subtree: true });
+    for (const host of document.querySelectorAll(CALLS_HOST_SELECTOR)) addCallsTheme(host);
+  }
+
+  // ========================================================
   // SPA ナビゲーション検出 & ページ固有フラグ
   // ========================================================
 
@@ -357,6 +438,7 @@
     if (location.href !== _lastUrl) {
       _lastUrl = location.href;
       updatePageFlags();
+      syncCallsTheme();
     }
   }
 
@@ -376,6 +458,7 @@
       const theme = getCurrentTheme();
       const hasGuard = docEl.classList.contains(GUARD_CLASS);
       let needsEval = false;
+      let batchColorScheme;
 
       for (const mutation of mutations) {
         if (mutation.target === document.body) {
@@ -399,7 +482,8 @@
           }
         } else if (mutation.attributeName === 'style') {
           // color-scheme の変化を検出（X がテーマを切り替えた場合）
-          const currentScheme = getInlineColorScheme() === 'dark' ? 'dark' : 'other';
+          // 同じ通知内では html の inline 値は変えないため、分類は最初の style レコードで一度だけ取得する。
+          const currentScheme = batchColorScheme ??= (getInlineColorScheme() === 'dark' ? 'dark' : 'other');
           if (currentScheme !== _lastColorScheme) {
             _lastColorScheme = currentScheme;
             if (!isEnabled) continue;
@@ -475,6 +559,10 @@
     window.addEventListener(LOCATION_CHANGE_EVENT, checkUrlChange);
     // 戻る/進む は pushState を経由せず popstate で飛んでくるため別途購読する。
     window.addEventListener('popstate', checkUrlChange);
+    // ホスト挿入後に attachShadow されても、ポーリングせず同期通知で捕捉する。
+    window.addEventListener(CALLS_SHADOW_EVENT, (event) => {
+      if (_callsObserver && event.target?.matches?.(CALLS_HOST_SELECTOR)) addCallsTheme(event.target);
+    });
 
     const storageReadGeneration = ++_storageReadGeneration;
     chrome.storage.sync.get({ [STORAGE_KEY]: true }, (result) => {
@@ -555,6 +643,7 @@
   // クリーンアップ（unload は非推奨のため pagehide を使用）
   window.addEventListener('pagehide', () => {
     if (domObserver) { domObserver.disconnect(); domObserver = null; }
+    stopCallsTheme();
   });
 
   function waitForBody() {

@@ -130,6 +130,11 @@ body {
   transform: translateX(20px);
 }
 
+.toggle input:focus-visible + .toggle-track {
+  outline: 2px solid var(--db-accent);
+  outline-offset: 3px;
+}
+
 /* ---- Status ---- */
 
 .status-section {

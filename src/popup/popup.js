@@ -135,7 +135,7 @@ async function onToggleChange() {
   // sendMessage('darkblue:toggle') は二重発火の原因になるため廃止済み。
   try {
     await chrome.storage.sync.set({ [STORAGE_KEY]: enabled });
-  } catch (e) {
+  } catch {
     // storage 障害 (quota 超過・コンテキスト失効等) → UI を実状態に戻し、失敗を伝える
     applyToggleUI(!enabled);
     setStatus('inactive', '設定の保存に失敗しました');
@@ -160,8 +160,8 @@ function isXTab(tab) {
   }
 }
 
-async function queryTabState(existingTab) {
-  const tab = existingTab ?? await getActiveTab();
+async function queryTabState() {
+  const tab = await getActiveTab();
   if (!tab || !isXTab(tab)) {
     setStatus('inactive', 'X のページを開いてください');
     setDebug(null);

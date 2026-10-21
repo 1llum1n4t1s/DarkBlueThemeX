@@ -35,6 +35,8 @@
   const THEME_DARK_CONVERTED_EVENT = 'dbtx:themedarkconverted';
   const THEME_REMOVED_CONVERTED_EVENT = 'dbtx:themeremovedconverted';
   const THEME_DIM_SELECTED_EVENT = 'dbtx:themedimselected';
+  // 通話ShadowRootの生成通知（content.js の CALLS_SHADOW_EVENT と同期）。
+  const CALLS_SHADOW_EVENT = 'dbtx:callsshadowready';
 
   const origSetAttribute = Element.prototype.setAttribute;
   const origRemoveAttribute = Element.prototype.removeAttribute;
@@ -77,6 +79,17 @@
       return result;
     }
     return origRemoveAttribute.call(this, name);
+  };
+
+  // 通話UIは、挿入済みホストへ後から open ShadowRoot を付ける場合がある。
+  // DOM の childList 監視では捕捉できないため、対象ホストだけ detail なしで通知する。
+  const origAttachShadow = Element.prototype.attachShadow;
+  Element.prototype.attachShadow = function (...args) {
+    const root = origAttachShadow.apply(this, args);
+    if (root.mode === 'open' && this.getAttribute('data-testid') === 'xcallsRemoteHost') {
+      this.dispatchEvent(new CustomEvent(CALLS_SHADOW_EVENT, { bubbles: true }));
+    }
+    return root;
   };
 
   // ========================================================

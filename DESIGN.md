@@ -19,7 +19,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 | --- | --- | --- |
 | `manifest.json` | Chromium版の権限、CSP、content scriptの実行順を定義する | バージョンの唯一の正本 |
 | `manifest.firefox.json` | Firefox固有のGecko設定と権限宣言を加える | パッケージ時に`manifest.json`として配置する |
-| `src/intercept.js` | MAIN worldでテーマ属性の書き換えとHistory APIによるSPA遷移を同期捕捉する | X本体と同じJavaScript worldでのみ有効 |
+| `src/intercept.js` | MAIN worldでテーマ属性の書き換え、History APIによるSPA遷移、通話ホストのShadowRoot生成を同期捕捉する | X本体と同じJavaScript worldでのみ有効 |
 | `src/content.js` | 有効状態、テーマ判定、DOM状態、復元処理を管理する | isolated worldで動作し、Xのアプリケーション状態を直接所有しない |
 | `src/styles/darkblue.css` | FOUC防止、DarkBlueパレット、X固有セレクタとデザイントークンを上書きする | ガードクラスまたは初期dark判定のスコープ内だけで有効 |
 | `src/popup/` | トグル操作、現在タブの状態表示、バージョン表示、問い合わせ時の任意権限要求を提供する | 永続的な有効状態を書き込む唯一のUIであり、問い合わせ権限要求の起点 |
@@ -36,7 +36,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 2. `intercept.js`がMAIN worldで`Element.prototype.setAttribute`／`removeAttribute`を包み、有効時の`data-theme="dark"`書き込みを同期的に`dim`へ変換する。
 3. `content.js`は`localStorage`の前回状態をFOUC防止の楽観値として使い、その後`chrome.storage.sync`の正式な有効状態を取得する。正式状態の解決前はMutationObserverによるテーマ再評価を行わない。初期取得・BFCache再取得・`storage.onChanged`で世代を進め、最新世代の取得結果だけを採用する。通知は暫定値と同値でも正式状態を確定し、先行する取得の後着結果を破棄する。
 4. 有効かつ黒テーマなら、`<html>`へ`darkbluethemex-active`を付与し、`data-theme`、`<body>`のdarkマーカー、`meta[name="theme-color"]`を整合させる。
-5. MutationObserverは`<html>`／`<body>`の関連属性だけを監視し、Xによる再描画やテーマ変更を再評価する。定期的なDOM全走査は行わない。
+5. テーマ判定用MutationObserverは`<html>`／`<body>`の関連属性だけを監視し、Xによる再描画やテーマ変更を再評価する。通話ページでは対象ホストの追加・置換も監視する。定期的なDOM全走査は行わない。
 6. `intercept.js`が`history.pushState`／`replaceState`を捕捉して`dbtx:locationchange`を送出し、`content.js`が通知ページ用の`data-dbtx-page`を更新する。戻る／進むは`popstate`で補完する。
 
 MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept`属性とdetailを持たない`CustomEvent`を使う。`intercept.js`はdark変換、属性削除由来の変換、X公式Dim選択を3つのテーマイベントで通知し、`content.js`が`_dimAppliedByUs`／`_syntheticDim`を更新する。実行worldをまたぐ共有JavaScriptモジュールは前提にしない。
@@ -100,6 +100,10 @@ MAIN worldの3つのテーマイベントは、楽観的ONより先に登録さ�
 
 通知ページは`data-dbtx-page="notifications"`でアバター周辺の透明背景を切り替える。HistoryイベントはinterceptのON/OFFによらず通知し、content側でガードとURLを判定する。
 
+通話ページ（`/i/calls`とその配下）は`[data-testid="xcallsRemoteHost"]`のopen ShadowRoot内で独自のテーマ変数を再宣言する。通常のCSSが届かないため、有効状態の確定後かつガード付与中だけ拡張所有のstyleを追加し、`:host`・`[data-xcalls-root]`・`[data-xcalls-portal]`の背景／セカンダリボタン／オーバーレイ変数を親から継承させる。色の正本はCSSセクション13を維持し、白黒のプリミティブ、主ボタン、危険操作色、映像自体は変更しない。
+
+通話ページでのみ追加ノードを監視し、ホストの遅延生成・置換に追従する。接続済みホストへの後付けShadowRootはMAIN側の`attachShadow`からdetailなしの`dbtx:callsshadowready`を中継して捕捉する。Shadow内容の再構築時は所有styleだけを再追加し、切断されたホストは保持から除く。OFF・lightへの遷移、通話ページからの離脱、`pagehide`で監視と所有styleを解除し、BFCache復帰はstorage再確定後に開始し直す。
+
 `updateThemeColor()`は適用・解除時に現存する全theme-color metaを走査し、切り離された要素をキャッシュから外して新要素を登録する。meta自体の変更は常時監視しない。元値が未指定または既にDarkBlue色なら復元値を持たず、それ以外を個別に復元する。
 
 カラーパレットの値の正本は`src/popup/popup.css`のCSS変数であり、`src/styles/darkblue.css`とcontentの`BG_PRIMARY`を対応させる。CSSはr-*クラス、inline style属性、Xのデザイントークンを上書きするため、色の周期的なJS走査は不要である。
@@ -112,7 +116,7 @@ CSSはスクリプト実行前の黒フラッシュを抑え、JavaScriptはXが
 
 ### MAIN worldでの同期intercept
 
-MutationObserverは非同期であり、isolated worldのprototype変更はX本体へ届かない。このため最小範囲の属性操作とHistory APIだけをMAIN worldで包む。代償としてプラットフォームAPIへの介入点が増えるため、二重インストール防止印とDOM属性による明示的なON／OFF境界を置く。
+MutationObserverは非同期であり、isolated worldのprototype変更はX本体へ届かない。このためテーマ属性操作、History API、通話ホストの`attachShadow`通知をMAIN worldで包む。代償としてプラットフォームAPIへの介入点が増えるため、二重インストール防止印とテーマ変換用DOM属性による明示的なON／OFF境界を置く。通話の生成通知自体は設定に依存せず、isolated側が確定済みの有効状態とページ範囲で適用を判定する。
 
 ### 二つのガードクラス
 
@@ -120,7 +124,7 @@ MutationObserverは非同期であり、isolated worldのprototype変更はX本�
 
 ### 監視対象を限定したMutationObserver
 
-XのDOMは頻繁に変化するため、要素全体の周期走査ではなくテーマに関係する属性だけを監視する。style変更は`color-scheme`の実値が変化した場合だけ再評価し、自己変更や無関係な更新を除外する。
+XのDOMは頻繁に変化するため、要素全体の周期走査ではなくテーマに関係する属性を監視する。style変更は`color-scheme`の実値が変化した場合だけ再評価し、自己変更や無関係な更新を除外する。通話ホストの検出は有効な通話ページに限定し、初回以外は追加された部分木だけを調べる。
 
 ### 実行コンテキストごとの重複定数
 
@@ -136,7 +140,7 @@ Firefox固有設定だけを別manifestに分離し、JavaScriptとCSSは共通�
 
 ## 検証と配布の境界
 
-ローカル検証とパッケージコマンドは[AGENTS.md](AGENTS.md)を参照する。CIは`release/**`でversion整合、共有リテラル、問い合わせ権限、テーマ復元契約を検証し、packageジョブで両ブラウザのアーカイブを作成する。ChromeジョブはZIP artifactを使用し、Firefoxジョブは同じソースから`firefox-build/`を再構築して`web-ext sign`へ渡す。両公開ジョブはpackage成功を条件とする独立ジョブである。公開処理は同じreleaseブランチ内で直列化し、進行中の提出をキャンセルしない。同期生成物の一致確認はローカル必須検証であり、現行CIは同期コマンドや`--check`を実行しない。ランディングページの配備はこのストア公開ワークフローに含まれない。
+ローカル検証とパッケージコマンドは[AGENTS.md](AGENTS.md)を参照する。CIは`release/**`でversion整合、共有リテラル、問い合わせ権限、テーマ復元契約を検証し、packageジョブで両ブラウザのアーカイブを作成する。ChromeジョブはZIP artifactを使用し、FirefoxジョブはXPI artifactを`firefox-build/`へ展開して`web-ext sign`へ渡す。アイコン生成と梱包対象の選択はpackageジョブに集約し、保存した配布物と提出用ソースの内容を一致させる。両公開ジョブはpackage成功を条件とする独立ジョブである。公開処理は同じreleaseブランチ内で直列化し、進行中の提出をキャンセルしない。同期生成物の一致確認はローカル必須検証であり、現行CIは同期コマンドや`--check`を実行しない。ランディングページの配備はこのストア公開ワークフローに含まれない。
 
 ## 製品ページの配信先
 

@@ -25,6 +25,7 @@ const GROUPS = [
       'THEME_DARK_CONVERTED_EVENT',
       'THEME_REMOVED_CONVERTED_EVENT',
       'THEME_DIM_SELECTED_EVENT',
+      'CALLS_SHADOW_EVENT',
     ],
     files: ['src/content.js', 'src/intercept.js'],
   },
