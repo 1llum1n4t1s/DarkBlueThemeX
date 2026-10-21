@@ -16,7 +16,7 @@ pnpm run sync:support
 pnpm run generate-icons
 ```
 
-`zip.ps1`／`zip.sh` は同期・アイコン生成・検証を実行しない。準備と下記の必須検証を完了してからパッケージ化する。`package.json` の `prebuild` は `zip:*` の前処理にはならない。
+`zip.ps1`／`zip.sh` は同期・アイコン生成・検証を実行しない。準備と下記の必須検証を完了してからパッケージ化する。
 
 ```bash
 # Windows (Chrome + Firefox 両方)
@@ -47,7 +47,7 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 
 問い合わせ共通部品は、固定した `@kagayoi/support-extension` から `pnpm run sync:support` で `src/shared/kagayoi-support-{footer,popup}.{js,css}` と `kagayoi-support-form.css` へ同期する。依存更新時は `pnpm-workspace.yaml` の `minimumReleaseAgeExclude` にある旧版の例外も整理して同期を実行し、共通仕様の変更は上流パッケージ、DarkBlueThemeX 固有の見た目は `src/popup/popup.css` の上書きへ置く。
 
-通常のローカル必須検証は `pnpm exec kagayoi-support-sync --check` と `pnpm run check`。前者は同期生成物、後者は version 三者一致、実行コンテキスト間の共有リテラル、問い合わせ権限、テーマ復元契約を検証する。version だけを個別確認する場合は `pnpm run check-version` を使う。
+通常のローカル必須検証は `pnpm run sync:support --check` と `pnpm run check`。前者は同期生成物、後者は version 三者一致、実行コンテキスト間の共有リテラル、問い合わせ権限、テーマ復元契約を検証する。同期と一致確認は、`package.json` の `sync:support` にある `--preserve-symlinks-main` を付けた起動経路を使う。pnpm のリンク経由でも同期 CLI のエントリーポイント判定を成立させるためである。version だけを個別確認する場合は `pnpm run check-version` を使う。
 
 ### ソースからの読み込み
 
@@ -61,7 +61,7 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 - ブランチ名と `manifest.json` の `version` が **完全一致必須**（例: `release/1.0.40` ⇔ `"version": "1.0.40"`）。不一致なら CI が失敗する。
 - `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者同期も `pnpm run check-version` で検証される（不一致なら CI 失敗）。
 - zip は `bash zip.sh both` を CI 内で直接呼び出す形に統一済み（過去はインラインコマンドだったが、パッケージ内容物定義を 1 箇所に集約するため）。
-- Chrome Web Store CLI は `devDependencies` 固定バージョン (`chrome-webstore-upload-cli@4.0.1`, CWS API v2) で、CI は `./node_modules/.bin/chrome-webstore-upload` のデフォルトコマンド (サブコマンド無し = upload+publish、`--auto-publish` は廃止) を使う。v4 は認証を `CLIENT_ID` / `CLIENT_SECRET` / `REFRESH_TOKEN` / `PUBLISHER_ID` 環境変数で受け取り (v3 の secret フラグは廃止)、**`PUBLISHER_ID` が新規必須** (CWS Developer Dashboard の Settings で確認)。GitHub Secret は `CWS_` プレフィックスのまま CLI 期待名に env で alias する。
+- Chrome Web Store CLI は `package.json` の `devDependencies` で固定した `chrome-webstore-upload-cli` v4 (CWS API v2) を使う。CI は `./node_modules/.bin/chrome-webstore-upload` のデフォルトコマンド (サブコマンド無し = upload+publish、`--auto-publish` は廃止) を使う。v4 は認証を `CLIENT_ID` / `CLIENT_SECRET` / `REFRESH_TOKEN` / `PUBLISHER_ID` 環境変数で受け取り (v3 の secret フラグは廃止)、**`PUBLISHER_ID` が新規必須** (CWS Developer Dashboard の Settings で確認)。GitHub Secret は `CWS_` プレフィックスのまま CLI 期待名に env で alias する。
 - Firefox AMO は `web-ext sign --channel=listed` で提出。`.amo-metadata.json` で `version.license: "MIT"` を毎回付与（AMO API v5 では各 version 提出時に license 明示必須、過去 version から継承しないため）。
 - `vava.config.json` は AMO の slug、日英ストア説明文、日英プライバシーポリシーの対応を定義する。`/vava` は `webstore/store-listing.firefox.{ja,en}.txt` と `docs/privacy-policy*.md` を正本として AMO 掲載情報を更新する。
 - GitHub Actions 依存と npm 依存は `.github/dependabot.yml` で週次自動更新。

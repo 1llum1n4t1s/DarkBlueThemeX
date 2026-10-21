@@ -18,7 +18,7 @@ async function generateIcons() {
 
   fs.mkdirSync(iconsDir, { recursive: true });
 
-  // 生成 PNG は .gitignore 対象でリポジトリに存在せず、CI (package / publish-firefox ジョブ) は
+  // 生成 PNG は .gitignore 対象でリポジトリに存在せず、CI の package ジョブは
   // 毎回ここでの生成物に依存する。個別サイズの失敗を握り潰すと exit 0 のまま zip/xpi 化へ進み、
   // manifest.json が参照するアイコンを欠いたパッケージがストアへ提出されうるため、必ず失敗させる。
   const results = await Promise.allSettled(sizes.map(async (size) => {
