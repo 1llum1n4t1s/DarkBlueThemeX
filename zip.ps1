@@ -1,4 +1,4 @@
-﻿# 帰ってきたDarkBlueテーマ(X) 拡張機能パッケージ生成スクリプト (Windows PowerShell版)
+# 帰ってきたDarkBlueテーマ(X) 拡張機能パッケージ生成スクリプト (Windows PowerShell版)
 # 使い方:
 #   pwsh -NoProfile -ExecutionPolicy Bypass -File zip.ps1                    # Chrome + Firefox 両方
 #   pwsh -NoProfile -ExecutionPolicy Bypass -File zip.ps1 -Target chrome     # Chrome のみ
@@ -12,6 +12,35 @@ param(
     [ValidateSet("chrome","firefox","both")]
     [string]$Target = "both"
 )
+
+
+# 検証済みの作業対象だけを標準APIで削除する。
+function Remove-LocalWorkItem {
+    param([string[]]$LiteralPath, [string]$AllowedRoot, [switch]$IgnoreMissing, [switch]$AllowLeafJunction)
+    if ([string]::IsNullOrWhiteSpace($AllowedRoot) -or -not [IO.Path]::IsPathRooted($AllowedRoot)) { throw 'Cleanup root must be absolute.' }
+    $boundary = [IO.Path]::GetFullPath($AllowedRoot).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    foreach ($target in $LiteralPath) {
+        if ([string]::IsNullOrWhiteSpace($target) -or -not [IO.Path]::IsPathRooted($target)) { throw 'Cleanup target must be absolute.' }
+        $resolved = [IO.Path]::GetFullPath($target)
+        if (-not $resolved.StartsWith($boundary, [StringComparison]::OrdinalIgnoreCase)) { throw 'Cleanup target is outside the allowed root.' }
+        $ancestor = $resolved
+        while ($ancestor) {
+            if (Test-Path -LiteralPath $ancestor) {
+                $item = Get-Item -LiteralPath $ancestor -Force -ErrorAction Stop
+                if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -and -not ($AllowLeafJunction -and $ancestor -eq $resolved -and $item.LinkType -eq 'Junction')) { throw 'Cleanup path contains a reparse point.' }
+            }
+            $ancestor = Split-Path $ancestor -Parent
+        }
+        if (-not (Test-Path -LiteralPath $resolved)) { if ($IgnoreMissing) { continue }; throw "Cleanup target is missing: $resolved" }
+        $item = Get-Item -LiteralPath $resolved -Force -ErrorAction Stop
+        $leafLink = [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)
+        if ($item.PSIsContainer -and -not $leafLink) {
+            if (@(Get-ChildItem -LiteralPath $resolved -Recurse -Force -ErrorAction Stop | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count) { throw 'Cleanup directory contains a reparse point.' }
+        }
+        Remove-Item -LiteralPath $resolved -Recurse:($item.PSIsContainer -and -not $leafLink) -Force -ErrorAction Stop
+        if (Test-Path -LiteralPath $resolved) { throw "Cleanup target remains: $resolved" }
+    }
+}
 
 $ErrorActionPreference = "Stop"
 
@@ -33,11 +62,11 @@ function Build-Package {
     Write-Host "==== $Variant 版をビルド中 ====" -ForegroundColor Cyan
 
     if (Test-Path $OutputName) {
-        Remove-Item $OutputName -Force
+         Remove-LocalWorkItem -LiteralPath ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputName)) -AllowedRoot $PSScriptRoot
     }
 
     $tempDir = "temp-build-$Variant"
-    if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
+    if (Test-Path $tempDir) {  Remove-LocalWorkItem -LiteralPath ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($tempDir)) -AllowedRoot $PSScriptRoot }
     New-Item -ItemType Directory -Path $tempDir | Out-Null
 
     Write-Host "ファイルをコピー中 ($ManifestSource → manifest.json)..." -ForegroundColor Yellow
@@ -48,7 +77,7 @@ function Build-Package {
     Copy-Item "src" -Destination $tempDir -Recurse
 
     # 不要ファイル除去
-    Get-ChildItem -Path $tempDir -Recurse -Include "*.DS_Store","*.swp","*~" | Remove-Item -Force
+    Get-ChildItem -Path $tempDir -Recurse -Include "*.DS_Store","*.swp","*~" | ForEach-Object {  Remove-LocalWorkItem -LiteralPath $_.FullName -AllowedRoot $PSScriptRoot -IgnoreMissing }
 
     Write-Host "アーカイブを作成中..." -ForegroundColor Cyan
     # Windows PowerShell の Compress-Archive と .NET CreateFromDirectory はどちらも Windows 上で
@@ -59,7 +88,7 @@ function Build-Package {
     # static method 経由でハンドルを取得する。
     Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
     $tempZip = "$OutputName.tmp.zip"
-    if (Test-Path $tempZip) { Remove-Item $tempZip -Force }
+    if (Test-Path $tempZip) {  Remove-LocalWorkItem -LiteralPath ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($tempZip)) -AllowedRoot $PSScriptRoot }
     $absTempDir = (Resolve-Path $tempDir).Path
     $absTempZip = Join-Path (Get-Location).Path $tempZip
     $archive = [System.IO.Compression.ZipFile]::Open($absTempZip, 'Create')
@@ -74,7 +103,7 @@ function Build-Package {
     }
     Move-Item -Path $tempZip -Destination $OutputName -Force
 
-    Remove-Item $tempDir -Recurse -Force
+     Remove-LocalWorkItem -LiteralPath ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($tempDir)) -AllowedRoot $PSScriptRoot
 
     if (Test-Path $OutputName) {
         $size = (Get-Item $OutputName).Length
@@ -87,7 +116,7 @@ function Build-Package {
 }
 
 # 旧名 zip を掃除 (互換維持のため)
-if (Test-Path "DarkBlueThemeX.zip") { Remove-Item "DarkBlueThemeX.zip" -Force }
+if (Test-Path "DarkBlueThemeX.zip") {  Remove-LocalWorkItem -LiteralPath ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath("DarkBlueThemeX.zip")) -AllowedRoot $PSScriptRoot }
 
 if ($Target -eq "chrome" -or $Target -eq "both") {
     Build-Package -Variant "chrome" -ManifestSource "manifest.json" -OutputName "DarkBlueThemeX-chrome.zip"
