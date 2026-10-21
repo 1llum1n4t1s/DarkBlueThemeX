@@ -18,7 +18,7 @@ DarkBlueThemeX converts the current black dark theme into the classic DarkBlue (
 • One-click ON/OFF control from the extension popup
 • Does not affect users of X's light theme
 • Supports SPA navigation and dynamically loaded content
-• Adjusts timelines, notifications, direct messages, search, settings, and other X screens
+• Adjusts timelines, notifications, direct messages, search, settings, calls, and other X screens
 • Provides an optional contact form in the extension popup
 • Opens the Firefox Add-ons rating page directly
 
