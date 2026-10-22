@@ -4,7 +4,7 @@ allowBuilds:
   spawn-sync: true
 
 minimumReleaseAgeExclude:
-  - '@kagayoi/support-extension@1.0.6'
+  - '@kagayoi/support-extension@1.0.8'
   - adm-zip@0.6.1
 
 # 脆弱性のある推移的依存を修正版へ引き上げる（いずれも web-ext 配下の devDependency）。
