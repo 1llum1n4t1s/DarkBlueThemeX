@@ -67,6 +67,19 @@ jobs:
       - name: Chrome + Firefox 両方のパッケージを作成（zip.sh 単一定義を使用）
         run: bash zip.sh both
 
+      - name: 提出予定の ZIP / XPI の版・構成・内容・SHA256 を照合
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-release-artifact.py chrome DarkBlueThemeX-chrome.zip | tee release-verification-chrome.json
+          python3 scripts/verify-release-artifact.py firefox DarkBlueThemeX-firefox.xpi | tee release-verification-firefox.json
+
+      - name: 配布物の照合記録を保存
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: darkbluethemex-package-verification
+          path: release-verification-*.json
+          if-no-files-found: error
+
       - name: Chrome ZIP artifact を保存
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
@@ -183,6 +196,10 @@ jobs:
           echo "📂 firefox-build 内容:"
           ls -la firefox-build/
 
+      - name: 正本のアイコンを package ジョブと同じ入力から生成
+        # 生成 PNG は Git 管理外。再包装後も同じ checkout の src / icons と照合する。
+        run: node scripts/generate-icons.js
+
       - name: Firefox AMO に submit (web-ext sign --channel=listed)
         # web-ext 10+ では submission API がデフォルト動作 (`--use-submission-api` フラグは廃止)。
         # `--channel=listed` で AMO 公開 (人間レビュー入り)、submission 受付完了で job 成功扱い。
@@ -199,9 +216,9 @@ jobs:
             echo "  登録: gh secret set AMO_JWT_ISSUER / gh secret set AMO_JWT_SECRET"
             exit 1
           fi
-          # pnpm exec で pnpm-lock.yaml integrity 検証済みのローカル版を呼ぶ (Chrome 側と同じ
-          # サプライチェーン方針)。--source-dir は XPI から展開した firefox-build/。
-          # --amo-metadata=.amo-metadata.json で version.license: "MIT" を毎回 submission に含める
+          # lockfile 検証済みの web-ext を wrapper から呼び、提出する XPI を build hook で照合する。
+          # source-dir は XPI から展開した firefox-build/。
+          # amoMetadata=.amo-metadata.json で version.license: "MIT" を毎回 submission に含める
           # (AMO API v5 仕様: 各 version 提出時に license 明示必須、過去 version からの継承なし)。
           #
           # `web-ext sign --channel=listed` は AMO の auto-sign を待たずに 15 分で timeout exceeded を
@@ -209,11 +226,7 @@ jobs:
           # 検出したら warning 扱いで exit 0 に書き換えて CI を green 化する。
           # それ以外の exit 1 はそのまま fail。
           set +e
-          pnpm exec web-ext sign \
-            --source-dir=firefox-build \
-            --artifacts-dir=web-ext-artifacts \
-            --channel=listed \
-            --amo-metadata=.amo-metadata.json 2>&1 | tee /tmp/web-ext.log
+          node scripts/sign-firefox.mjs 2>&1 | tee /tmp/web-ext.log
           rc=${PIPESTATUS[0]}
           set -e
           if [ "$rc" -ne 0 ]; then
@@ -229,3 +242,13 @@ jobs:
           echo "🦊 Firefox AMO への submission 送信完了 (レビュー待ち)"
           echo "🔗 AMO Developer Hub: https://addons.mozilla.org/developers/"
           echo "⏰ レビュー結果は通常 1〜数日でメール通知"
+
+      - name: AMO に提出した未署名 XPI と照合記録を保存
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: darkbluethemex-firefox-submission
+          path: |
+            web-ext-artifacts/unsigned-submission.xpi
+            web-ext-artifacts/unsigned-submission-verification.json
+          if-no-files-found: warn
