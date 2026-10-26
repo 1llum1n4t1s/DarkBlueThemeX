@@ -48,8 +48,9 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
   }
 
   const MainElement = createElementClass();
+  class MainHTMLHtmlElement extends MainElement {}
   const IsolatedElement = createElementClass();
-  const mainDocumentElement = new MainElement(htmlState);
+  const mainDocumentElement = new MainHTMLHtmlElement(htmlState);
   const isolatedDocumentElement = new IsolatedElement(htmlState);
   const isolatedBody = new IsolatedElement(bodyState);
 
@@ -141,6 +142,7 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
     window: mainWindow,
     document: mainDocument,
     Element: MainElement,
+    HTMLHtmlElement: MainHTMLHtmlElement,
     CustomEvent: FakeCustomEvent,
     history: mainHistory,
     console,

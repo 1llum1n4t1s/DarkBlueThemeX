@@ -33,7 +33,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 ### テーマ適用
 
 1. ブラウザは`document_start`でCSSを注入し、Xが`data-theme="dark"`を設定している間もDarkBlueのルート色を先行適用する。
-2. `intercept.js`がMAIN worldで`Element.prototype.setAttribute`／`removeAttribute`を包み、有効時の`data-theme="dark"`書き込みを同期的に`dim`へ変換する。
+2. `intercept.js`がMAIN worldで`HTMLHtmlElement.prototype.setAttribute`／`removeAttribute`を包み、有効時の`data-theme="dark"`書き込みを同期的に`dim`へ変換する。
 3. `content.js`は`localStorage`の前回状態をFOUC防止の楽観値として使い、その後`chrome.storage.sync`の正式な有効状態を取得する。正式状態の解決前はMutationObserverによるテーマ再評価を行わない。初期取得・BFCache再取得・`storage.onChanged`で世代を進め、最新世代の取得結果だけを採用する。通知は暫定値と同値でも正式状態を確定し、先行する取得の後着結果を破棄する。
 4. 有効かつ黒テーマなら、`<html>`へ`darkbluethemex-active`を付与し、`data-theme`、`<body>`のdarkマーカー、`meta[name="theme-color"]`を整合させる。
 5. テーマ判定用MutationObserverは`<html>`／`<body>`の関連属性だけを監視し、Xによる再描画やテーマ変更を再評価する。通話ページでは対象ホストの追加・置換も監視する。定期的なDOM全走査は行わない。
@@ -116,7 +116,7 @@ CSSはスクリプト実行前の黒フラッシュを抑え、JavaScriptはXが
 
 ### MAIN worldでの同期intercept
 
-MutationObserverは非同期であり、isolated worldのprototype変更はX本体へ届かない。このためテーマ属性操作、History API、通話ホストの`attachShadow`通知をMAIN worldで包む。代償としてプラットフォームAPIへの介入点が増えるため、二重インストール防止印とテーマ変換用DOM属性による明示的なON／OFF境界を置く。通話の生成通知自体は設定に依存せず、isolated側が確定済みの有効状態とページ範囲で適用を判定する。
+MutationObserverは非同期であり、isolated worldのprototype変更はX本体へ届かない。このためテーマ属性操作、History API、通話ホストの`attachShadow`通知をMAIN worldで包む。テーマ属性のフックは`HTMLHtmlElement.prototype`に限定し、通常要素の`setAttribute`／`removeAttribute`は変更しない。これにより、X側のinlineイベント属性がCSPで拒否されても、拡張の中継処理が発生元になるのを防ぐ。prototypeへの設定なので、document_startでルート要素が未生成でも後から生成されたhtmlへ適用される。代償としてプラットフォームAPIへの介入点が増えるため、二重インストール防止印とテーマ変換用DOM属性による明示的なON／OFF境界を置く。通話の生成通知自体は設定に依存せず、isolated側が確定済みの有効状態とページ範囲で適用を判定する。
 
 ### 二つのガードクラス
 

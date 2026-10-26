@@ -5,7 +5,7 @@
  * MutationObserver は非同期（マイクロタスク）のため、同期的な intercept なしでは黒テーマが
  * 一瞬だけ描画されるウィンドウが発生する。
  *
- * 重要: content.js は isolated world で動くため、そこで `Element.prototype.setAttribute` を
+ * 重要: content.js は isolated world で動くため、そこで `HTMLHtmlElement.prototype.setAttribute` を
  * 置換しても MAIN world (X の main.js) の prototype チェーンは共有されず、効果がない。
  * このファイルは `world: "MAIN"` で注入される必要があり、manifest.json で別 content_script として
  * 登録されている。
@@ -47,39 +47,50 @@
     return attr === 'on';
   }
 
-  Element.prototype.setAttribute = function (name, value) {
-    if (
-      this === document.documentElement &&
-      name === 'data-theme' &&
-      isActive()
-    ) {
-      if (value === 'dark') {
-        const result = origSetAttribute.call(this, name, 'dim');
-        window.dispatchEvent(new CustomEvent(THEME_DARK_CONVERTED_EVENT));
-        return result;
+  // テーマ属性のフックは html 要素に限定する。Element 全体を包むと、X が通常要素へ設定した
+  // inline イベントの CSP 違反まで、この中継処理が発生元として拡張のエラーに記録される。
+  // document_start で documentElement が未生成でも、後から生成される html に適用できる。
+  Object.defineProperty(HTMLHtmlElement.prototype, 'setAttribute', {
+    configurable: true,
+    writable: true,
+    value: function (name, value) {
+      if (
+        this === document.documentElement &&
+        name === 'data-theme' &&
+        isActive()
+      ) {
+        if (value === 'dark') {
+          const result = origSetAttribute.call(this, name, 'dim');
+          window.dispatchEvent(new CustomEvent(THEME_DARK_CONVERTED_EVENT));
+          return result;
+        }
+        if (value === 'dim') {
+          const result = origSetAttribute.call(this, name, value);
+          window.dispatchEvent(new CustomEvent(THEME_DIM_SELECTED_EVENT));
+          return result;
+        }
       }
-      if (value === 'dim') {
-        const result = origSetAttribute.call(this, name, value);
-        window.dispatchEvent(new CustomEvent(THEME_DIM_SELECTED_EVENT));
-        return result;
-      }
-    }
-    return origSetAttribute.call(this, name, value);
-  };
+      return origSetAttribute.call(this, name, value);
+    },
+  });
 
-  Element.prototype.removeAttribute = function (name) {
-    if (
-      this === document.documentElement &&
-      name === 'data-theme' &&
-      isActive()
-    ) {
-      // 削除ではなく "dim" に再設定 (silently 無視だと X や他拡張の前提を破壊するため)
-      const result = origSetAttribute.call(this, 'data-theme', 'dim');
-      window.dispatchEvent(new CustomEvent(THEME_REMOVED_CONVERTED_EVENT));
-      return result;
-    }
-    return origRemoveAttribute.call(this, name);
-  };
+  Object.defineProperty(HTMLHtmlElement.prototype, 'removeAttribute', {
+    configurable: true,
+    writable: true,
+    value: function (name) {
+      if (
+        this === document.documentElement &&
+        name === 'data-theme' &&
+        isActive()
+      ) {
+        // 削除ではなく "dim" に再設定 (silently 無視だと X や他拡張の前提を破壊するため)
+        const result = origSetAttribute.call(this, 'data-theme', 'dim');
+        window.dispatchEvent(new CustomEvent(THEME_REMOVED_CONVERTED_EVENT));
+        return result;
+      }
+      return origRemoveAttribute.call(this, name);
+    },
+  });
 
   // 通話UIは、挿入済みホストへ後から open ShadowRoot を付ける場合がある。
   // DOM の childList 監視では捕捉できないため、対象ホストだけ detail なしで通知する。
