@@ -1,24 +1,35 @@
-﻿Add-Type -AssemblyName System.Drawing
+﻿param(
+    [string]$OutputDirectory
+)
+
+if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    throw '出力先を -OutputDirectory で指定してください。'
+}
+
+$ErrorActionPreference = 'Stop'
+$basePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
+if (Test-Path -LiteralPath $basePath) {
+    if (-not (Test-Path -LiteralPath $basePath -PathType Container)) {
+        throw "出力先はフォルダーを指定してください: $basePath"
+    }
+} else {
+    [System.IO.Directory]::CreateDirectory($basePath) | Out-Null
+}
+
+Add-Type -AssemblyName System.Drawing
 
 # ── DarkBlue palette ──────────────────────────────────────────────
 $MainBG   = [System.Drawing.Color]::FromArgb(21, 32, 43)    # #15202B
 $CardBG   = [System.Drawing.Color]::FromArgb(25, 39, 52)    # #192734
-$HoverBG  = [System.Drawing.Color]::FromArgb(34, 48, 60)    # #22303C
 $Border   = [System.Drawing.Color]::FromArgb(56, 68, 77)    # #38444D
 $TextW    = [System.Drawing.Color]::White
 $SubText  = [System.Drawing.Color]::FromArgb(136, 153, 166) # #8899A6
 $Accent   = [System.Drawing.Color]::FromArgb(29, 155, 240)  # #1D9BF0
 $Black    = [System.Drawing.Color]::Black
 
-$basePath = "C:\Users\szk\Work\DarkBlueThemeX\webstore-images"
-
-if (-not (Test-Path $basePath)) {
-    New-Item -ItemType Directory -Path $basePath -Force | Out-Null
-}
-
 # ── Helper: rounded-rect GraphicsPath ─────────────────────────────
 function New-RoundedRect([float]$x, [float]$y, [float]$w, [float]$h, [float]$r) {
-    $path = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $path = [System.Drawing.Drawing2D.GraphicsPath]::new()
     $d = $r * 2
     if ($d -gt $h) { $d = $h }
     if ($d -gt $w) { $d = $w }
@@ -32,11 +43,11 @@ function New-RoundedRect([float]$x, [float]$y, [float]$w, [float]$h, [float]$r) 
 
 # ── Helper: draw centred text ─────────────────────────────────────
 function Draw-CenteredText($g, [string]$text, $font, $brush, [float]$y, [float]$areaW) {
-    $sf = New-Object System.Drawing.StringFormat
+    $sf = [System.Drawing.StringFormat]::new()
     $sf.Alignment = [System.Drawing.StringAlignment]::Center
     $sf.LineAlignment = [System.Drawing.StringAlignment]::Near
     $fh = [float]($font.GetHeight($g) + 10)
-    $rect = New-Object System.Drawing.RectangleF([float]0, [float]$y, [float]$areaW, $fh)
+    $rect = [System.Drawing.RectangleF]::new([float]0, [float]$y, [float]$areaW, $fh)
     $g.DrawString($text, $font, $brush, $rect, $sf)
     $sf.Dispose()
 }
@@ -44,11 +55,11 @@ function Draw-CenteredText($g, [string]$text, $font, $brush, [float]$y, [float]$
 # ── Helper: draw crescent moon + stars ────────────────────────────
 function Draw-Moon($g, [float]$cx, [float]$cy, [float]$moonR, $accentColor, $bgColor) {
     # Outer moon circle (accent blue)
-    $moonBrush = New-Object System.Drawing.SolidBrush($accentColor)
+    $moonBrush = [System.Drawing.SolidBrush]::new($accentColor)
     $g.FillEllipse($moonBrush, [float]($cx - $moonR), [float]($cy - $moonR), [float]($moonR * 2), [float]($moonR * 2))
 
     # Cutout circle (background-colored) to create crescent shape
-    $cutBrush = New-Object System.Drawing.SolidBrush($bgColor)
+    $cutBrush = [System.Drawing.SolidBrush]::new($bgColor)
     $cutOffsetX = $moonR * 0.40
     $cutOffsetY = -$moonR * 0.33
     $cutR = $moonR * 0.82
@@ -72,7 +83,7 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
         $sx = $cx + $s.dx * $moonR
         $sy = $cy + $s.dy * $moonR
         $sr = [math]::Max($s.r * $moonR, 1.5)
-        $starBrush = New-Object System.Drawing.SolidBrush(
+        $starBrush = [System.Drawing.SolidBrush]::new(
             [System.Drawing.Color]::FromArgb($s.a, 255, 255, 255)
         )
         $g.FillEllipse($starBrush, [float]($sx - $sr), [float]($sy - $sr), [float]($sr * 2), [float]($sr * 2))
@@ -85,7 +96,7 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
 # ══════════════════════════════════════════════════════════════════
 & {
     $tW = 440; $tH = 280
-    $bmp = New-Object System.Drawing.Bitmap($tW, $tH)
+    $bmp = [System.Drawing.Bitmap]::new($tW, $tH)
     $g   = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode      = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.TextRenderingHint  = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
@@ -98,13 +109,13 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
     Draw-Stars $g $moonCx $moonCy $moonR
 
     # App name
-    $fontName = New-Object System.Drawing.Font("Segoe UI", 16, [System.Drawing.FontStyle]::Bold)
-    $brushW   = New-Object System.Drawing.SolidBrush($TextW)
+    $fontName = [System.Drawing.Font]::new("Segoe UI", 16, [System.Drawing.FontStyle]::Bold)
+    $brushW   = [System.Drawing.SolidBrush]::new($TextW)
     Draw-CenteredText $g "帰ってきたDarkBlueテーマ(X)" $fontName $brushW 175 $tW
 
     # Subtle tagline
-    $fontTag = New-Object System.Drawing.Font("Segoe UI", 11)
-    $brushSub = New-Object System.Drawing.SolidBrush($SubText)
+    $fontTag = [System.Drawing.Font]::new("Segoe UI", 11)
+    $brushSub = [System.Drawing.SolidBrush]::new($SubText)
     Draw-CenteredText $g "X の黒テーマを DarkBlue に" $fontTag $brushSub 215 $tW
 
     # ── Save & cleanup ──
@@ -122,7 +133,7 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
 # ══════════════════════════════════════════════════════════════════
 & {
     $tW = 920; $tH = 680
-    $bmp = New-Object System.Drawing.Bitmap($tW, $tH)
+    $bmp = [System.Drawing.Bitmap]::new($tW, $tH)
     $g   = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode      = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.TextRenderingHint  = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
@@ -144,7 +155,7 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
         @{ x = 790; y = 220; r = 2;   a = 70  }
     )
     foreach ($es in $extraStars) {
-        $esBrush = New-Object System.Drawing.SolidBrush(
+        $esBrush = [System.Drawing.SolidBrush]::new(
             [System.Drawing.Color]::FromArgb($es.a, 255, 255, 255)
         )
         $g.FillEllipse($esBrush, [float]($es.x - $es.r), [float]($es.y - $es.r), [float]($es.r * 2), [float]($es.r * 2))
@@ -152,17 +163,17 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
     }
 
     # App name (large)
-    $fontName = New-Object System.Drawing.Font("Segoe UI", 34, [System.Drawing.FontStyle]::Bold)
-    $brushW   = New-Object System.Drawing.SolidBrush($TextW)
+    $fontName = [System.Drawing.Font]::new("Segoe UI", 34, [System.Drawing.FontStyle]::Bold)
+    $brushW   = [System.Drawing.SolidBrush]::new($TextW)
     Draw-CenteredText $g "帰ってきたDarkBlueテーマ(X)" $fontName $brushW 380 $tW
 
     # Tagline
-    $fontTag = New-Object System.Drawing.Font("Segoe UI", 20)
-    $brushSub = New-Object System.Drawing.SolidBrush($SubText)
+    $fontTag = [System.Drawing.Font]::new("Segoe UI", 20)
+    $brushSub = [System.Drawing.SolidBrush]::new($SubText)
     Draw-CenteredText $g "X の黒テーマを DarkBlue に" $fontTag $brushSub 450 $tW
 
     # Decorative bottom bar
-    $barBrush = New-Object System.Drawing.SolidBrush($Accent)
+    $barBrush = [System.Drawing.SolidBrush]::new($Accent)
     $barW = 120; $barH = 4
     $barX = ($tW - $barW) / 2; $barY = 520
     $pBar = New-RoundedRect $barX $barY $barW $barH 2
@@ -184,19 +195,19 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
 # ══════════════════════════════════════════════════════════════════
 & {
     $tW = 1400; $tH = 560
-    $bmp = New-Object System.Drawing.Bitmap($tW, $tH)
+    $bmp = [System.Drawing.Bitmap]::new($tW, $tH)
     $g   = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode      = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.TextRenderingHint  = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
     $g.InterpolationMode  = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.Clear($MainBG)
 
-    $brushW   = New-Object System.Drawing.SolidBrush($TextW)
-    $brushSub = New-Object System.Drawing.SolidBrush($SubText)
-    $brushAcc = New-Object System.Drawing.SolidBrush($Accent)
-    $brushBlk = New-Object System.Drawing.SolidBrush($Black)
-    $brushCard = New-Object System.Drawing.SolidBrush($CardBG)
-    $penBorder = New-Object System.Drawing.Pen($Border, 2)
+    $brushW   = [System.Drawing.SolidBrush]::new($TextW)
+    $brushSub = [System.Drawing.SolidBrush]::new($SubText)
+    $brushAcc = [System.Drawing.SolidBrush]::new($Accent)
+    $brushBlk = [System.Drawing.SolidBrush]::new($Black)
+    $brushCard = [System.Drawing.SolidBrush]::new($CardBG)
+    $penBorder = [System.Drawing.Pen]::new($Border, 2)
 
     # ── Left side: Moon + text ──
     $leftCx = 280
@@ -214,7 +225,7 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
         @{ x = 480; y = 250; r = 3;   a = 80  }
     )
     foreach ($ds in $decoStars) {
-        $dsBrush = New-Object System.Drawing.SolidBrush(
+        $dsBrush = [System.Drawing.SolidBrush]::new(
             [System.Drawing.Color]::FromArgb($ds.a, 255, 255, 255)
         )
         $g.FillEllipse($dsBrush, [float]($ds.x - $ds.r), [float]($ds.y - $ds.r), [float]($ds.r * 2), [float]($ds.r * 2))
@@ -222,16 +233,16 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
     }
 
     # App name (left-aligned in left half)
-    $fontName = New-Object System.Drawing.Font("Segoe UI", 26, [System.Drawing.FontStyle]::Bold)
-    $sfL = New-Object System.Drawing.StringFormat
+    $fontName = [System.Drawing.Font]::new("Segoe UI", 26, [System.Drawing.FontStyle]::Bold)
+    $sfL = [System.Drawing.StringFormat]::new()
     $sfL.Alignment = [System.Drawing.StringAlignment]::Center
     $sfL.LineAlignment = [System.Drawing.StringAlignment]::Near
-    $rectName = New-Object System.Drawing.RectangleF(40, 320, 540, 50)
+    $rectName = [System.Drawing.RectangleF]::new(40, 320, 540, 50)
     $g.DrawString("帰ってきたDarkBlueテーマ(X)", $fontName, $brushW, $rectName, $sfL)
 
     # Tagline
-    $fontTag = New-Object System.Drawing.Font("Segoe UI", 17)
-    $rectTag = New-Object System.Drawing.RectangleF(40, 378, 540, 40)
+    $fontTag = [System.Drawing.Font]::new("Segoe UI", 17)
+    $rectTag = [System.Drawing.RectangleF]::new(40, 378, 540, 40)
     $g.DrawString("X の黒テーマを DarkBlue に", $fontTag, $brushSub, $rectTag, $sfL)
 
     # Accent underline
@@ -252,29 +263,29 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
     $g.DrawPath($penBorder, $pBf)
 
     # Before label
-    $fontLabel = New-Object System.Drawing.Font("Segoe UI", 20, [System.Drawing.FontStyle]::Bold)
-    $fontSmall = New-Object System.Drawing.Font("Segoe UI", 14)
-    $sfC = New-Object System.Drawing.StringFormat
+    $fontLabel = [System.Drawing.Font]::new("Segoe UI", 20, [System.Drawing.FontStyle]::Bold)
+    $fontSmall = [System.Drawing.Font]::new("Segoe UI", 14)
+    $sfC = [System.Drawing.StringFormat]::new()
     $sfC.Alignment = [System.Drawing.StringAlignment]::Center
     $sfC.LineAlignment = [System.Drawing.StringAlignment]::Center
-    $rectBfLabel = New-Object System.Drawing.RectangleF($bfX, $bfY, $mockW, ($mockH - 30))
+    $rectBfLabel = [System.Drawing.RectangleF]::new($bfX, $bfY, $mockW, ($mockH - 30))
     $g.DrawString("黒テーマ", $fontLabel, $brushW, $rectBfLabel, $sfC)
-    $rectBfSm = New-Object System.Drawing.RectangleF($bfX, ($bfY + 40), $mockW, ($mockH - 30))
+    $rectBfSm = [System.Drawing.RectangleF]::new($bfX, ($bfY + 40), $mockW, ($mockH - 30))
     $g.DrawString("Before", $fontSmall, $brushSub, $rectBfSm, $sfC)
 
     # Arrow between
     $arrowX = $bfX + $mockW + ($gap / 2)
     $arrowY = $tH / 2
-    $fontArrow = New-Object System.Drawing.Font("Segoe UI", 40, [System.Drawing.FontStyle]::Bold)
-    $sfArr = New-Object System.Drawing.StringFormat
+    $fontArrow = [System.Drawing.Font]::new("Segoe UI", 40, [System.Drawing.FontStyle]::Bold)
+    $sfArr = [System.Drawing.StringFormat]::new()
     $sfArr.Alignment = [System.Drawing.StringAlignment]::Center
     $sfArr.LineAlignment = [System.Drawing.StringAlignment]::Center
-    $rectArrow = New-Object System.Drawing.RectangleF(($arrowX - 30), ($arrowY - 30), 60, 60)
+    $rectArrow = [System.Drawing.RectangleF]::new(($arrowX - 30), ($arrowY - 30), 60, 60)
     $g.DrawString([char]0x2192, $fontArrow, $brushAcc, $rectArrow, $sfArr)
 
     # After rectangle (DarkBlue)
     $afX = $bfX + $mockW + $gap; $afY = $bfY
-    $brushMainBG = New-Object System.Drawing.SolidBrush($MainBG)
+    $brushMainBG = [System.Drawing.SolidBrush]::new($MainBG)
     $pAf = New-RoundedRect $afX $afY $mockW $mockH 14
     $g.FillPath($brushMainBG, $pAf)
     $g.DrawPath($penBorder, $pAf)
@@ -289,7 +300,7 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
     $g.FillPath($brushCard, $pIc)
 
     # Faux content lines in card
-    $lineBrush = New-Object System.Drawing.SolidBrush($SubText)
+    $lineBrush = [System.Drawing.SolidBrush]::new($SubText)
     for ($i = 0; $i -lt 3; $i++) {
         $lw = @(200, 160, 120)[$i]
         $ly = $icY + 20 + ($i * 35)
@@ -300,9 +311,9 @@ function Draw-Stars($g, [float]$cx, [float]$cy, [float]$moonR) {
     }
 
     # After label
-    $rectAfLabel = New-Object System.Drawing.RectangleF($afX, ($afY + $mockH - 100), $mockW, 50)
+    $rectAfLabel = [System.Drawing.RectangleF]::new($afX, ($afY + $mockH - 100), $mockW, 50)
     $g.DrawString("DarkBlue", $fontLabel, $brushW, $rectAfLabel, $sfC)
-    $rectAfSm = New-Object System.Drawing.RectangleF($afX, ($afY + $mockH - 60), $mockW, 40)
+    $rectAfSm = [System.Drawing.RectangleF]::new($afX, ($afY + $mockH - 60), $mockW, 40)
     $g.DrawString("After", $fontSmall, $brushSub, $rectAfSm, $sfC)
 
     # ── Save & cleanup ──

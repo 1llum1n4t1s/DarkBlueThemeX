@@ -118,6 +118,13 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 | `docs/privacy-policy*.md` | プライバシーポリシー (日本語・英語) |
 | `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (`.gitignore` 対象) |
 
+画像生成スクリプトは `-OutputDirectory` の明示指定が必須。既存掲載画像を更新する場合も、意図する出力先を指定する。
+
+```powershell
+pwsh -File webstore/images/generate-tiles.ps1 -OutputDirectory .\debug\webstore-images
+pwsh -File webstore/screenshots/generate-slides.ps1 -OutputDirectory .\debug\webstore-screenshots
+```
+
 > エージェント向け規約は `AGENTS.md` に集約し、設計説明は `DESIGN.md` を更新して相互参照する。
 
 ## Coding Conventions
