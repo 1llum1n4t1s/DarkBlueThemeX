@@ -18,11 +18,11 @@ Last Updated: August 28, 2026
 - Used to check the state of the active tab from the popup
 - Determines whether the current tab is an X page and displays the theme application status
 
-### Host Permissions (x.com, twitter.com)
+### Host Permissions ( https://x.com ,  https://twitter.com )
 - Required to apply theme conversion CSS to X pages
 - The theme conversion feature operates only on these websites
 
-### Kagayoi Support Host Permission (support.kagayoi.com)
+### Kagayoi Support Host Permission ( https://support.kagayoi.com )
 - Used only to communicate with the API that authenticates and submits the contact form
 - On Chrome, Edge, Brave, and Firefox, this is declared as an optional host permission. The browser asks for it when you press "Contact support"; if you decline, it is not granted and the theme conversion continues to work
 
@@ -46,12 +46,12 @@ Apart from the contact form below, this Extension does **not** communicate with 
 
 ## Contact form
 
-Only when you press "Contact support" in the settings popup and submit the form does the Extension send the following to Kagayoi Support (`https://support.kagayoi.com`). No such request happens unless you press the button.
+Only when you press "Contact support" in the settings popup and submit the form does the Extension send the following to Kagayoi Support ( https://support.kagayoi.com ). No such request happens unless you press the button.
 
 - The email address, optional name, inquiry category, subject, and message you entered
 - Product ID, extension version, and locale
 
-On first use, the six-digit code delivered by email is sent to Kagayoi Support to verify you. After verification, Kagayoi Support stores the inquiry and replies so that you and support staff can access them. Nothing you view on X (twitter.com) and none of your theme settings are sent.
+On first use, the six-digit code delivered by email is sent to Kagayoi Support to verify you. After verification, Kagayoi Support stores the inquiry and replies so that you and support staff can access them. Nothing you view on X ( https://twitter.com ) and none of your theme settings are sent.
 
 ## Data Storage
 
@@ -60,8 +60,8 @@ The Extension stores the following operational settings and, if you use the cont
 | Location | Data | Purpose |
 |---|---|---|
 | `chrome.storage.sync` | Toggle enabled/disabled state (a single boolean value) | Persists your setting. Synchronized across devices through Chrome's account sync feature |
-| `localStorage` on x.com / twitter.com | Flag for whether the theme was active last time (`darkbluethemex_was_active`) | Prevents the brief flash of the black theme on page load (FOUC) by deciding colors without waiting for the asynchronous settings read |
-| `localStorage` on x.com / twitter.com | Debug logging flag (`dbtx_debug`, unset by default) | Read only when you set it yourself while troubleshooting |
+| `localStorage` on  https://x.com  /  https://twitter.com  | Flag for whether the theme was active last time (`darkbluethemex_was_active`) | Prevents the brief flash of the black theme on page load (FOUC) by deciding colors without waiting for the asynchronous settings read |
+| `localStorage` on  https://x.com  /  https://twitter.com  | Debug logging flag (`dbtx_debug`, unset by default) | Read only when you set it yourself while troubleshooting |
 | Extension `localStorage` | Email address, access token, and expiration time (`kagayoi-support-session`) | Lets Kagayoi Support recognize your authenticated session without asking for a verification code for every inquiry. It is not synchronized between browsers |
 
 An expired authentication session is removed the next time you use the contact form. You can also remove these `localStorage` entries by clearing browser or extension data.

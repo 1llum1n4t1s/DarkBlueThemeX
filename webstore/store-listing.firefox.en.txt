@@ -32,7 +32,7 @@ Accent: #1D9BF0
 
 ■ How to use
 
-1. Select the black Lights Out theme on X (x.com)
+1. Select the black Lights Out theme on X ( https://x.com )
 2. Install the extension; DarkBlue is applied automatically
 3. Click the extension icon to turn theme conversion ON or OFF
 
@@ -42,7 +42,7 @@ The extension requests optional permission to connect to Kagayoi Support and sen
 
 If you decline, the contact form does not open, but theme conversion continues to work normally.
 
-Only after you enter and submit the form does the extension send the following information to Kagayoi Support (support.kagayoi.com):
+Only after you enter and submit the form does the extension send the following information to Kagayoi Support ( https://support.kagayoi.com ):
 
 • Email address
 • Optional name
