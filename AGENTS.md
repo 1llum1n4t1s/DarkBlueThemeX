@@ -8,7 +8,7 @@ Cross-browser Manifest V3 拡張機能 (Chrome / Edge / Brave / Firefox 142+) �
 
 ## Build & Package
 
-初回導入は Node.js 22／pnpm 11 でリポジトリルートから次を実行する。生成アイコンは Git 管理外なので、ソースをブラウザへ読み込む前にも必要となる。
+初回導入は Node.js 26.13.0／pnpm 12.16.1 でリポジトリルートから次を実行する。バージョンは `package.json` に固定し、CI も同じ値を参照する。生成アイコンは Git 管理外なので、ソースをブラウザへ読み込む前にも必要となる。
 
 ```bash
 pnpm install --frozen-lockfile
@@ -69,7 +69,7 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
   - **Chrome Web Store**: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID`, `CWS_EXTENSION_ID`（`CWS_PUBLISHER_ID` は v4 で新規必須 — CWS Developer Dashboard の Settings で取得 → `gh secret set CWS_PUBLISHER_ID`）
   - **Firefox AMO**: `AMO_JWT_ISSUER`, `AMO_JWT_SECRET`（[AMO Developer Hub](https://addons.mozilla.org/ja/developers/addon/api/key/) で発行 → `gh secret set` で登録）
 - Firefox AMO ジョブは `needs: package` のみで `publish-chrome` に依存しないため、Chrome 公開が失敗しても独立して submit される（sibling job の失敗は波及しない）。`if: success() || failure()` は付けない（付けると `package` の `pnpm run check` 失敗時にも firefox が走り、壊れた拡張を AMO に submit してしまうため。既定の「package 成功時のみ実行」ゲートに委ねる）。
-- CI の Node は **22 固定**（pnpm 11 が Node 22+ 必須のため。ローカル開発環境とも一致）。
+- CI の Node と pnpm は `package.json` の固定値を参照し、ローカル開発環境と一致させる。
 - `web-ext sign --channel=listed` は submission 受理後 15 分で `Approval: timeout exceeded` を返して exit 1 になる既知挙動があり、CI はこの文言を warning 扱いに変換する。同 version／Conflict の扱いは下記 runbook を参照し、CI 成功だけでストア反映済みと判断せず提出状態を確認する。
 - リリース手順は `vava` スキル（`/vava`）が自動化: バージョン +1 → main に push → `release/x.y.z` ブランチ作成 → 古いリリースブランチ削除。
 - GitHub Actions は `actions/*` を含めすべて commit SHA で固定（サプライチェーン対策）。`# vN` コメントを手掛かりに Dependabot が SHA を追従更新する。
