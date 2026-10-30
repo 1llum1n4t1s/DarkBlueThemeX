@@ -20,7 +20,7 @@
     "check": "pnpm run check-version && pnpm run check-shared-literals && pnpm run check-support-permissions && pnpm run check-theme-state"
   },
   "devDependencies": {
-    "@kagayoi/support-extension": "1.0.8",
+    "@kagayoi/support-extension": "1.0.9",
     "chrome-webstore-upload-cli": "4.0.2",
     "sharp": "^0.35.5",
     "web-ext": "10.8.0"
