@@ -63,7 +63,6 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 - zip は `bash zip.sh both` を CI 内で直接呼び出す形に統一済み（過去はインラインコマンドだったが、パッケージ内容物定義を 1 箇所に集約するため）。
 - Chrome Web Store CLI は `package.json` の `devDependencies` で固定した `chrome-webstore-upload-cli` v4 (CWS API v2) を使う。CI は `./node_modules/.bin/chrome-webstore-upload` のデフォルトコマンド (サブコマンド無し = upload+publish、`--auto-publish` は廃止) を使う。v4 は認証を `CLIENT_ID` / `CLIENT_SECRET` / `REFRESH_TOKEN` / `PUBLISHER_ID` 環境変数で受け取り (v3 の secret フラグは廃止)、**`PUBLISHER_ID` が新規必須** (CWS Developer Dashboard の Settings で確認)。GitHub Secret は `CWS_` プレフィックスのまま CLI 期待名に env で alias する。
 - Firefox AMO は `web-ext sign --channel=listed` で提出。`.amo-metadata.json` で `version.license: "MIT"` を毎回付与（AMO API v5 では各 version 提出時に license 明示必須、過去 version から継承しないため）。
-- `vava.config.json` は AMO の slug、日英ストア説明文、日英プライバシーポリシーの対応を定義する。`/vava` は `webstore/store-listing.firefox.{ja,en}.txt` と `docs/privacy-policy*.md` を正本として AMO 掲載情報を更新する。
 - GitHub Actions 依存と npm 依存は `.github/dependabot.yml` で週次自動更新。
 - Secrets 必須:
   - **Chrome Web Store**: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID`, `CWS_EXTENSION_ID`（`CWS_PUBLISHER_ID` は v4 で新規必須 — CWS Developer Dashboard の Settings で取得 → `gh secret set CWS_PUBLISHER_ID`）
@@ -146,3 +145,11 @@ pwsh -File webstore/screenshots/generate-slides.ps1 -OutputDirectory .\debug\web
 - No background/service worker — all logic in 2 content scripts (isolated + MAIN) + popup
 - 3 実行コンテキストは現在の配布方式では定数を個別定義する。重複定数は `STORAGE_KEY` / `MSG_GET_STATE` (content↔popup)、`LOCATION_CHANGE_EVENT` / `THEME_*_EVENT` (content↔intercept) で、対になるファイルの同時更新必須
 - X frequently changes its DOM structure and class names — CSS selectors may need updates when X deploys changes
+
+### ストア掲載情報
+
+リポジトリルートで実行する。AMO 更新は公開依頼時のみ実行し、事前に同じコマンドへ `--dry-run` を付けて入力を確認する。
+
+```powershell
+node "$HOME/.agents/skills/vava/scripts/update-amo-listing.mjs" --slug 'darkblue-theme-x' --listing 'ja=webstore/store-listing.firefox.ja.txt' --listing 'en-US=webstore/store-listing.firefox.en.txt' --privacy 'ja=docs/privacy-policy.md' --privacy 'en-US=docs/privacy-policy-en.md'
+```
