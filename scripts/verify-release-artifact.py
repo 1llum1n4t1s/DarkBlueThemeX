@@ -2,6 +2,7 @@
 """提出予定の ZIP/XPI を、同じ checkout の配布入力と照合する。"""
 
 import argparse
+import io
 import hashlib
 import json
 import os
@@ -66,7 +67,8 @@ def verify(variant, archive_path):
     archive_path = archive_path.resolve(strict=True)
     payload = {}
     seen = set()
-    with zipfile.ZipFile(archive_path) as archive:
+    archive_bytes = archive_path.read_bytes()
+    with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
         for info in archive.infolist():
             name = info.filename
             normalized = name[:-1] if info.is_dir() else name
@@ -88,7 +90,7 @@ def verify(variant, archive_path):
 
     return {
         "archive": str(archive_path),
-        "archive_sha256": hashlib.sha256(archive_path.read_bytes()).hexdigest(),
+        "archive_sha256": hashlib.sha256(archive_bytes).hexdigest(),
         "source_root": str(root),
         "source_revision": os.environ.get("GITHUB_SHA"),
         "variant": variant,

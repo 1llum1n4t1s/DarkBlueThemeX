@@ -3,31 +3,49 @@
   "version": "1.0.56",
   "type": "commonjs",
   "private": true,
-  "packageManager": "pnpm@12.16.1",
-  "volta": {
-    "node": "26.13.0"
-  },
+  "packageManager": "bun@1.4.4",
   "description": "X (Twitter) のダークテーマをDarkBlue(Dim)テーマに変換するブラウザ拡張機能 (Chrome / Firefox)",
   "scripts": {
-    "sync:support": "node --preserve-symlinks-main ./node_modules/@kagayoi/support-extension/bin/kagayoi-support-sync.mjs",
-    "generate-icons": "node scripts/generate-icons.js",
+    "deps": "bun scripts/Install-Dependencies.mjs",
+    "sync:support": "bun --preserve-symlinks-main ./node_modules/@kagayoi/support-extension/bin/kagayoi-support-sync.mjs",
+    "generate-icons": "bun scripts/generate-icons.js",
     "zip:win": "pwsh -NoProfile -ExecutionPolicy Bypass -File zip.ps1",
     "zip:nix": "bash zip.sh",
-    "zip": "pnpm run zip:nix",
+    "zip": "bun --bun run zip:nix",
     "zip:chrome": "bash zip.sh chrome",
     "zip:firefox": "bash zip.sh firefox",
     "zip:both": "bash zip.sh both",
-    "check-version": "node scripts/check-version.js",
-    "check-shared-literals": "node scripts/check-shared-literals.js",
-    "check-support-permissions": "node scripts/check-support-permissions.js",
-    "check-theme-state": "node scripts/check-theme-state.js",
-    "check": "pnpm run check-version && pnpm run check-shared-literals && pnpm run check-support-permissions && pnpm run check-theme-state"
+    "check-version": "bun scripts/check-version.js",
+    "check-shared-literals": "bun scripts/check-shared-literals.js",
+    "check-support-permissions": "bun scripts/check-support-permissions.js",
+    "check-theme-state": "bun scripts/check-theme-state.js",
+    "check": "bun --bun run check-version && bun --bun run check-shared-literals && bun --bun run check-support-permissions && bun --bun run check-theme-state",
+    "test:dependencies": "bun test ./scripts/dependency-security.test.cjs"
   },
   "devDependencies": {
     "@kagayoi/support-extension": "1.0.9",
-    "chrome-webstore-upload-cli": "4.0.2",
     "sharp": "^0.35.5",
     "web-ext": "10.8.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "node-forge": "1.4.2",
+    "adm-zip": ">=0.6.1",
+    "brace-expansion": ">=5.0.8",
+    "shell-quote": ">=1.8.5",
+    "fast-uri@3": ">=3.1.6 <4",
+    "js-yaml@4": ">=4.3.2 <5",
+    "minimatch": "^11.0.4",
+    "multimatch": "^8.0.0"
+  },
+  "trustedDependencies": [
+    "sharp",
+    "spawn-sync"
+  ],
+  "patchedDependencies": {
+    "@eslint/eslintrc@3.3.7": "patches/@eslint%2Feslintrc@3.3.7.patch",
+    "deepmerge@4.3.1": "patches/deepmerge@4.3.1.patch",
+    "@eslint/config-array@0.21.2": "patches/@eslint%2Fconfig-array@0.21.2.patch",
+    "web-ext@10.8.0": "patches/web-ext@10.8.0.patch"
+  }
 }
