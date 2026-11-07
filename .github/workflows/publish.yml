@@ -19,7 +19,7 @@ concurrency:
 jobs:
   package:
     name: 拡張機能パッケージ作成
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, m3mb14]
     outputs:
       chrome-sha256: ${{ steps.verify-artifacts.outputs.chrome-sha256 }}
       artifact-attempt: ${{ steps.artifact-identity.outputs.attempt }}
@@ -124,7 +124,7 @@ jobs:
 
   publish-chrome:
     name: Chrome Web Store にアップロード & 公開
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, m3mb14]
     needs: package
     # Secrets (CWS_*) を扱うジョブは最小権限を明示し、トップレベル変更からの独立性を確保。
     permissions:
@@ -167,7 +167,7 @@ jobs:
 
   publish-firefox:
     name: Firefox AMO に submission
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, m3mb14]
     needs: package
     # publish-firefox は package のみに依存し publish-chrome には依存しないため、Chrome publish が
     # 失敗 (同 version 重複 upload 等) しても Firefox AMO は独立して submit される (sibling job の失敗は波及しない)。
