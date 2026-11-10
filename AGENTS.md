@@ -49,7 +49,7 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 
 問い合わせ共通部品は、固定した `@kagayoi/support-extension` から `bun --bun run sync:support` で `src/shared/kagayoi-support-{footer,popup}.{js,css}` と `kagayoi-support-form.css` へ同期する。依存更新時は `bunfig.toml` の `minimumReleaseAgeExcludes` にある旧版の例外も整理して同期を実行し、共通仕様の変更は上流パッケージ、DarkBlueThemeX 固有の見た目は `src/popup/popup.css` の上書きへ置く。
 
-通常のローカル必須検証は `bun --bun run sync:support --check` と `bun --bun run check`。前者は同期生成物、後者は version 三者一致、実行コンテキスト間の共有リテラル、問い合わせ権限、テーマ復元契約を検証する。同期と一致確認は、`package.json` の `sync:support` にある Bun 直接起動の経路を使う。Bun では旧 Node.js の `--preserve-symlinks-main` なしで同期 CLI のエントリーポイント判定が成立することを確認済み。version だけを個別確認する場合は `bun --bun run check-version` を使う。
+通常のローカル必須検証は `bun --bun run sync:support --check` と `bun --bun run check`。前者は同期生成物、後者は version 三者一致、実行コンテキスト間の共有リテラル、問い合わせ権限、テーマ復元契約を検証する。同期と一致確認は、`package.json` の `sync:support` にある Bun 直接起動の経路を使う。version だけを個別確認する場合は `bun --bun run check-version` を使う。
 
 ### ソースからの読み込み
 
@@ -74,15 +74,15 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 - AMOは提出受付応答まで確認し、承認待ちはしない。timeoutや重複を成功扱いにせず、ストア状態を確認してから再開する。
 - リリース手順は `vava` スキル（`/vava`）が自動化: バージョン +1 → main に push → `release/x.y.z` ブランチ作成 → 古いリリースブランチ削除。
 - GitHub Actions は `actions/*` を含めすべて commit SHA で固定（サプライチェーン対策）。`# vN` コメントを手掛かりに Dependabot が SHA を追従更新する。
-- ワークフローはトップレベル `concurrency`（`group: publish-${{ github.ref }}` / `cancel-in-progress: false`）で直列化し、`release/**` への連続 push 時に publish が並走して CWS の upload／publish が競合するのを防ぐ。publish は不可逆な外部副作用を持つため、進行中ランをキャンセルせずキューイングして中断による部分公開を避ける。
-- Chrome 公開ジョブは Firefox ジョブと対称に、`CWS_*` Secrets 欠落時の事前ガード（`-z` チェック）で fail-fast する。Secrets を扱う publish 2 ジョブは job レベル `permissions: contents: read` を明示。
+- ワークフローはリポジトリ共通の `concurrency`（`group: publish-${{ github.repository }}`、`cancel-in-progress: false`、`queue: max`）で直列化する。異なる `release/**` ブランチへの push も同じキューに入り、CWS の upload／publish の競合や実行中の中断による部分公開を避ける。
+- Chrome と Firefox の公開スクリプトは、各ストアの認証情報が欠けていればストアとの通信前に停止する。Secrets を扱う publish 2 ジョブは job レベルで `permissions: contents: read` を明示する。
 
 ### 公開後のロールバック / ロールフォワード（インシデント時 runbook）
 
 公開済みバージョンに不具合が出た場合、**前バージョンへの直接ロールバックはできない**ため、修正版を新しいバージョン番号で出し直す（ロールフォワード）。
 
 - **Chrome Web Store**: 旧バージョンへの直戻し UI はない。修正を入れて version を上げ、`/vava` で再リリースする。影響を絞りたい場合は CWS の段階公開（percentage rollout）も検討。
-- **Firefox AMO**: 同一 version の再 submit は `Version ... already exists` または `Submission failed (...): Conflict` で **warning 化され反映されない**（`publish.yml` が green 化する既知挙動）。必ず version 番号を上げてから出し直すこと。
+- **Firefox AMO**: 同一 version の再提出は既存版の検査または AMO の競合応答で停止する。ストアの状態を確認し、修正版には新しい version 番号を付けて提出する。
 - version は 3 ファイル一致 + ブランチ名一致が CI で強制されるため、`/vava` 経由で番号を上げるのが最短経路。
 
 ## テーマ・権限変更時の作業規約
@@ -174,6 +174,6 @@ job間の検証済み成果物はprivate R2へSigV4で保存し、repository・c
 
 依存の固定復元は `bun run deps` を使う。lock欠落・破損を拒否し、`[run] bun=true` 経由で依存のpostinstallまでBunで実行する。Node.jsがあるPCでも通常の `bun install` を直接使う経路へ戻さない。
 
-ローカルでは `bun audit` でlock全体を監査できる。通常のDependabot更新PRは維持し、Dependency validationで検証する。
+ローカルでは `bun audit` でlock全体を監査できる。Dependabotの更新PRでは、Dependency validationで公開時と同じ照合スクリプトを使い、Chrome ZIPとFirefox XPIの版・構成・内容を検証してからFirefoxのlintを実行する。
 
 依存の安全性は `bun --bun run test:dependencies` で実際の web-ext → addons-linter が使う deepmerge を検証する。CVE-2026-93753（GHSA-gcqx-w48m-w2h4）は公式修正版が未公開のため、`patches/deepmerge@4.3.1.patch` で own データ属性として書き込み、戻り値の prototype 汚染を防ぐ暫定対応を行う。公式修正版が出たらパッチを置換する。版に基づく `bun audit` の deepmerge 警告は残るため、監査成功とは扱わない。minimatch は 11.0.4 以降、関連する multimatch は 8 系へ固定し、ESLint の eslintrc / config-array へ ESM named import 互換パッチを適用する。web-ext 10.8.0 は Windows の秘密ファイル・依存・成果物の除外を保つため、FileFilter に windowsPathsNoEscape を渡す互換パッチを適用する。node-forge は公式修正版 1.4.2 を使用する。

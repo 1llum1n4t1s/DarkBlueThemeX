@@ -42,6 +42,10 @@ jobs:
         run: bun --bun run generate-icons
       - name: Validate 4
         run: bash zip.sh both
+      - name: Verify Chrome and Firefox package contents
+        run: |
+          python3 scripts/verify-release-artifact.py chrome DarkBlueThemeX-chrome.zip
+          python3 scripts/verify-release-artifact.py firefox DarkBlueThemeX-firefox.xpi
       - name: Validate 5
         run: |
           unzip -q DarkBlueThemeX-firefox.xpi -d firefox-validation
