@@ -227,7 +227,8 @@ jobs:
           WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
-          pwsh -NoProfile -File scripts/Test-PublishAmo.ps1 -WorkDirectory "$RUNNER_TEMP/amo-publisher-tests"
+          # オフラインfixtureのプロキシに PowerShell 自身のテレメトリを混ぜない。
+          POWERSHELL_TELEMETRY_OPTOUT=1 pwsh -NoProfile -File scripts/Test-PublishAmo.ps1 -WorkDirectory "$RUNNER_TEMP/amo-publisher-tests"
           test ! -e firefox-build/.amo-upload-uuid
           mkdir -p web-ext-artifacts
           ARCHIVE="$GITHUB_WORKSPACE/web-ext-artifacts/unsigned-submission.xpi"

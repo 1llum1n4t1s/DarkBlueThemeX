@@ -67,7 +67,9 @@ $stream=[IO.File]::Open($archive,'Create');$zip=[IO.Compression.ZipArchive]::new
 $writer=[IO.StreamWriter]::new($zip.CreateEntry('manifest.json').Open());$writer.Write('{"version":"1.2.3","browser_specific_settings":{"gecko":{"id":"fixture@example.com"}}}');$writer.Dispose();$zip.Dispose();$stream.Dispose()
 '{"categories":["other"],"version":{"license":"MIT"}}' | Set-Content -LiteralPath $metadata
 $hash=(Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-foreach($case in 'success','pagination-success','duplicate','external-next','incomplete-pages','invalid-validation','wrong-submit','hash-mismatch','root-state','nested-state','artifact-state','post-verify-change') {
+# AMO API v5 の応答と同じ、ハイフンなしの16進32桁を使う。
+$uuid='12345678123412341234123456789012'
+foreach($case in 'success','hyphenated-success','pagination-success','duplicate','external-next','incomplete-pages','invalid-validation','wrong-submit','hash-mismatch','root-state','nested-state','artifact-state','post-verify-change') {
  $handler=[AmoFixtureHandler]::new(); $handler.Expected=[IO.File]::ReadAllBytes($archive)
  $page=@{count=0;next=$null;results=@()}
  if($case -eq 'duplicate'){$page.count=1;$page.results=@(@{id=1;version='1.2.3';channel='listed'})}
@@ -76,8 +78,10 @@ foreach($case in 'success','pagination-success','duplicate','external-next','inc
  if($case -eq 'pagination-success'){$page.count=2;$page.results=@(@{id=1;version='0.1.0';channel='listed'});$page.next='https://addons.mozilla.org/api/v5/addons/addon/fixture%40example.com/versions/?filter=all_without_unlisted&page=2'}
  $handler.Bodies.Enqueue(($page|ConvertTo-Json -Depth 5 -Compress))
  if($case -eq 'pagination-success'){$handler.Bodies.Enqueue((@{count=2;next=$null;results=@(@{id=2;version='0.2.0';channel='listed'})}|ConvertTo-Json -Depth 5 -Compress))}
- $uuid='12345678-1234-1234-1234-123456789012'
- $handler.Bodies.Enqueue((@{uuid=$uuid;processed=$true;valid=($case -ne 'invalid-validation')}|ConvertTo-Json -Compress))
+ $caseUuid=if($case -eq 'hyphenated-success'){'12345678-1234-1234-1234-123456789012'}else{$uuid}
+ $poll=$case -in @('success','hyphenated-success')
+ $handler.Bodies.Enqueue((@{uuid=$caseUuid;processed=!$poll;valid=(!$poll -and $case -ne 'invalid-validation')}|ConvertTo-Json -Compress))
+ if($poll){$handler.Bodies.Enqueue((@{uuid=$caseUuid;processed=$true;valid=$true}|ConvertTo-Json -Compress))}
  $guid=if($case -eq 'wrong-submit'){'wrong'}else{'fixture@example.com'}
  $handler.Bodies.Enqueue((@{guid=$guid;version=@{id=1;version='1.2.3';channel='listed'}}|ConvertTo-Json -Depth 5 -Compress))
  $caseArchive=$archive
@@ -97,8 +101,8 @@ foreach($case in 'success','pagination-success','duplicate','external-next','inc
  $expectedHash=if($case -eq 'post-verify-change'){$hash}elseif($case -eq 'hash-mismatch'){'0'*64}else{(Get-FileHash $caseArchive -Algorithm SHA256).Hash.ToLowerInvariant()}
  $failed=$false
  try { & "$PSScriptRoot/Publish-Amo.ps1" -Archive $caseArchive -Metadata $metadata -AddonId 'fixture@example.com' -ExpectedVersion '1.2.3' -ExpectedSha256 $expectedHash -HttpHandler $handler } catch {$failed=$true; if($case -eq 'success'){throw}; if($case -in @('root-state','nested-state','artifact-state') -and $_ -notmatch 'XPI contains upload state'){throw}}
- if($failed -ne ($case -notin @('success','pagination-success'))){throw "Unexpected result: $case"}
- $expected=switch($case){'success'{3};'pagination-success'{4};'wrong-submit'{3};'invalid-validation'{2};'hash-mismatch'{0};'root-state'{0};'nested-state'{0};'artifact-state'{0};'post-verify-change'{0};default{1}}
+ if($failed -ne (!$poll -and $case -ne 'pagination-success')){throw "Unexpected result: $case"}
+ $expected=switch($case){'success'{4};'hyphenated-success'{4};'pagination-success'{4};'wrong-submit'{3};'invalid-validation'{2};'hash-mismatch'{0};'root-state'{0};'nested-state'{0};'artifact-state'{0};'post-verify-change'{0};default{1}}
  if($handler.Requests.Count -ne $expected){throw "Unsafe request count $case : $($handler.Requests.Count)"}
  foreach($auth in $handler.Auth){
   $parts=$auth.Substring(4).Split('.')
@@ -106,17 +110,18 @@ foreach($case in 'success','pagination-success','duplicate','external-next','inc
   $signature=[Convert]::ToBase64String($hmac.ComputeHash([Text.Encoding]::ASCII.GetBytes($parts[0]+'.'+$parts[1]))).TrimEnd('=').Replace('+','-').Replace('/','_');$hmac.Dispose()
   if($parts[2] -cne $signature){throw 'JWT signature mismatch'}
  }
- if($case -eq 'success'){
+ if($poll){
   if($handler.Upload -notmatch 'name=upload' -or $handler.Upload -notmatch 'name=channel' -or !$handler.ExactUpload){throw 'Multipart contents wrong'}
+  if($handler.Requests[2] -cne "GET https://addons.mozilla.org/api/v5/addons/upload/$caseUuid/"){throw 'Upload validation URL changed'}
   $body=$handler.Submission|ConvertFrom-Json
-  if($body.version.upload -ne $uuid -or $body.version.license -ne 'MIT' -or $body.categories.firefox[0] -ne 'other'){throw 'Metadata changed'}
+  if($body.version.upload -cne $caseUuid -or $body.version.license -ne 'MIT' -or $body.categories.firefox[0] -ne 'other'){throw 'Metadata changed'}
  }
  Write-Output "PASS $case"
 }
 
 # 応答の安全性を公開入口から確認する。失敗後の upload/PUT 再送を許さない。
 $versionPath='https://addons.mozilla.org/api/v5/addons/addon/fixture%40example.com/versions/'
-foreach($case in 'wrong-path','missing-filter','repeated-page','count-changed','duplicate-id','duplicate-version','lookup-redirect','upload-http','upload-communication','submission-http','invalid-json','invalid-uuid','poll-identity','metadata-reuse','metadata-license','submission-id-string','submission-id-object','submission-id-zero','submission-id-negative','submission-id-decimal','submission-id-boolean') {
+foreach($case in 'wrong-path','missing-filter','repeated-page','count-changed','duplicate-id','duplicate-version','lookup-redirect','upload-http','upload-communication','submission-http','invalid-json','invalid-uuid','invalid-uuid-length','invalid-uuid-hyphens','poll-identity','metadata-reuse','metadata-license','submission-id-string','submission-id-object','submission-id-zero','submission-id-negative','submission-id-decimal','submission-id-boolean') {
  $handler=[AmoFixtureHandler]::new();$handler.Expected=[IO.File]::ReadAllBytes($archive)
  $page=@{count=0;next=$null;results=@()};$extra=$null;$expected=1
  switch($case){
@@ -132,6 +137,8 @@ foreach($case in 'wrong-path','missing-filter','repeated-page','count-changed','
   'submission-http'{$handler.StatusAt=3;$expected=3}
   'invalid-json'{$handler.InvalidAt=1}
   'invalid-uuid'{$expected=2}
+  'invalid-uuid-length'{$expected=2}
+  'invalid-uuid-hyphens'{$expected=2}
   'poll-identity'{$expected=3}
   'metadata-reuse'{$expected=0}
   'metadata-license'{$expected=0}
@@ -141,9 +148,11 @@ foreach($case in 'wrong-path','missing-filter','repeated-page','count-changed','
  if($extra){$handler.Bodies.Enqueue(($extra|ConvertTo-Json -Depth 5 -Compress))}
  $upload=@{uuid=$uuid;processed=$true;valid=$true}
  if($case -eq 'invalid-uuid'){$upload.uuid='../not-a-uuid'}
+ if($case -eq 'invalid-uuid-length'){$upload.uuid=$uuid.Substring(1)}
+ if($case -eq 'invalid-uuid-hyphens'){$upload.uuid='1234567-81234-1234-1234-123456789012'}
  if($case -eq 'poll-identity'){$upload.processed=$false}
  $handler.Bodies.Enqueue(($upload|ConvertTo-Json -Compress))
- if($case -eq 'poll-identity'){$handler.Bodies.Enqueue((@{uuid='87654321-4321-4321-4321-210987654321';processed=$true;valid=$true}|ConvertTo-Json -Compress))}
+ if($case -eq 'poll-identity'){$handler.Bodies.Enqueue((@{uuid='87654321432143214321210987654321';processed=$true;valid=$true}|ConvertTo-Json -Compress))}
  $submitted=@{guid='fixture@example.com';version=@{id=1;version='1.2.3';channel='listed'}}
  switch($case){
   'submission-id-string'{$submitted.version.id='fixture-secret'}
@@ -167,6 +176,7 @@ foreach($case in 'wrong-path','missing-filter','repeated-page','count-changed','
  }catch{
   $failed=$true
   if($_.Exception.ToString().Contains('fixture-secret')){throw 'Secret leaked in AMO exception'}
+  if($case -like 'invalid-uuid*' -and $_ -notmatch 'Upload UUID not confirmed'){throw}
   if($case -eq 'poll-identity' -and $_ -notmatch 'identity mismatch'){throw}
   if($case -like 'submission-id-*' -and $_ -notmatch 'Submission identity/version not confirmed; inspect AMO before retrying'){throw}
  }
@@ -182,7 +192,7 @@ $source=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'Publish-Amo.cs'))
 foreach($suffix in '',"`n// alternate version"){
  $variant=$source+$suffix
  [IO.File]::WriteAllText((Join-Path $versioned 'Publish-Amo.cs'),$variant)
- $handler=[AmoFixtureHandler]::new();$handler.Expected=[IO.File]::ReadAllBytes($archive);$handler.Bodies.Enqueue('{"count":0,"next":null,"results":[]}');$handler.Bodies.Enqueue('{"uuid":"12345678-1234-1234-1234-123456789012","processed":true,"valid":false}')
+ $handler=[AmoFixtureHandler]::new();$handler.Expected=[IO.File]::ReadAllBytes($archive);$handler.Bodies.Enqueue('{"count":0,"next":null,"results":[]}');$handler.Bodies.Enqueue((@{uuid=$uuid;processed=$true;valid=$false}|ConvertTo-Json -Compress))
  try{& (Join-Path $versioned 'Publish-Amo.ps1') -Archive $archive -Metadata $metadata -AddonId 'fixture@example.com' -ExpectedVersion '1.2.3' -ExpectedSha256 $hash -HttpHandler $handler;throw 'Expected validation rejection'}catch{if($_ -notmatch 'did not pass validation'){throw}}
  $variantHash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($variant)))
  if(-not ("Kagayoi.Amo_$variantHash.Publisher" -as [type])){throw 'Source version type was not loaded'}
@@ -193,7 +203,7 @@ Write-Output 'PASS source-version-reload'
 $publisher=Join-Path $PSScriptRoot 'Publish-Amo.ps1'
 $handler=[AmoFixtureHandler]::new();$handler.Expected=[IO.File]::ReadAllBytes($archive)
 $handler.Bodies.Enqueue('{"count":0,"next":null,"results":[]}')
-$handler.Bodies.Enqueue('{"uuid":"12345678-1234-1234-1234-123456789012","processed":true,"valid":true}')
+$handler.Bodies.Enqueue((@{uuid=$uuid;processed=$true;valid=$true}|ConvertTo-Json -Compress))
 $handler.Bodies.Enqueue('{"guid":"fixture@example.com","version":{"id":7,"version":"1.2.3","channel":"listed"}}')
 Push-Location -LiteralPath $fixtureRoot
 try{
@@ -207,7 +217,7 @@ $null=New-PSDrive -Name $driveName -PSProvider FileSystem -Root $fixtureRoot
 try{
  $handler=[AmoFixtureHandler]::new();$handler.Expected=[IO.File]::ReadAllBytes($archive)
  $handler.Bodies.Enqueue('{"count":0,"next":null,"results":[]}')
- $handler.Bodies.Enqueue('{"uuid":"12345678-1234-1234-1234-123456789012","processed":true,"valid":true}')
+ $handler.Bodies.Enqueue((@{uuid=$uuid;processed=$true;valid=$true}|ConvertTo-Json -Compress))
  $handler.Bodies.Enqueue('{"guid":"fixture@example.com","version":{"id":8,"version":"1.2.3","channel":"listed"}}')
  $output=@(& $publisher -Archive "${driveName}:/amo-fixture.xpi" -Metadata "${driveName}:/metadata.json" -AddonId 'fixture@example.com' -ExpectedVersion '1.2.3' -ExpectedSha256 $hash -HttpHandler $handler)
  if($handler.Requests.Count -ne 3 -or !$handler.ExactUpload -or ($output -join "`n") -notmatch 'versionId=8; review pending$'){throw 'FileSystem PSDrive submission failed'}
