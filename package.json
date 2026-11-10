@@ -1,6 +1,6 @@
 {
   "name": "dark-blue-theme-x",
-  "version": "1.0.56",
+  "version": "1.0.57",
   "type": "commonjs",
   "private": true,
   "packageManager": "bun@1.4.4",
