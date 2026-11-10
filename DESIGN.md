@@ -19,7 +19,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 | --- | --- | --- |
 | `manifest.json` | Chromium版の権限、CSP、content scriptの実行順を定義する | バージョンの唯一の正本 |
 | `manifest.firefox.json` | Firefox固有のGecko設定と権限宣言を加える | パッケージ時に`manifest.json`として配置する |
-| `src/intercept.js` | MAIN worldでテーマ属性の書き換え、History APIによるSPA遷移、通話ホストのShadowRoot生成を同期捕捉する | X本体と同じJavaScript worldでのみ有効 |
+| `src/intercept.js` | MAIN worldでテーマ属性の書き換え、History APIによるSPA遷移、通話・チャットのShadowRoot生成を同期捕捉する | X本体と同じJavaScript worldでのみ有効 |
 | `src/content.js` | 有効状態、テーマ判定、DOM状態、復元処理を管理する | isolated worldで動作し、Xのアプリケーション状態を直接所有しない |
 | `src/styles/darkblue.css` | FOUC防止、DarkBlueパレット、X固有セレクタとデザイントークンを上書きする | ガードクラスまたは初期dark判定のスコープ内だけで有効 |
 | `src/popup/` | トグル操作、現在タブの状態表示、バージョン表示、問い合わせ時の任意権限要求を提供する | 永続的な有効状態を書き込む唯一のUIであり、問い合わせ権限要求の起点 |
@@ -36,7 +36,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 2. `intercept.js`がMAIN worldで`HTMLHtmlElement.prototype.setAttribute`／`removeAttribute`を包み、有効時の`data-theme="dark"`書き込みを同期的に`dim`へ変換する。
 3. `content.js`は`localStorage`の前回状態をFOUC防止の楽観値として使い、その後`chrome.storage.sync`の正式な有効状態を取得する。正式状態の解決前はMutationObserverによるテーマ再評価を行わない。初期取得・BFCache再取得・`storage.onChanged`で世代を進め、最新世代の取得結果だけを採用する。通知は暫定値と同値でも正式状態を確定し、先行する取得の後着結果を破棄する。
 4. 有効かつ黒テーマなら、`<html>`へ`darkbluethemex-active`を付与し、`data-theme`、`<body>`のdarkマーカー、`meta[name="theme-color"]`を整合させる。
-5. テーマ判定用MutationObserverは`<html>`／`<body>`の関連属性だけを監視し、Xによる再描画やテーマ変更を再評価する。通話ページでは対象ホストの追加・置換も監視する。定期的なDOM全走査は行わない。
+5. テーマ判定用MutationObserverは`<html>`／`<body>`の関連属性だけを監視し、Xによる再描画やテーマ変更を再評価する。通話・チャットページでは対象ホストの追加・置換も監視する。定期的なDOM全走査は行わない。
 6. `intercept.js`が`history.pushState`／`replaceState`を捕捉して`dbtx:locationchange`を送出し、`content.js`が通知ページ用の`data-dbtx-page`を更新する。戻る／進むは`popstate`で補完する。
 
 MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept`属性とdetailを持たない`CustomEvent`を使う。`intercept.js`はdark変換、属性削除由来の変換、X公式Dim選択を3つのテーマイベントで通知し、`content.js`が`_dimAppliedByUs`／`_syntheticDim`を更新する。実行worldをまたぐ共有JavaScriptモジュールは前提にしない。
@@ -102,7 +102,9 @@ MAIN worldの3つのテーマイベントは、楽観的ONより先に登録さ�
 
 通話ページ（`/i/calls`とその配下）は`[data-testid="xcallsRemoteHost"]`のopen ShadowRoot内で独自のテーマ変数を再宣言する。通常のCSSが届かないため、有効状態の確定後かつガード付与中だけ拡張所有のstyleを追加し、`:host`・`[data-xcalls-root]`・`[data-xcalls-portal]`の背景／セカンダリボタン／オーバーレイ変数を親から継承させる。色の正本はCSSセクション13を維持し、白黒のプリミティブ、主ボタン、危険操作色、映像自体は変更しない。
 
-通話ページでのみ追加ノードを監視し、ホストの遅延生成・置換に追従する。接続済みホストへの後付けShadowRootはMAIN側の`attachShadow`からdetailなしの`dbtx:callsshadowready`を中継して捕捉する。Shadow内容の再構築時は所有styleだけを再追加し、切断されたホストは保持から除く。OFF・lightへの遷移、通話ページからの離脱、`pagehide`で監視と所有styleを解除し、BFCache復帰はstorage再確定後に開始し直す。
+チャットページ（`/i/chat`とその配下）では、`xchatEmbedRoute`と`xchatEmbedOverlays`のShadowRootが画面本体とオーバーレイを描画する。`:host`と`[data-xchat-root][data-theme="dark"]`で同じ配色を継承し、Xのチャット内テーマ属性は保持する。
+
+通話・チャットページで追加ノードを監視し、ホストの遅延生成・置換に追従する。接続済みホストへの後付けShadowRootはMAIN側の`attachShadow`からdetailなしの`dbtx:shadowready`を中継して捕捉する。Shadow内容の再構築時は所有styleだけを再追加し、切断されたホストは保持から除く。OFF・lightへの遷移、対象ページからの離脱、`pagehide`で監視と所有styleを解除し、BFCache復帰はstorage再確定後に開始し直す。
 
 `updateThemeColor()`は適用・解除時に現存する全theme-color metaを走査し、切り離された要素をキャッシュから外して新要素を登録する。meta自体の変更は常時監視しない。元値が未指定または既にDarkBlue色なら復元値を持たず、それ以外を個別に復元する。
 
@@ -124,7 +126,7 @@ MutationObserverは非同期であり、isolated worldのprototype変更はX本�
 
 ### 監視対象を限定したMutationObserver
 
-XのDOMは頻繁に変化するため、要素全体の周期走査ではなくテーマに関係する属性を監視する。style変更は`color-scheme`の実値が変化した場合だけ再評価し、自己変更や無関係な更新を除外する。通話ホストの検出は有効な通話ページに限定し、初回以外は追加された部分木だけを調べる。
+XのDOMは頻繁に変化するため、要素全体の周期走査ではなくテーマに関係する属性を監視する。style変更は`color-scheme`の実値が変化した場合だけ再評価し、自己変更や無関係な更新を除外する。ShadowRootを持つホストの検出は拡張が有効な通話・チャットページに限定し、初回以外は追加された部分木だけを調べる。
 
 ### 実行コンテキストごとの重複定数
 

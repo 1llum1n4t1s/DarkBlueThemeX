@@ -70,6 +70,18 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
 
   const mainWindow = createWindow();
   const isolatedWindow = createWindow();
+  const shadowHosts = [];
+  const location = { href: 'https://x.com/home', pathname: '/home' };
+  MainElement.prototype.attachShadow = function ({ mode }) {
+    const root = {
+      host: this,
+      mode,
+      children: new Set(),
+      appendChild(node) { this.children.add(node); node.parentNode = this; },
+    };
+    if (mode === 'open') this.shadowRoot = root;
+    return root;
+  };
   const mainDocument = { documentElement: mainDocumentElement };
   const documentListeners = new Map();
   const isolatedDocument = {
@@ -77,7 +89,13 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
     body: isolatedBody,
     visibilityState: 'hidden',
     addEventListener(type, listener) { documentListeners.set(type, listener); },
-    querySelectorAll() { return []; },
+    querySelectorAll(selector) { return shadowHosts.filter((host) => host.matches(selector)); },
+    createElement() {
+      return {
+        setAttribute() {},
+        remove() { this.parentNode.children.delete(this); this.parentNode = null; },
+      };
+    },
     contains() { return true; },
   };
 
@@ -133,9 +151,11 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
     constructor(type) { this.type = type; }
   }
 
-  const location = { href: 'https://x.com/home', pathname: '/home' };
   const mainHistory = {
-    pushState() {},
+    pushState(_state, _title, pathname) {
+      location.pathname = pathname;
+      location.href = `https://x.com${pathname}`;
+    },
     replaceState() {},
   };
   vm.runInContext(interceptSource, vm.createContext({
@@ -183,6 +203,24 @@ function createHarness({ lastState = null, initialTheme = null } = {}) {
     },
     pageHide() { isolatedWindow.dispatchEvent({ type: 'pagehide' }); },
     pageShowPersisted() { isolatedWindow.dispatchEvent({ type: 'pageshow', persisted: true }); },
+    navigate(pathname) { mainHistory.pushState(null, '', pathname); },
+    addShadowHost(testId, { late = false } = {}) {
+      const host = new MainElement({ attributes: new Map(), classes: new Set(), style: {} });
+      host.isConnected = true;
+      host.nodeType = 1;
+      host.setAttribute('data-testid', testId);
+      host.matches = (selector) => selector.split(', ').includes(`[data-testid="${testId}"]`);
+      host.querySelectorAll = () => [];
+      host.dispatchEvent = (event) => { event.target = host; mainWindow.dispatchEvent(event); };
+      if (!late) host.attachShadow({ mode: 'open' });
+      shadowHosts.push(host);
+      for (const observer of mutationObservers) {
+        if (observer.observations.some(({ target, options }) => target === isolatedBody && options.childList)) {
+          observer.callback([{ addedNodes: [host] }]);
+        }
+      }
+      return host;
+    },
     resolveStorage(enabled, requestIndex = 0) {
       const [callback] = storageGetCallbacks.splice(requestIndex, 1);
       assert.equal(typeof callback, 'function', '指定した storage.sync.get の callback が存在すること');
@@ -359,4 +397,34 @@ for (const lightScheme of ['light', 'normal']) {
   assert.equal(harness.theme, 'dark', '通常初期化で変換した dim は OFF で dark へ戻ること');
 }
 
-console.log('✅ テーマ復元契約一致 (storage未解決OFF / storage競合 / BFCache再取得・競合 / 再訪 dark / storage不一致 / 公式 Dim / 途中切替 / light・normal遷移 / 属性削除 / 通常初期化)');
+{
+  const harness = createHarness({ initialTheme: 'dark' });
+  const route = harness.addShadowHost('xchatEmbedRoute');
+  harness.navigate('/i/chat');
+  assert.equal(route.shadowRoot.children.size, 0, 'storage 確定前にはチャットへ適用しないこと');
+  harness.resolveStorage(true);
+  const [style] = route.shadowRoot.children;
+  assert.match(style.textContent, /\[data-xchat-root\]\[data-theme="dark"\]/);
+
+  const overlays = harness.addShadowHost('xchatEmbedOverlays', { late: true });
+  overlays.attachShadow({ mode: 'open' });
+  assert.equal(overlays.shadowRoot.children.size, 1, '後付けのオーバーレイにも適用すること');
+  harness.navigate('/i/chat/conversation');
+  assert.equal(route.shadowRoot.children.size, 1, 'チャット内遷移でスタイルを重複させないこと');
+
+  harness.setEnabled(false);
+  assert.equal(route.shadowRoot.children.size, 0, 'OFF でチャット本体のスタイルを解除すること');
+  assert.equal(overlays.shadowRoot.children.size, 0, 'OFF でオーバーレイのスタイルを解除すること');
+  harness.setEnabled(true);
+  assert.equal(route.shadowRoot.children.size, 1, 'ON でチャット本体へ再適用すること');
+
+  const calls = harness.addShadowHost('xcallsRemoteHost');
+  assert.equal(calls.shadowRoot.children.size, 0, 'チャットでは通話ホストへ適用しないこと');
+  harness.navigate('/i/calls');
+  assert.equal(route.shadowRoot.children.size, 0, '通話へ遷移したときはチャットのスタイルを解除すること');
+  assert.equal(calls.shadowRoot.children.size, 1, '通話へ遷移したときは通話ホストへ適用すること');
+  harness.navigate('/home');
+  assert.equal(calls.shadowRoot.children.size, 0, '対象ページからの離脱でスタイルを解除すること');
+}
+
+console.log('✅ テーマ復元契約一致 (storage未解決OFF / storage競合 / BFCache再取得・競合 / 再訪 dark / storage不一致 / 公式 Dim / 途中切替 / light・normal遷移 / 属性削除 / 通常初期化 / チャット・通話のShadow DOM)');
