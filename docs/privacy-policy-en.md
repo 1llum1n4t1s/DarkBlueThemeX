@@ -12,7 +12,7 @@ Last Updated: August 28, 2026
 - Used to save the toggle (enabled/disabled) state
 - The only data stored under this permission is a single boolean value (true/false)
 - Uses Chrome's sync storage so the setting is synchronized across devices signed into the same account
-- Separately, display-related flags and the contact authentication session are stored in `localStorage`, which requires no permission (see "Data Storage")
+- The extension also keeps display-related flags in `localStorage` and the contact authentication session in `sessionStorage` (see "Data Storage")
 
 ### activeTab
 - Used to check the state of the active tab from the popup
@@ -62,9 +62,9 @@ The Extension stores the following operational settings and, if you use the cont
 | `chrome.storage.sync` | Toggle enabled/disabled state (a single boolean value) | Persists your setting. Synchronized across devices through Chrome's account sync feature |
 | `localStorage` on  https://x.com  /  https://twitter.com  | Flag for whether the theme was active last time (`darkbluethemex_was_active`) | Prevents the brief flash of the black theme on page load (FOUC) by deciding colors without waiting for the asynchronous settings read |
 | `localStorage` on  https://x.com  /  https://twitter.com  | Debug logging flag (`dbtx_debug`, unset by default) | Read only when you set it yourself while troubleshooting |
-| Extension `localStorage` | Email address, access token, and expiration time (`kagayoi-support-session`) | Lets Kagayoi Support recognize your authenticated session without asking for a verification code for every inquiry. It is not synchronized between browsers |
+| Extension `sessionStorage` | Email address, access token, and expiration time (`kagayoi-support-session`) | Lets you send inquiries to Kagayoi Support without verifying again during the form's page session. It is not synchronized between browsers |
 
-An expired authentication session is removed the next time you use the contact form. You can also remove these `localStorage` entries by clearing browser or extension data.
+The authentication session is cleared when the form's page session ends. The form removes an expired authentication session when it next reads it. You can clear display-related flags by clearing the relevant site's browsing data.
 
 ## Third-Party Sharing
 

@@ -50,7 +50,7 @@ Only after you enter and submit the form does the extension send the following i
 • Product ID, extension version, and locale
 • The six-digit verification code and authentication information used to verify your identity
 
-After verification, the extension stores your email address, access token, and expiration time in its localStorage. This information is not synchronized between browsers. Expired sessions are removed the next time you use the contact form.
+After verification, the extension stores your email address, access token, and expiration time in its sessionStorage. This information is cleared when the form's page session ends and is not synchronized between browsers.
 
 ■ Privacy
 
