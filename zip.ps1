@@ -47,7 +47,7 @@ function Build-Package {
         $archive = [System.IO.Compression.ZipFile]::Open($tempZip, 'Create')
         try {
             [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $manifest, 'manifest.json', 'Optimal') | Out-Null
-            foreach ($directory in @('icons', 'src')) {
+            foreach ($directory in @('_locales', 'icons', 'src')) {
                 $root = Assert-SafePath (Join-Path $scriptDir $directory)
                 $files = Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction Stop
                 foreach ($file in $files) {

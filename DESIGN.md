@@ -8,7 +8,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 
 拡張機能と製品ページは別のリポジトリ・配布経路で管理する。
 
-- `manifest.json`／`manifest.firefox.json`、`src/`、`icons/`から構成するブラウザ拡張機能
+- `manifest.json`／`manifest.firefox.json`、`_locales/`、`src/`、`icons/`から構成するブラウザ拡張機能
 - `../vps-web/lp/darkblue/`からVPSへ配信する製品ランディングページ
 
 ランディングページはストアへの導線と静的情報を提供するだけで、拡張機能本体の配布やテーマ処理は担わない。
@@ -75,7 +75,7 @@ MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept
 - 無効化時はinterceptをOFFにしてからテーマ属性を復元し、CSSの先行適用は`darkbluethemex-off`で抑止する。
 - Tailwindの`dark:`バリアント維持用に付けた`<body data-theme="dark">`は、拡張が付与した場合だけ元値へ戻す。
 - `meta[name="theme-color"]`は複数存在し得るため、各要素を追跡し、保存された元値があるものを復元する。
-- 拡張パッケージには選択したmanifest、`src/`、`icons/`だけを含める。Firefox版ではFirefox manifestを`manifest.json`へ置き換える。
+- 拡張パッケージには選択したmanifest、`_locales/`、`src/`、`icons/`だけを含める。Firefox版ではFirefox manifestを`manifest.json`へ置き換える。
 - 製品実行時のnpm依存とbackground／service workerを持たず、すべての実行コードをローカル同梱する。
 
 ## テーマ判定と復元の詳細

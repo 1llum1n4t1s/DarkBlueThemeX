@@ -43,6 +43,7 @@ build_pkg() {
 
   # manifest を variant 用にコピー (Firefox は manifest.firefox.json を manifest.json にリネーム)
   cp "$manifest_src" "$tmp/manifest.json"
+  cp -r _locales "$tmp/"
   cp -r icons "$tmp/"
   cp -r src "$tmp/"
 

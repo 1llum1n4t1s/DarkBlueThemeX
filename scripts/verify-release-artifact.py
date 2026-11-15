@@ -28,7 +28,7 @@ def excluded(relative_path):
 def expected_payload(root, variant):
     manifest_path = root / ("manifest.json" if variant == "chrome" else "manifest.firefox.json")
     expected = {"manifest.json": manifest_path.read_bytes()}
-    for directory in ("src", "icons"):
+    for directory in ("src", "icons", "_locales"):
         source = root / directory
         require(source.is_dir(), f"正本ディレクトリがありません: {source}")
         for entry in sorted(source.rglob("*")):

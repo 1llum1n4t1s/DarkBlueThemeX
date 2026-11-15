@@ -20,10 +20,12 @@
     "check-support-permissions": "bun scripts/check-support-permissions.js",
     "check-theme-state": "bun scripts/check-theme-state.js",
     "check": "bun --bun run check-version && bun --bun run check-shared-literals && bun --bun run check-support-permissions && bun --bun run check-theme-state",
+    "generate-screenshots": "bun webstore/run-vitrina.mjs generate",
     "test:dependencies": "bun test ./scripts/dependency-security.test.cjs"
   },
   "devDependencies": {
-    "@kagayoi/support-extension": "1.0.9",
+    "@kagayoi/support-extension": "1.0.12",
+    "puppeteer": "25.17.0",
     "sharp": "^0.35.5",
     "web-ext": "10.8.0"
   },
@@ -39,6 +41,7 @@
     "multimatch": "^8.0.0"
   },
   "trustedDependencies": [
+    "puppeteer",
     "sharp",
     "spawn-sync"
   ],

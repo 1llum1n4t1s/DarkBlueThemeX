@@ -1,0 +1,101 @@
+{
+  "appName": {
+    "message": "回归的DarkBlue主题(X)"
+  },
+  "appDescription": {
+    "message": "将 X（原 Twitter）的深色主题（黑色）转换为曾经存在的 DarkBlue（Dim）主题的 Chrome 扩展程序。"
+  },
+  "appDescriptionFirefox": {
+    "message": "将 X（原 Twitter）的深色主题（黑色）转换为曾经存在的 DarkBlue（Dim）主题的浏览器扩展程序。"
+  },
+  "popupTitle": {
+    "message": "回归的DarkBlue主题"
+  },
+  "popupSubtitle": {
+    "message": "把 X 的深色主题变为 DarkBlue"
+  },
+  "popupToggleLabel": {
+    "message": "DarkBlue主题"
+  },
+  "toggleChecking": {
+    "message": "确认中"
+  },
+  "toggleOn": {
+    "message": "已启用"
+  },
+  "toggleOff": {
+    "message": "已停用"
+  },
+  "toggleUnknown": {
+    "message": "未确认"
+  },
+  "statusChecking": {
+    "message": "正在确认状态…"
+  },
+  "statusSettingsLoadFailed": {
+    "message": "无法加载设置"
+  },
+  "statusSettingsSaveFailed": {
+    "message": "无法保存设置"
+  },
+  "statusOpenXPage": {
+    "message": "请打开 X 的页面"
+  },
+  "statusActive": {
+    "message": "已应用 DarkBlue 主题"
+  },
+  "statusOfficialDim": {
+    "message": "正在使用 X 官方的 Dim 主题"
+  },
+  "statusBlackDisabled": {
+    "message": "检测到黑色主题（已停用）"
+  },
+  "statusBlackApplying": {
+    "message": "正在应用 DarkBlue 主题…"
+  },
+  "statusNotDark": {
+    "message": "当前不是深色主题"
+  },
+  "paletteTitle": {
+    "message": "调色板"
+  },
+  "paletteMainBackground": {
+    "message": "主背景"
+  },
+  "paletteCardBackground": {
+    "message": "卡片背景"
+  },
+  "paletteBorder": {
+    "message": "边框"
+  },
+  "paletteAccent": {
+    "message": "强调色"
+  },
+  "supportLoadFailed": {
+    "message": "无法加载联系功能。"
+  },
+  "supportPermissionChecking": {
+    "message": "正在确认联系支持所需的权限…"
+  },
+  "supportPermissionDenied": {
+    "message": "要打开联系表单，请允许所显示的权限。"
+  },
+  "supportPermissionFailed": {
+    "message": "无法确认权限。请重试。"
+  },
+  "languageAuto": {
+    "message": "自动（跟随浏览器）"
+  },
+  "languageSelectLabel": {
+    "message": "语言"
+  },
+  "languageSelectTitle": {
+    "message": "语言（已打开的页面需刷新后生效）"
+  },
+  "kagayoiSupportContact": {
+    "message": "联系支持"
+  },
+  "kagayoiSupportRate": {
+    "message": "请给我们评分！"
+  }
+}

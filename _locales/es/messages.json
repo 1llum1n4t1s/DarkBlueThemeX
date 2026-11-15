@@ -1,0 +1,101 @@
+{
+  "appName": {
+    "message": "El regreso del tema DarkBlue para X"
+  },
+  "appDescription": {
+    "message": "Convierte el tema oscuro negro de X (antes Twitter) en el tema DarkBlue (Dim) que existió antes. Extensión de Chrome."
+  },
+  "appDescriptionFirefox": {
+    "message": "Convierte el tema oscuro negro de X (antes Twitter) en el tema DarkBlue (Dim) que existió antes. Extensión del navegador."
+  },
+  "popupTitle": {
+    "message": "El regreso del tema DarkBlue"
+  },
+  "popupSubtitle": {
+    "message": "El tema oscuro de X, en DarkBlue"
+  },
+  "popupToggleLabel": {
+    "message": "Tema DarkBlue"
+  },
+  "toggleChecking": {
+    "message": "Comprobando"
+  },
+  "toggleOn": {
+    "message": "Activado"
+  },
+  "toggleOff": {
+    "message": "Desactivado"
+  },
+  "toggleUnknown": {
+    "message": "Sin comprobar"
+  },
+  "statusChecking": {
+    "message": "Comprobando el estado…"
+  },
+  "statusSettingsLoadFailed": {
+    "message": "No se pudieron cargar los ajustes"
+  },
+  "statusSettingsSaveFailed": {
+    "message": "No se pudieron guardar los ajustes"
+  },
+  "statusOpenXPage": {
+    "message": "Abra una página de X"
+  },
+  "statusActive": {
+    "message": "Tema DarkBlue aplicado"
+  },
+  "statusOfficialDim": {
+    "message": "Se usa el tema Dim oficial de X"
+  },
+  "statusBlackDisabled": {
+    "message": "Tema negro detectado (desactivado)"
+  },
+  "statusBlackApplying": {
+    "message": "Aplicando el tema DarkBlue…"
+  },
+  "statusNotDark": {
+    "message": "No es un tema oscuro"
+  },
+  "paletteTitle": {
+    "message": "Paleta de colores"
+  },
+  "paletteMainBackground": {
+    "message": "Fondo principal"
+  },
+  "paletteCardBackground": {
+    "message": "Fondo de tarjeta"
+  },
+  "paletteBorder": {
+    "message": "Borde"
+  },
+  "paletteAccent": {
+    "message": "Acento"
+  },
+  "supportLoadFailed": {
+    "message": "No se pudo cargar la función de contacto."
+  },
+  "supportPermissionChecking": {
+    "message": "Comprobando los permisos necesarios para contactar con soporte…"
+  },
+  "supportPermissionDenied": {
+    "message": "Para abrir el formulario de contacto, permita el permiso que se muestra."
+  },
+  "supportPermissionFailed": {
+    "message": "No se pudo comprobar el permiso. Inténtelo de nuevo."
+  },
+  "languageAuto": {
+    "message": "Automático (navegador)"
+  },
+  "languageSelectLabel": {
+    "message": "Idioma"
+  },
+  "languageSelectTitle": {
+    "message": "Idioma (las páginas abiertas se actualizan al recargar)"
+  },
+  "kagayoiSupportContact": {
+    "message": "Contactar con soporte"
+  },
+  "kagayoiSupportRate": {
+    "message": "¡Déjenos su valoración!"
+  }
+}

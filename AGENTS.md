@@ -41,11 +41,11 @@ pwsh -File zip.ps1 -Target firefox
 - **`DarkBlueThemeX-chrome.zip`** — Chrome Web Store にアップロードする ZIP
 - **`DarkBlueThemeX-firefox.xpi`** — Firefox AMO にアップロードする XPI (中身は ZIP、`manifest.firefox.json` を `manifest.json` にリネームして同梱)
 
-No compilation step — パッケージ処理は同期済みのソースをそのまま格納する。Included: variant 別 manifest, `src/`, `icons/`. Excluded: editor/system files (`*.DS_Store`, `*.swp`, `*~`), docs, dev files。
+No compilation step — パッケージ処理は同期済みのソースをそのまま格納する。Included: variant 別 manifest, `_locales/`, `src/`, `icons/`. Excluded: editor/system files (`*.DS_Store`, `*.swp`, `*~`), docs, dev files。
 
 **Windows の zip.ps1 は `System.IO.Compression.ZipFile` を直接使い、エントリ名を forward slash に正規化**している (Windows PowerShell 5.1 の `Compress-Archive` は backslash separator で zip を作る既知バグがあり、Firefox AMO の web-ext lint と一部の unzip ツールが弾くため)。
 
-アイコン再生成が必要な場合は `bun --bun run generate-icons` (Bun + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成)、`web-ext` (開発時の拡張検証用)、`@kagayoi/support-extension` (問い合わせ共通部品の同期元) に限定する。**ランタイム依存はゼロ**。
+アイコン再生成が必要な場合は `bun --bun run generate-icons` (Bun + `sharp` を使用。`icons/icon16.png`・`icon48.png`・`icon128.png` を出力)。devDependencies は `sharp` (アイコン生成)、`puppeteer` (ストア掲載画像の撮影。`webstore/vitrina/` が使う)、`web-ext` (開発時の拡張検証用)、`@kagayoi/support-extension` (問い合わせ共通部品の同期元) に限定する。**ランタイム依存はゼロ**。
 
 問い合わせ共通部品は、固定した `@kagayoi/support-extension` から `bun --bun run sync:support` で `src/shared/kagayoi-support-{footer,popup}.{js,css}` と `kagayoi-support-form.css` へ同期する。依存更新時は `bunfig.toml` の `minimumReleaseAgeExcludes` にある旧版の例外も整理して同期を実行し、共通仕様の変更は上流パッケージ、DarkBlueThemeX 固有の見た目は `src/popup/popup.css` の上書きへ置く。
 
@@ -56,6 +56,8 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 - **Chrome / Edge / Brave**: `chrome://extensions`（Edge は `edge://extensions`、Brave は `brave://extensions`）でデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」からプロジェクトフォルダを選択
 - **Firefox**: `bash zip.sh firefox` でビルドした `DarkBlueThemeX-firefox.xpi` を `about:debugging#/runtime/this-firefox` で「一時的なアドオンとして読み込む」(セッションごとに再読み込みが必要)
 
+- **Chrome を起動するスクリプトを足すときはシード必須**: puppeteer.launch・chrome-launcher・Chrome の直接起動は、起動前に user-data-dir の `Local State` へ `{"password_manager":{"os_password_blank":false,"os_password_last_changed":"9223372036854775000"}}` を書く。Windows の Chromium は新規プロファイルごとに空パスワードで LogonUser を呼び（`password_manager_util_win.cc` の `CheckBlankPasswordWithPrefs`）、ログオン失敗（Security 4625）として数えられるため、並列・連続起動で Windows アカウントがロックされる（2026-11-15 実害）。userDataDir 未指定の起動は作らず、`webstore/vitrina/lib/capture.mjs` の `seedChromeProfile`（および一時プロファイルは D:\tmp 配下）と同等の処理を先に呼ぶ。`webstore/vitrina/` は逐語コピーで対策済み。
+
 ## Release & CI (自動公開ワークフロー)
 
 `.github/workflows/publish.yml` は `release/**` ブランチに push されると起動し、**Chrome Web Store と Firefox AMO に同時に**自動アップロード＆申請する。
@@ -63,7 +65,7 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 - ブランチ名と `manifest.json` の `version` が **完全一致必須**（例: `release/1.0.40` ⇔ `"version": "1.0.40"`）。不一致なら CI が失敗する。
 - `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者同期も `bun --bun run check-version` で検証される（不一致なら CI 失敗）。
 - zip は `bash zip.sh both` を CI 内で直接呼び出す形に統一済み（過去はインラインコマンドだったが、パッケージ内容物定義を 1 箇所に集約するため）。
-- Chrome Web Store は `scripts/Publish-Cws.ps1` で既存OAuth認証とpublisher/item IDを使い、同期upload応答の成功・ID・版を確認してからpublishする。非同期・重複・不明な応答は停止する。
+- Chrome Web Store は `scripts/Publish-Cws.ps1` で既存OAuth認証とpublisher/item IDを使い、同期upload応答の成功・ID・版を確認してアップロードする（申請は `cws-submit.yml`）。非同期・重複・不明な応答は停止する。
 - Firefox AMO は最終XPIを既存verifierで照合し、そのreceiptのSHA-256を `scripts/Publish-Amo.ps1` へ渡して提出する。`.amo-metadata.json` の `version.license` を毎回送る。
 - GitHub Actions 依存と npm 依存は `.github/dependabot.yml` で週次自動更新。
 - Secrets 必須:
@@ -109,22 +111,31 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 | `scripts/check-shared-literals.js` | 実行コンテキストを跨ぐ共有リテラル値の一致を検証 (CI 実行)。content↔popup: `STORAGE_KEY` / `MSG_GET_STATE`、content↔intercept: `LOCATION_CHANGE_EVENT` / 3つの `THEME_*_EVENT` |
 | `scripts/check-support-permissions.js` | Chrome の任意ホスト権限、Firefox の任意データ収集権限、許可／拒否時の popup 分岐と設定読込時の操作制御を Bun の Node.js 互換機能だけで検証 (`bun --bun run check`) |
 | `scripts/check-theme-state.js` | MAIN / isolated world を分離した VM で storage 未解決・競合、BFCache 再取得、light／normal 遷移と dark 復帰、Dim の由来別復元契約を検証 (`bun --bun run check`) |
-| `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store + Firefox AMO に同時自動公開 |
+| `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store へアップロード + Firefox AMO へ提出（CWS の申請は `cws-submit.yml`） |
 | `zip.ps1` / `zip.sh` | Chrome/Firefox 両対応のパッケージ生成 (`-Target chrome|firefox|both` / `bash zip.sh chrome|firefox|both`) |
 | `.github/dependabot.yml` | GitHub Actions と npm 依存の週次自動更新 |
-| `webstore/images/` | Chrome Web Store 掲載用タイル画像と生成スクリプト |
-| `webstore/screenshots/` | ストアリスティング用スクリーンショットと生成スクリプト |
+| `webstore/store-assets.json` | ストア掲載画像（スクリーンショット・タイル）の設定。画像の文言は `_locales` の参照か9言語の直書き |
+| `webstore/store-assets.steps.mjs` | 撮影前の操作。popup を「Xを開いた状態」で撮る処理と、変更前／変更後の見出しの差し込み |
+| `webstore/fixtures/timeline.html` | 撮影用の固定ページ（タイムライン風の中立的な骨組み。X のロゴ・文字・画面は描かない） |
+| `webstore/prepare-extension.mjs` / `webstore/run-vitrina.mjs` | 撮影用の作業コピー作成と vitrina の呼び出しラッパー（下記） |
+| `webstore/vitrina/` | 画像キット（正本 `Kagayoi.Support/clients/chrome-extension/store-assets/` の逐語コピー。**改変禁止**。更新は `bun <正本>/sync-kit.mjs --repo <このリポジトリ>`） |
+| `webstore/images/` | Chrome Web Store 掲載用の生成画像（`<locale>/screenshot-01..04.png`、`tile-small.png`、`tile-marquee.png`）。Git 追跡 |
 | `webstore/store-listing.txt` | Chrome Web Store の日本語掲載文の正本。Developer Dashboard で手動更新するときに使用 |
 | `webstore/store-listing.firefox.{ja,en}.txt` | Firefox AMO の日英 Summary / Description の正本 |
 | `docs/privacy-policy*.md` | プライバシーポリシー (日本語・英語) |
 | `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (`.gitignore` 対象) |
 
-画像生成スクリプトは `-OutputDirectory` の明示指定が必須。既存掲載画像を更新する場合も、意図する出力先を指定する。
+ストア掲載画像は vitrina（9言語・実拡張の実UI）で生成する。Windows は release（実拡張を読み込み、9言語とタイルを生成）、それ以外（CI）は smoke（en のみ・実UI枠は代替板）になる。
 
 ```powershell
-pwsh -File webstore/images/generate-tiles.ps1 -OutputDirectory .\debug\webstore-images
-pwsh -File webstore/screenshots/generate-slides.ps1 -OutputDirectory .\debug\webstore-screenshots
+bun --bun run generate-screenshots        # = bun webstore/run-vitrina.mjs generate（作業物は D:\tmp\vitrina-DarkBlueThemeX）
+bun webstore/vitrina/vitrina.mjs verify   # 枚数・寸法・アルファ無し・命名・言語間の同一画像を検査
+bun webstore/run-vitrina.mjs sheet --sheet-dir D:\tmp\<作業名>\sheet   # スライドごとに9言語を並べた確認用シート
 ```
+
+- 本拡張は background（Service Worker）を持たないが、vitrina は Service Worker 経由で言語と状態を `storage` へ書く。そのため `webstore/prepare-extension.mjs` が `debug/vitrina-ext/`（Git 管理外）へ拡張の作業コピーを作り、その manifest にだけ空の Service Worker を足す。`store-assets.json` の `extensionDir` はこの作業コピーを指す。製品本体の manifest・配布物は変えない。
+- popup の撮影は `webstore/store-assets.steps.mjs` が、`fixtures/timeline.html` を x.com として別タブに開いてから popup の「現在のタブ」をそのタブへ向け、実際の content script の応答で状態表示を出す。ビフォーアフターは同じ固定ページの左列を拡張が対象にしない色の書式（`rgb(0 0 0)`）、右列を対象の書式（`rgb(0, 0, 0)`）にして、拡張が実際に配色を変える様子を1枚で撮る。
+- 画像の文言を足すときは `store-assets.json` へ9言語（`en ja zh_CN zh_TW ko es fr de pt_BR`）で書き、`Kagayoi.Support/clients/chrome-extension/l10n/glossary.md` に従う。撮影後は `ui-defects.json`（作業フォルダー）が 0 件であることと、生成画像の目視を行う。
 
 > エージェント向け規約は `AGENTS.md` に集約し、設計説明は `DESIGN.md` を更新して相互参照する。
 
@@ -158,7 +169,20 @@ bun "$HOME/.agents/skills/vava/scripts/update-amo-listing.mjs" --slug 'darkblue-
 
 ### CWS 公開のHTTP境界
 
-`publish.yml` はビルド済みZIPを `scripts/Publish-Cws.ps1`（PowerShell 7）へ渡す。既存のOAuth secrets・publisher/item IDを維持し、ZIPをストリーム送信し、upload成功を確認してからpublishする。重複・通信断・不明な応答を公開成功として扱わず、ストア状態を確認してから再開する。公開専用npm CLIは使用しない。変更時はHTTP fixtureで成功・版/ID不一致・upload失敗・publish拒否を確認する。
+`publish.yml` はビルド済みZIPを `scripts/Publish-Cws.ps1`（PowerShell 7）へ渡す。既存のOAuth secrets・publisher/item IDを維持し、ZIPをストリーム送信し、upload成功を確認する（既定の `-Stage All` はその後publishまで行うが、CIは `-Stage Upload` でアップロードだけを行い、申請は `cws-submit.yml` が `-Stage Publish` で行う）。重複・通信断・不明な応答を公開成功として扱わず、ストア状態を確認してから再開する。公開専用npm CLIは使用しない。変更時はHTTP fixtureで成功・版/ID不一致・upload失敗・publish拒否を確認する。
+
+### CWS のアップロードと申請の分離
+
+`publish.yml` は検証済みZIPを `-Stage Upload` で下書きとしてアップロードするだけで、審査へは申請しない。新ロケールの掲載画像欄はアップロード後でないと Dashboard に出ないため、申請は別workflow `.github/workflows/cws-submit.yml`（手動実行、`-Stage Publish`）で行う。
+
+1. `release/x.y.z` を push する（publish.yml がアップロードする）
+2. Dashboard（Edictora）でロケール別の掲載画像などを整えて下書き保存する
+3. `gh workflow run cws-submit.yml -f version=x.y.z --ref release/x.y.z` で申請する
+
+- API v2 は未申請の下書き版を返さないため、下書きの版そのものは確認できない。`cws-submit.yml` は次を満たす場合だけ `:publish` する: 実行 ref が `release/<version>` で manifest の版が入力と一致する。`publish.yml` の直近のアップロード成功 run（固定ステップ名 `Chrome Web Store にアップロード（下書き）`。`actions: read` で履歴を参照）が同じ commit である。fetchStatus で item identity・直近アップロード状態・公開/審査中の版を確認できる。
+- 同版が申請済み・公開済み（PENDING_REVIEW / STAGED / PUBLISHED / PUBLISHED_TO_TESTERS）なら再送せず成功終了する。別版の審査中、より新しい版の存在、直近アップロードの進行中・失敗、状態不明は申請せず停止する。
+- Dashboard で手動アップロードした下書きなど、同じ commit のアップロード成功 run が無い場合は申請されない。その場合は Dashboard から手動で申請する。
+- 両workflowは同じ concurrency group で直列化する。申請中は Dashboard の操作を並行しない。
 
 ### AMO 公開のHTTP境界
 

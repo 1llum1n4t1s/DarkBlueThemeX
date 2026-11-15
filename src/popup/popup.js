@@ -1,5 +1,11 @@
 'use strict';
 
+// <html lang> を同期で合わせる（Kagayoi フッターは module で遅延実行され、実行前にこの lang を読む）
+Localizer.applyDocumentLang();
+
+/** 表示文言を選択中の言語で取得する（fallback は英語。キー欠落時にだけ見える） */
+const t = (key, fallback) => Localizer.t(key, undefined, fallback);
+
 // 注意: 以下の2リテラル (STORAGE_KEY / MSG_GET_STATE) は src/content.js の同名定数と完全同期。
 // Chrome 拡張のコンテキスト分離で共有モジュール不可。変更時は両ファイル同時更新必須。
 // CI: scripts/check-shared-literals.js が値の一致を機械検証する (行番号併記は行ズレで腐るため廃止)。
@@ -37,17 +43,24 @@ function cacheElements() {
    初期化
    -------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', async () => {
+  // 保存済みの言語を読み込んでから静的文言を置換し、言語セレクトを組み立てる
+  await Localizer.ready;
+  await Localizer.ensureFresh(); // 拡張更新後に保存済み辞書を作り直す
+  Localizer.localizeDocument();
+  Localizer.mountLanguageSelect(document.getElementById('uiLanguage'));
+
   cacheElements();
+  loadSupportFooter();
   initializeSupport().catch(() => {
-    setSupportPermissionStatus('お問い合わせ機能を読み込めませんでした。');
+    setSupportPermissionStatus(t('supportLoadFailed', 'Could not load the contact feature.'));
   });
 
   let result;
   try {
     result = await chrome.storage.sync.get({ [STORAGE_KEY]: true });
   } catch {
-    _toggleLabel.textContent = '未確認';
-    setStatus('inactive', '設定を読み込めませんでした');
+    _toggleLabel.textContent = t('toggleUnknown', 'Unknown');
+    setStatus('inactive', t('statusSettingsLoadFailed', 'Could not load settings'));
     return;
   }
   applyToggleUI(result[STORAGE_KEY]);
@@ -60,6 +73,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 /* --------------------------------------------------
    お問い合わせ
    -------------------------------------------------- */
+
+/**
+ * 共通フッターを読み込む。フッターは生成時に chrome.i18n.getMessage で文言（評価の案内など）を決めるため、
+ * Localizer が getMessage を差し替える前（storage 読み込み前）に生成されると、ブラウザ言語の文言で固定されてしまう。
+ * Localizer.ready の後に読み込むことで、選択した表示言語の文言にそろえる。
+ */
+async function loadSupportFooter() {
+  try {
+    await import('../shared/kagayoi-support-footer.js');
+  } catch {
+    // フッターが読み込めなくてもテーマ機能と問い合わせボタンには影響しない
+  }
+}
 
 /** 共通フォームを、manifest の製品情報を付けて初期化する */
 async function initializeSupport() {
@@ -98,17 +124,17 @@ async function onSupportClick() {
 
   _supportRequestPending = true;
   _supportButton.disabled = true;
-  setSupportPermissionStatus('お問い合わせに必要な権限を確認しています…');
+  setSupportPermissionStatus(t('supportPermissionChecking', 'Checking the permissions needed to contact support…'));
 
   try {
     if (!await requestSupportPermission()) {
-      setSupportPermissionStatus('お問い合わせを開くには、表示された権限を許可してください。');
+      setSupportPermissionStatus(t('supportPermissionDenied', 'To open the contact form, please allow the permission that is shown.'));
       return;
     }
     setSupportPermissionStatus(null);
     _supportPopup.open();
   } catch {
-    setSupportPermissionStatus('権限を確認できませんでした。もう一度お試しください。');
+    setSupportPermissionStatus(t('supportPermissionFailed', 'Could not check the permission. Please try again.'));
   } finally {
     _supportRequestPending = false;
     _supportButton.disabled = false;
@@ -126,7 +152,7 @@ function setSupportPermissionStatus(message) {
    -------------------------------------------------- */
 function applyToggleUI(enabled) {
   _toggleSwitch.checked = enabled;
-  _toggleLabel.textContent = enabled ? '有効' : '無効';
+  _toggleLabel.textContent = enabled ? t('toggleOn', 'Enabled') : t('toggleOff', 'Disabled');
 }
 
 async function onToggleChange() {
@@ -138,7 +164,7 @@ async function onToggleChange() {
   } catch {
     // storage 障害 (quota 超過・コンテキスト失効等) → UI を実状態に戻し、失敗を伝える
     applyToggleUI(!enabled);
-    setStatus('inactive', '設定の保存に失敗しました');
+    setStatus('inactive', t('statusSettingsSaveFailed', 'Could not save settings'));
     return;
   }
   applyToggleUI(enabled);
@@ -163,7 +189,7 @@ function isXTab(tab) {
 async function queryTabState() {
   const tab = await getActiveTab();
   if (!tab || !isXTab(tab)) {
-    setStatus('inactive', 'X のページを開いてください');
+    setStatus('inactive', t('statusOpenXPage', 'Open an X page'));
     setDebug(null);
     return;
   }
@@ -171,13 +197,13 @@ async function queryTabState() {
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { type: MSG_GET_STATE });
     if (!response) {
-      setStatus('inactive', 'X のページを開いてください');
+      setStatus('inactive', t('statusOpenXPage', 'Open an X page'));
       setDebug(null);
       return;
     }
     handleStateResponse(response);
   } catch {
-    setStatus('inactive', 'X のページを開いてください');
+    setStatus('inactive', t('statusOpenXPage', 'Open an X page'));
     setDebug(null);
   }
 }
@@ -186,15 +212,15 @@ function handleStateResponse(response) {
   const { isBlackTheme, isDarkBlueApplied, isOfficialDim, enabled, theme, hasGuard } = response;
 
   if (isDarkBlueApplied) {
-    setStatus('active', 'DarkBlue テーマ適用中');
+    setStatus('active', t('statusActive', 'DarkBlue theme applied'));
   } else if (isOfficialDim) {
-    setStatus('info', 'X 公式の Dim テーマを使用中');
+    setStatus('info', t('statusOfficialDim', "Using X's official Dim theme"));
   } else if (isBlackTheme && !enabled) {
-    setStatus('info', '黒テーマを検出（無効中）');
+    setStatus('info', t('statusBlackDisabled', 'Black theme detected (disabled)'));
   } else if (isBlackTheme && enabled) {
-    setStatus('info', 'DarkBlue テーマを適用中...');
+    setStatus('info', t('statusBlackApplying', 'Applying DarkBlue theme…'));
   } else {
-    setStatus('info', 'ダークテーマではありません');
+    setStatus('info', t('statusNotDark', 'Not a dark theme'));
   }
 
   // 診断用: ユーザーがバグ報告しやすいよう data-theme と GUARD_CLASS 有無を表示

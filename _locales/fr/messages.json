@@ -1,0 +1,101 @@
+{
+  "appName": {
+    "message": "Le retour du thème DarkBlue pour X"
+  },
+  "appDescription": {
+    "message": "Convertit le thème sombre noir de X (ex-Twitter) en l’ancien thème DarkBlue (Dim). Extension Chrome."
+  },
+  "appDescriptionFirefox": {
+    "message": "Convertit le thème sombre noir de X (ex-Twitter) en l’ancien thème DarkBlue (Dim). Extension de navigateur."
+  },
+  "popupTitle": {
+    "message": "Le retour du thème DarkBlue"
+  },
+  "popupSubtitle": {
+    "message": "Le thème sombre de X en DarkBlue"
+  },
+  "popupToggleLabel": {
+    "message": "Thème DarkBlue"
+  },
+  "toggleChecking": {
+    "message": "Vérification"
+  },
+  "toggleOn": {
+    "message": "Activé"
+  },
+  "toggleOff": {
+    "message": "Désactivé"
+  },
+  "toggleUnknown": {
+    "message": "Non vérifié"
+  },
+  "statusChecking": {
+    "message": "Vérification de l’état…"
+  },
+  "statusSettingsLoadFailed": {
+    "message": "Impossible de charger les paramètres"
+  },
+  "statusSettingsSaveFailed": {
+    "message": "Impossible d’enregistrer les paramètres"
+  },
+  "statusOpenXPage": {
+    "message": "Ouvrez une page de X"
+  },
+  "statusActive": {
+    "message": "Thème DarkBlue appliqué"
+  },
+  "statusOfficialDim": {
+    "message": "Le thème Dim officiel de X est utilisé"
+  },
+  "statusBlackDisabled": {
+    "message": "Thème noir détecté (désactivé)"
+  },
+  "statusBlackApplying": {
+    "message": "Application du thème DarkBlue…"
+  },
+  "statusNotDark": {
+    "message": "Ce n’est pas un thème sombre"
+  },
+  "paletteTitle": {
+    "message": "Palette de couleurs"
+  },
+  "paletteMainBackground": {
+    "message": "Arrière-plan principal"
+  },
+  "paletteCardBackground": {
+    "message": "Arrière-plan des cartes"
+  },
+  "paletteBorder": {
+    "message": "Bordure"
+  },
+  "paletteAccent": {
+    "message": "Accent"
+  },
+  "supportLoadFailed": {
+    "message": "Impossible de charger la fonction de contact."
+  },
+  "supportPermissionChecking": {
+    "message": "Vérification des autorisations nécessaires pour contacter le support…"
+  },
+  "supportPermissionDenied": {
+    "message": "Pour ouvrir le formulaire de contact, veuillez accorder l’autorisation demandée."
+  },
+  "supportPermissionFailed": {
+    "message": "Impossible de vérifier l’autorisation. Veuillez réessayer."
+  },
+  "languageAuto": {
+    "message": "Automatique (navigateur)"
+  },
+  "languageSelectLabel": {
+    "message": "Langue"
+  },
+  "languageSelectTitle": {
+    "message": "Langue (les pages ouvertes se mettent à jour au rechargement)"
+  },
+  "kagayoiSupportContact": {
+    "message": "Contacter le support"
+  },
+  "kagayoiSupportRate": {
+    "message": "Évaluez-nous !"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "appName": {
+    "message": "帰ってきたDarkBlueテーマ(X)"
+  },
+  "appDescription": {
+    "message": "X（旧Twitter）のダークテーマ(黒)を、かつて存在したDarkBlue(Dim)テーマに変換するChrome拡張機能"
+  },
+  "appDescriptionFirefox": {
+    "message": "X（旧Twitter）のダークテーマ(黒)を、かつて存在したDarkBlue(Dim)テーマに変換するブラウザ拡張機能"
+  },
+  "popupTitle": {
+    "message": "帰ってきたDarkBlueテーマ"
+  },
+  "popupSubtitle": {
+    "message": "X のダークテーマを DarkBlue に"
+  },
+  "popupToggleLabel": {
+    "message": "DarkBlueテーマ"
+  },
+  "toggleChecking": {
+    "message": "確認中"
+  },
+  "toggleOn": {
+    "message": "有効"
+  },
+  "toggleOff": {
+    "message": "無効"
+  },
+  "toggleUnknown": {
+    "message": "未確認"
+  },
+  "statusChecking": {
+    "message": "状態を確認中..."
+  },
+  "statusSettingsLoadFailed": {
+    "message": "設定を読み込めませんでした"
+  },
+  "statusSettingsSaveFailed": {
+    "message": "設定の保存に失敗しました"
+  },
+  "statusOpenXPage": {
+    "message": "X のページを開いてください"
+  },
+  "statusActive": {
+    "message": "DarkBlue テーマ適用中"
+  },
+  "statusOfficialDim": {
+    "message": "X 公式の Dim テーマを使用中"
+  },
+  "statusBlackDisabled": {
+    "message": "黒テーマを検出（無効中）"
+  },
+  "statusBlackApplying": {
+    "message": "DarkBlue テーマを適用中..."
+  },
+  "statusNotDark": {
+    "message": "ダークテーマではありません"
+  },
+  "paletteTitle": {
+    "message": "カラーパレット"
+  },
+  "paletteMainBackground": {
+    "message": "メイン背景"
+  },
+  "paletteCardBackground": {
+    "message": "カード背景"
+  },
+  "paletteBorder": {
+    "message": "ボーダー"
+  },
+  "paletteAccent": {
+    "message": "アクセント"
+  },
+  "supportLoadFailed": {
+    "message": "お問い合わせ機能を読み込めませんでした。"
+  },
+  "supportPermissionChecking": {
+    "message": "お問い合わせに必要な権限を確認しています…"
+  },
+  "supportPermissionDenied": {
+    "message": "お問い合わせを開くには、表示された権限を許可してください。"
+  },
+  "supportPermissionFailed": {
+    "message": "権限を確認できませんでした。もう一度お試しください。"
+  },
+  "languageAuto": {
+    "message": "自動（ブラウザ）"
+  },
+  "languageSelectLabel": {
+    "message": "言語"
+  },
+  "languageSelectTitle": {
+    "message": "言語（開いているページは再読み込みで反映）"
+  },
+  "kagayoiSupportContact": {
+    "message": "お問い合わせ"
+  },
+  "kagayoiSupportRate": {
+    "message": "評価をお願いします！"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "localesDir": "_locales",
+  "manifests": [
+    "manifest.json",
+    "manifest.firefox.json"
+  ],
+  "localizerPath": "src/shared/ui-localizer.js",
+  "languageSwitcher": true,
+  "ignore": [
+    {
+      "path": "src/content.js",
+      "pattern": "\\bdlog\\b",
+      "reason": "dlog は DEBUG フラグ有効時だけ console へ出す診断ログで、UI には表示されない"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "appName": {
+    "message": "O retorno do tema DarkBlue para X"
+  },
+  "appDescription": {
+    "message": "Converte o tema escuro preto do X (antigo Twitter) no tema DarkBlue (Dim) que existia antes. Extensão do Chrome."
+  },
+  "appDescriptionFirefox": {
+    "message": "Converte o tema escuro preto do X (antigo Twitter) no tema DarkBlue (Dim) que existia antes. Extensão do navegador."
+  },
+  "popupTitle": {
+    "message": "O retorno do tema DarkBlue"
+  },
+  "popupSubtitle": {
+    "message": "O tema escuro do X em DarkBlue"
+  },
+  "popupToggleLabel": {
+    "message": "Tema DarkBlue"
+  },
+  "toggleChecking": {
+    "message": "Verificando"
+  },
+  "toggleOn": {
+    "message": "Ativado"
+  },
+  "toggleOff": {
+    "message": "Desativado"
+  },
+  "toggleUnknown": {
+    "message": "Não verificado"
+  },
+  "statusChecking": {
+    "message": "Verificando o status…"
+  },
+  "statusSettingsLoadFailed": {
+    "message": "Não foi possível carregar as configurações"
+  },
+  "statusSettingsSaveFailed": {
+    "message": "Não foi possível salvar as configurações"
+  },
+  "statusOpenXPage": {
+    "message": "Abra uma página do X"
+  },
+  "statusActive": {
+    "message": "Tema DarkBlue aplicado"
+  },
+  "statusOfficialDim": {
+    "message": "Usando o tema Dim oficial do X"
+  },
+  "statusBlackDisabled": {
+    "message": "Tema preto detectado (desativado)"
+  },
+  "statusBlackApplying": {
+    "message": "Aplicando o tema DarkBlue…"
+  },
+  "statusNotDark": {
+    "message": "Não é um tema escuro"
+  },
+  "paletteTitle": {
+    "message": "Paleta de cores"
+  },
+  "paletteMainBackground": {
+    "message": "Fundo principal"
+  },
+  "paletteCardBackground": {
+    "message": "Fundo do cartão"
+  },
+  "paletteBorder": {
+    "message": "Borda"
+  },
+  "paletteAccent": {
+    "message": "Destaque"
+  },
+  "supportLoadFailed": {
+    "message": "Não foi possível carregar o recurso de contato."
+  },
+  "supportPermissionChecking": {
+    "message": "Verificando as permissões necessárias para falar com o suporte…"
+  },
+  "supportPermissionDenied": {
+    "message": "Para abrir o formulário de contato, permita a permissão exibida."
+  },
+  "supportPermissionFailed": {
+    "message": "Não foi possível verificar a permissão. Tente novamente."
+  },
+  "languageAuto": {
+    "message": "Automático (navegador)"
+  },
+  "languageSelectLabel": {
+    "message": "Idioma"
+  },
+  "languageSelectTitle": {
+    "message": "Idioma (páginas abertas atualizam ao recarregar)"
+  },
+  "kagayoiSupportContact": {
+    "message": "Falar com o suporte"
+  },
+  "kagayoiSupportRate": {
+    "message": "Avalie-nos!"
+  }
+}

@@ -1,25 +1,29 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=320">
-  <title>帰ってきたDarkBlueテーマ</title>
+  <title data-i18n="popupTitle">DarkBlue Theme Returns</title>
+  <script src="../shared/ui-localizer.js"></script>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="popup">
     <header class="header">
+      <div class="header-lang">
+        <select id="uiLanguage" data-i18n-attr="aria-label:languageSelectLabel;title:languageSelectTitle"></select>
+      </div>
       <div class="header-title">
         <span class="header-icon">🌙</span>
-        <h1>帰ってきたDarkBlueテーマ</h1>
+        <h1 data-i18n="popupTitle">DarkBlue Theme Returns</h1>
       </div>
-      <p class="subtitle">X のダークテーマを DarkBlue に</p>
+      <p class="subtitle" data-i18n="popupSubtitle">Turn X's dark theme into DarkBlue</p>
     </header>
 
     <section class="card toggle-section">
-      <span class="toggle-label" id="toggleLabel">確認中</span>
+      <span class="toggle-label" id="toggleLabel" data-i18n="toggleChecking">Checking</span>
       <label class="toggle">
-        <input type="checkbox" id="toggleSwitch" aria-label="DarkBlueテーマ" disabled>
+        <input type="checkbox" id="toggleSwitch" data-i18n-attr="aria-label:popupToggleLabel" aria-label="DarkBlue theme" disabled>
         <span class="toggle-track">
           <span class="toggle-thumb"></span>
         </span>
@@ -29,23 +33,23 @@
     <section class="card status-section">
       <div class="status-indicator">
         <span class="status-dot" id="statusDot"></span>
-        <span class="status-message" id="statusMessage">状態を確認中...</span>
+        <span class="status-message" id="statusMessage" data-i18n="statusChecking">Checking status…</span>
       </div>
       <div class="debug-line" id="debugLine" hidden></div>
     </section>
 
     <section class="card palette-section">
-      <p class="palette-title">カラーパレット</p>
+      <p class="palette-title" data-i18n="paletteTitle">Color palette</p>
       <div class="palette-swatches">
-        <div class="swatch swatch-primary" title="メイン背景"></div>
-        <div class="swatch swatch-card" title="カード背景"></div>
-        <div class="swatch swatch-border" title="ボーダー"></div>
-        <div class="swatch swatch-accent" title="アクセント"></div>
+        <div class="swatch swatch-primary" data-i18n-attr="title:paletteMainBackground" title="Main background"></div>
+        <div class="swatch swatch-card" data-i18n-attr="title:paletteCardBackground" title="Card background"></div>
+        <div class="swatch swatch-border" data-i18n-attr="title:paletteBorder" title="Border"></div>
+        <div class="swatch swatch-accent" data-i18n-attr="title:paletteAccent" title="Accent"></div>
       </div>
     </section>
 
     <div class="support-footer">
-      <button class="support-contact" id="supportButton" type="button" aria-haspopup="dialog" disabled>お問い合わせ</button>
+      <button class="support-contact" id="supportButton" type="button" aria-haspopup="dialog" data-i18n="kagayoiSupportContact" disabled>Contact support</button>
       <kagayoi-support-footer product-id="darkblue-theme-x" hide-contact></kagayoi-support-footer>
       <p class="support-permission-status" id="supportPermissionStatus" role="status" hidden></p>
     </div>
@@ -57,6 +61,5 @@
 
   <script src="popup.js"></script>
   <script type="module" src="../shared/kagayoi-support-popup.js"></script>
-  <script type="module" src="../shared/kagayoi-support-footer.js"></script>
 </body>
 </html>

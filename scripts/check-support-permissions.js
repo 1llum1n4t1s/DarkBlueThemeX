@@ -16,6 +16,7 @@ const optionalData = [
 const popupSource = fs.readFileSync(path.join(root, 'src/popup/popup.js'), 'utf8');
 const popupHtml = fs.readFileSync(path.join(root, 'src/popup/popup.html'), 'utf8');
 const toggleStartsDisabled = /<input(?=[^>]*\bid="toggleSwitch")(?=[^>]*\bdisabled\b)[^>]*>/.test(popupHtml);
+const enMessages = readJson('_locales/en/messages.json');
 const chromeManifest = readJson('manifest.json');
 const firefoxManifest = readJson('manifest.firefox.json');
 
@@ -33,6 +34,21 @@ function verifyManifestContracts() {
     { required: ['none'], optional: optionalData },
     'Firefox の問い合わせデータは任意同意として宣言すること',
   );
+}
+
+/**
+ * popup.js が使う Localizer の最小スタブ。実物 (src/shared/ui-localizer.js) の動作は
+ * Kagayoi.Support 側の正本テストで検証済みのため、ここでは en 辞書の引き当てだけを再現する。
+ */
+function fakeLocalizer(messages) {
+  return {
+    ready: Promise.resolve(),
+    applyDocumentLang() {},
+    ensureFresh: async () => undefined,
+    localizeDocument() {},
+    mountLanguageSelect() {},
+    t: (key, _subs, fallback = '') => messages[key]?.message || fallback,
+  };
 }
 
 function fakeElement() {
@@ -118,6 +134,7 @@ async function runPopupScenario({
 
   const context = {
     chrome: api,
+    Localizer: fakeLocalizer(enMessages),
     console,
     customElements: { whenDefined: async () => undefined },
     document,
@@ -177,8 +194,8 @@ async function main() {
     false,
     '設定の読込失敗時はトグル変更を購読しないこと',
   );
-  assert.equal(storageFailure.statusMessage, '設定を読み込めませんでした');
-  assert.equal(storageFailure.toggleLabel, '未確認', '読込失敗時に有効・無効を断定しないこと');
+  assert.equal(storageFailure.statusMessage, enMessages.statusSettingsLoadFailed.message);
+  assert.equal(storageFailure.toggleLabel, enMessages.toggleUnknown.message, '読込失敗時に有効・無効を断定しないこと');
   assert(storageFailure.statusClasses.has('inactive'), '設定の読込失敗をエラー状態として表示すること');
 
   const firefoxGranted = await runPopupScenario({ manifest: firefoxManifest, exposeBrowser: true, granted: true });
@@ -202,7 +219,7 @@ async function main() {
       hasGuard: false,
     },
   });
-  assert.equal(officialDim.statusMessage, 'X 公式の Dim テーマを使用中');
+  assert.equal(officialDim.statusMessage, enMessages.statusOfficialDim.message);
   assert(officialDim.statusClasses.has('info'), 'X 公式 Dim は情報状態として表示すること');
 
   console.log('✅ popup 契約一致 (初期設定読込 / Chrome optional host / Firefox optional data / X 公式 Dim 表示)');

@@ -1,0 +1,101 @@
+{
+  "appName": {
+    "message": "回歸的DarkBlue主題(X)"
+  },
+  "appDescription": {
+    "message": "將 X（原 Twitter）的深色主題（黑色）轉換為曾經存在的 DarkBlue（Dim）主題的 Chrome 擴充功能。"
+  },
+  "appDescriptionFirefox": {
+    "message": "將 X（原 Twitter）的深色主題（黑色）轉換為曾經存在的 DarkBlue（Dim）主題的瀏覽器擴充功能。"
+  },
+  "popupTitle": {
+    "message": "回歸的DarkBlue主題"
+  },
+  "popupSubtitle": {
+    "message": "把 X 的深色主題變為 DarkBlue"
+  },
+  "popupToggleLabel": {
+    "message": "DarkBlue主題"
+  },
+  "toggleChecking": {
+    "message": "確認中"
+  },
+  "toggleOn": {
+    "message": "已啟用"
+  },
+  "toggleOff": {
+    "message": "已停用"
+  },
+  "toggleUnknown": {
+    "message": "未確認"
+  },
+  "statusChecking": {
+    "message": "正在確認狀態…"
+  },
+  "statusSettingsLoadFailed": {
+    "message": "無法載入設定"
+  },
+  "statusSettingsSaveFailed": {
+    "message": "無法儲存設定"
+  },
+  "statusOpenXPage": {
+    "message": "請開啟 X 的頁面"
+  },
+  "statusActive": {
+    "message": "已套用 DarkBlue 主題"
+  },
+  "statusOfficialDim": {
+    "message": "正在使用 X 官方的 Dim 主題"
+  },
+  "statusBlackDisabled": {
+    "message": "偵測到黑色主題（已停用）"
+  },
+  "statusBlackApplying": {
+    "message": "正在套用 DarkBlue 主題…"
+  },
+  "statusNotDark": {
+    "message": "目前不是深色主題"
+  },
+  "paletteTitle": {
+    "message": "調色盤"
+  },
+  "paletteMainBackground": {
+    "message": "主背景"
+  },
+  "paletteCardBackground": {
+    "message": "卡片背景"
+  },
+  "paletteBorder": {
+    "message": "邊框"
+  },
+  "paletteAccent": {
+    "message": "強調色"
+  },
+  "supportLoadFailed": {
+    "message": "無法載入聯絡功能。"
+  },
+  "supportPermissionChecking": {
+    "message": "正在確認聯絡支援所需的權限…"
+  },
+  "supportPermissionDenied": {
+    "message": "要開啟聯絡表單，請允許所顯示的權限。"
+  },
+  "supportPermissionFailed": {
+    "message": "無法確認權限。請再試一次。"
+  },
+  "languageAuto": {
+    "message": "自動（跟隨瀏覽器）"
+  },
+  "languageSelectLabel": {
+    "message": "語言"
+  },
+  "languageSelectTitle": {
+    "message": "語言（已開啟的頁面需重新整理後生效）"
+  },
+  "kagayoiSupportContact": {
+    "message": "聯絡支援"
+  },
+  "kagayoiSupportRate": {
+    "message": "請為我們評分！"
+  }
+}

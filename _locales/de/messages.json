@@ -1,0 +1,101 @@
+{
+  "appName": {
+    "message": "DarkBlue-Design für X ist zurück"
+  },
+  "appDescription": {
+    "message": "Wandelt das schwarze dunkle Design von X (früher Twitter) in das frühere DarkBlue-Design (Dim) um. Chrome-Erweiterung."
+  },
+  "appDescriptionFirefox": {
+    "message": "Wandelt das schwarze dunkle Design von X (früher Twitter) in das frühere DarkBlue-Design (Dim) um. Browser-Erweiterung."
+  },
+  "popupTitle": {
+    "message": "DarkBlue-Design ist zurück"
+  },
+  "popupSubtitle": {
+    "message": "Das dunkle Design von X in DarkBlue"
+  },
+  "popupToggleLabel": {
+    "message": "DarkBlue-Design"
+  },
+  "toggleChecking": {
+    "message": "Wird geprüft"
+  },
+  "toggleOn": {
+    "message": "Aktiviert"
+  },
+  "toggleOff": {
+    "message": "Deaktiviert"
+  },
+  "toggleUnknown": {
+    "message": "Nicht geprüft"
+  },
+  "statusChecking": {
+    "message": "Status wird geprüft…"
+  },
+  "statusSettingsLoadFailed": {
+    "message": "Einstellungen konnten nicht geladen werden"
+  },
+  "statusSettingsSaveFailed": {
+    "message": "Einstellungen konnten nicht gespeichert werden"
+  },
+  "statusOpenXPage": {
+    "message": "Öffnen Sie eine X-Seite"
+  },
+  "statusActive": {
+    "message": "DarkBlue-Design angewendet"
+  },
+  "statusOfficialDim": {
+    "message": "Das offizielle Dim-Design von X ist aktiv"
+  },
+  "statusBlackDisabled": {
+    "message": "Schwarzes Design erkannt (deaktiviert)"
+  },
+  "statusBlackApplying": {
+    "message": "DarkBlue-Design wird angewendet…"
+  },
+  "statusNotDark": {
+    "message": "Kein dunkles Design"
+  },
+  "paletteTitle": {
+    "message": "Farbpalette"
+  },
+  "paletteMainBackground": {
+    "message": "Haupthintergrund"
+  },
+  "paletteCardBackground": {
+    "message": "Kartenhintergrund"
+  },
+  "paletteBorder": {
+    "message": "Rahmen"
+  },
+  "paletteAccent": {
+    "message": "Akzent"
+  },
+  "supportLoadFailed": {
+    "message": "Die Kontaktfunktion konnte nicht geladen werden."
+  },
+  "supportPermissionChecking": {
+    "message": "Die für die Kontaktaufnahme nötigen Berechtigungen werden geprüft…"
+  },
+  "supportPermissionDenied": {
+    "message": "Um das Kontaktformular zu öffnen, erteilen Sie bitte die angezeigte Berechtigung."
+  },
+  "supportPermissionFailed": {
+    "message": "Die Berechtigung konnte nicht geprüft werden. Bitte versuchen Sie es erneut."
+  },
+  "languageAuto": {
+    "message": "Automatisch (Browser)"
+  },
+  "languageSelectLabel": {
+    "message": "Sprache"
+  },
+  "languageSelectTitle": {
+    "message": "Sprache (geöffnete Seiten übernehmen sie nach dem Neuladen)"
+  },
+  "kagayoiSupportContact": {
+    "message": "Support kontaktieren"
+  },
+  "kagayoiSupportRate": {
+    "message": "Bitte bewerten Sie uns!"
+  }
+}

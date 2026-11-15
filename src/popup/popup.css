@@ -20,9 +20,15 @@
   box-sizing: border-box;
 }
 
+/* OS の UI 言語と異なる言語を選んだとき、system-ui の CJK 文字が OS 言語向けの書体（日本語 OS なら Yu Gothic UI）で
+   描かれて字形が取り違えられるのを防ぐ。選択言語向けの書体を system-ui より前に置く（無い環境では従来どおり system-ui）。 */
+:lang(zh-CN) { --db-cjk-font: "Microsoft YaHei UI", "PingFang SC"; }
+:lang(zh-TW) { --db-cjk-font: "Microsoft JhengHei UI", "PingFang TC"; }
+:lang(ko) { --db-cjk-font: "Malgun Gothic", "Apple SD Gothic Neo"; }
+
 body {
   width: 320px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--db-cjk-font, system-ui), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--db-bg-primary);
   color: var(--db-text-main);
 }
@@ -39,6 +45,30 @@ body {
 .header {
   text-align: center;
   padding-bottom: 4px;
+}
+
+/* 言語セレクト（ヘッダー右寄せ。タイトルと重ならないよう独立した行に置く） */
+.header-lang {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+#uiLanguage {
+  max-width: 150px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--db-text-sub);
+  background-color: var(--db-bg-card);
+  border: 1px solid var(--db-border);
+  border-radius: 6px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+#uiLanguage:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: 2px;
 }
 
 .header-title {

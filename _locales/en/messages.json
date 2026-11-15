@@ -1,0 +1,101 @@
+{
+  "appName": {
+    "message": "DarkBlue Theme for X Returns"
+  },
+  "appDescription": {
+    "message": "Converts X's (formerly Twitter) black dark theme into the DarkBlue (Dim) theme that used to exist. A Chrome extension."
+  },
+  "appDescriptionFirefox": {
+    "message": "Converts X's (formerly Twitter) black dark theme into the DarkBlue (Dim) theme that used to exist. A browser extension."
+  },
+  "popupTitle": {
+    "message": "DarkBlue Theme Returns"
+  },
+  "popupSubtitle": {
+    "message": "Turn X's dark theme into DarkBlue"
+  },
+  "popupToggleLabel": {
+    "message": "DarkBlue theme"
+  },
+  "toggleChecking": {
+    "message": "Checking"
+  },
+  "toggleOn": {
+    "message": "Enabled"
+  },
+  "toggleOff": {
+    "message": "Disabled"
+  },
+  "toggleUnknown": {
+    "message": "Unknown"
+  },
+  "statusChecking": {
+    "message": "Checking status…"
+  },
+  "statusSettingsLoadFailed": {
+    "message": "Could not load settings"
+  },
+  "statusSettingsSaveFailed": {
+    "message": "Could not save settings"
+  },
+  "statusOpenXPage": {
+    "message": "Open an X page"
+  },
+  "statusActive": {
+    "message": "DarkBlue theme applied"
+  },
+  "statusOfficialDim": {
+    "message": "Using X's official Dim theme"
+  },
+  "statusBlackDisabled": {
+    "message": "Black theme detected (disabled)"
+  },
+  "statusBlackApplying": {
+    "message": "Applying DarkBlue theme…"
+  },
+  "statusNotDark": {
+    "message": "Not a dark theme"
+  },
+  "paletteTitle": {
+    "message": "Color palette"
+  },
+  "paletteMainBackground": {
+    "message": "Main background"
+  },
+  "paletteCardBackground": {
+    "message": "Card background"
+  },
+  "paletteBorder": {
+    "message": "Border"
+  },
+  "paletteAccent": {
+    "message": "Accent"
+  },
+  "supportLoadFailed": {
+    "message": "Could not load the contact feature."
+  },
+  "supportPermissionChecking": {
+    "message": "Checking the permissions needed to contact support…"
+  },
+  "supportPermissionDenied": {
+    "message": "To open the contact form, please allow the permission that is shown."
+  },
+  "supportPermissionFailed": {
+    "message": "Could not check the permission. Please try again."
+  },
+  "languageAuto": {
+    "message": "Auto (browser)"
+  },
+  "languageSelectLabel": {
+    "message": "Language"
+  },
+  "languageSelectTitle": {
+    "message": "Language. Open pages need a reload to update."
+  },
+  "kagayoiSupportContact": {
+    "message": "Contact support"
+  },
+  "kagayoiSupportRate": {
+    "message": "Please rate us!"
+  }
+}
