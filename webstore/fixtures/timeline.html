@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-theme="dark" style="color-scheme: dark">
+<head>
+<meta charset="utf-8">
+<meta name="vitrina-fixture" content="timeline">
+<title></title>
+<!--
+  ストア画像用の固定ページ（タイムライン風の中立的な骨組み）。文字・ロゴ・商標は描かない（灰色のバーだけ）。
+  X 本体の画面ではなく、拡張が上書きするインライン配色（黒系の背景・枠・補助色）だけを持つ骨組みで、
+  拡張機能を実際に読み込んだとき DarkBlue に変わる様子を撮るために使う。
+
+  左の列「変更前」: 配色は同じだが、色の書式を rgb(0 0 0)（カンマ無し）にして拡張のセレクターに掛からないようにしてある。
+  右の列「変更後」: 拡張が対象にする rgb(0, 0, 0) 書式。拡張が有効なら DarkBlue に置き換わり、無効なら黒のまま。
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+  .cols { display: flex; height: 100vh; }
+  .before { border-right: 1px solid #2f3336; }
+  .col { width: 560px; flex: none; overflow: hidden; }
+  .hdr { height: 60px; display: flex; align-items: center; padding: 0 20px; gap: 16px; border-bottom: 1px solid; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; line-height: 1; height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .28); color: #e7e9ea; background: rgba(255, 255, 255, .06); white-space: nowrap; }
+  .pill i { width: 8px; height: 8px; border-radius: 50%; background: #71767b; }
+  .after .pill i { background: #1d9bf0; }
+  .tabs { margin-left: auto; display: flex; gap: 22px; }
+  .tabs b { display: block; width: 64px; height: 10px; border-radius: 5px; margin: 25px 0; }
+  .tabs b:first-child { box-shadow: 0 25px 0 -3px #1d9bf0; }
+  .post { display: flex; gap: 14px; padding: 18px 20px; border-bottom: 1px solid; }
+  .av { flex: none; width: 46px; height: 46px; border-radius: 50%; }
+  .main { flex: 1; min-width: 0; }
+  .line { height: 11px; border-radius: 6px; margin-bottom: 9px; }
+  .acts { display: flex; gap: 52px; margin-top: 14px; }
+  .acts b { display: block; width: 22px; height: 22px; border-radius: 50%; }
+  .media { height: 112px; border-radius: 18px; border: 1px solid; margin-top: 14px; }
+  .btn { height: 30px; width: 76px; border-radius: 999px; background: #1d9bf0; flex: none; }
+</style>
+</head>
+<body>
+<div class="cols"><div id="before" class="col before"></div><div id="after" class="col after"></div></div>
+<script>
+  // 同じ骨組みを 2 列に描く。after は拡張が対象にする書式（rgb(r, g, b)）、before は同色でカンマ無しの書式。
+  const BG = (v) => `background-color: ${v}`;
+  const SKY = 'rgb(0, 0, 0)', CARD = 'rgb(22, 24, 28)', HOVER = 'rgb(32, 35, 39)', AVATAR = 'rgb(39, 44, 48)', BORDER = 'rgb(47, 51, 54)', SUB = 'rgb(113, 118, 123)';
+  const bars = (widths) => widths.map((w) => `<div class="line" style="width:${w}%; color: ${SUB}; background-color: currentColor"></div>`).join('');
+  const post = (media) => `
+    <div class="post" style="border-color: ${BORDER}">
+      <div class="av" style="${BG(AVATAR)}"></div>
+      <div class="main">
+        <div class="line" style="width:34%; height:13px; background-color: rgba(231, 233, 234, .88)"></div>
+        ${bars([96, 88, 52])}
+        ${media ? `<div class="media" style="${BG(CARD)}; border-color: ${BORDER}"></div>` : ''}
+        <div class="acts">${('<b style="' + BG(HOVER) + '"></b>').repeat(4)}</div>
+      </div>
+    </div>`;
+  const column = () => `
+    <div style="${BG(SKY)}; height: 100%">
+      <div class="hdr" style="border-color: ${BORDER}"><span class="slot"></span><div class="tabs"><b style="${BG(HOVER)}"></b><b style="${BG(HOVER)}"></b></div><div class="btn"></div></div>
+      ${post(false)}${post(true)}${post(false)}
+    </div>`;
+  document.getElementById('after').innerHTML = column();
+  // before は色の書式だけを変える（rgb(0, 0, 0) → rgb(0 0 0)。見た目は黒のまま）
+  const spaceSyntax = (m, inner) => (m.startsWith('rgba') ? 'rgba(' + inner.replace(/,\s*/g, ' ').replace(/ ([.\d]+)$/, ' / $1') : 'rgb(' + inner.replace(/,\s*/g, ' ')) + ')';
+  document.getElementById('before').innerHTML = column().replace(/rgba?\(([^)]*)\)/g, spaceSyntax);
+</script>
+</body>
+</html>
