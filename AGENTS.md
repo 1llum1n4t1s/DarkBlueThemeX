@@ -121,6 +121,7 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 | `webstore/vitrina/` | 画像キット（正本 `Kagayoi.Support/clients/chrome-extension/store-assets/` の逐語コピー。**改変禁止**。更新は `bun <正本>/sync-kit.mjs --repo <このリポジトリ>`） |
 | `webstore/images/` | Chrome Web Store 掲載用の生成画像（`<locale>/screenshot-01..04.png`、`tile-small.png`、`tile-marquee.png`）。Git 追跡 |
 | `webstore/store-listing.txt` | Chrome Web Store の日本語掲載文の正本。Developer Dashboard で手動更新するときに使用 |
+| `webstore/store-listing.description.<locale>.txt` | Chrome Web Store の日本語以外8言語（`en zh_CN zh_TW ko es fr de pt_BR`）の説明文の正本。Dashboard でロケール別に手動更新する |
 | `webstore/store-listing.firefox.{ja,en}.txt` | Firefox AMO の日英 Summary / Description の正本 |
 | `docs/privacy-policy*.md` | プライバシーポリシー (日本語・英語) |
 | `debug/` | DevTools Trace などローカルデバッグ用のアーティファクト置き場 (`.gitignore` 対象) |

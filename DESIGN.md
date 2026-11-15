@@ -23,7 +23,8 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 | `src/content.js` | 有効状態、テーマ判定、DOM状態、復元処理を管理する | isolated worldで動作し、Xのアプリケーション状態を直接所有しない |
 | `src/styles/darkblue.css` | FOUC防止、DarkBlueパレット、X固有セレクタとデザイントークンを上書きする | ガードクラスまたは初期dark判定のスコープ内だけで有効 |
 | `src/popup/` | トグル操作、現在タブの状態表示、バージョン表示、問い合わせ時の任意権限要求を提供する | 永続的な有効状態を書き込む唯一のUIであり、問い合わせ権限要求の起点 |
-| `src/shared/` | Kagayoi Supportの問い合わせポップアップと共通フッターを提供する | `@kagayoi/support-extension`から同期した配布用コードであり、テーマエンジンとは状態を共有せず、API通信は`support.kagayoi.com`に限定する |
+| `_locales/`、`src/shared/ui-localizer.js` | 9言語（`en ja zh_CN zh_TW ko es fr de pt_BR`）のUI文言と、popupの表示言語の決定・切替を提供する | 既定ロケールは`en`。言語選択はテーマの有効状態と分離し、`chrome.storage.local`へ端末内だけで保存する |
+| `src/shared/`（Support部品） | Kagayoi Supportの問い合わせポップアップと共通フッターを提供する | `@kagayoi/support-extension`から同期した配布用コードであり、テーマエンジンとは状態を共有せず、API通信は`support.kagayoi.com`に限定する |
 | `scripts/`、`zip.ps1`、`zip.sh` | バージョン／共有リテラル検証、アイコン生成、ブラウザ別パッケージ作成を担う | 製品実行時には同梱しない |
 | `.github/workflows/publish.yml` | `release/**`を検証し、Chrome Web StoreとFirefox AMOへ提出する | ストア認証情報はGitHub Secretsからのみ受け取る |
 | `../vps-web/deploy/caddy-sites/lp-darkblue.caddy` | 許可した静的パスをセキュリティヘッダー付きで返す | 未知のパスは404、許可パスでGET／HEAD以外は405 |
@@ -64,6 +65,7 @@ MAIN worldとisolated worldの連携には、共有DOM上の`data-dbtx-intercept
 | `data-dbtx-intercept` | content script | MAIN world interceptのON／OFF制御 |
 | `_dimAppliedByUs`／`_syntheticDim` | content script内メモリ | 拡張が作った`dim`だけを安全に復元するための由来情報 |
 | `data-dbtx-page` | content script | SPA上のページ種別をCSSへ通知 |
+| `chrome.storage.local`の`uiLanguage`／`uiMessages`／`uiMessagesVersion` | `ui-localizer.js`（popupが選択時に書き込み） | 選択した表示言語・その辞書・辞書を作った拡張の版。未設定ならブラウザ言語に追従し、版が変わると辞書を作り直す |
 | Supportセッション | 共通問い合わせコンポーネント | 認証済み問い合わせ送信の継続 |
 
 ## 重要な不変条件
@@ -135,6 +137,10 @@ content script、MAIN world、extension pageは共有モジュール化せず、
 ### 問い合わせ共通部品を配布用コードへ同期
 
 `@kagayoi/support-extension`を開発時の正本として、同期コマンドで問い合わせ用JS／CSSを`src/shared/`へコピーする。拡張機能は同期済みファイルをローカル同梱するため、実行時のnpmモジュール解決やリモートコードに依存せず、Manifest V3の配布境界を維持できる。共通仕様は上流パッケージ、DarkBlueThemeX固有の調整はpopup側のCSSへ分離する。
+
+### 9言語対応と言語切替
+
+manifestの名称・説明は`_locales/<code>/messages.json`をブラウザ標準の`__MSG_*__`で解決する。popupはこれに加えて`ui-localizer.js`で、ブラウザ言語への自動追従と拡張内での言語切替を提供する。選択言語の辞書は同梱の`messages.json`から読み出して`storage.local`へ保存し、content scriptも同じ言語で表示できるようにする。`<html lang>`は非同期のstorage読込を待たず、ページ側の控えから同期で決める。標準の`i18n`だけではブラウザ言語以外へ切り替えられないため独自の辞書保持を採るが、辞書の複製と版管理という保守コストを負う。
 
 ### ブラウザ別manifestと共通ソース
 
