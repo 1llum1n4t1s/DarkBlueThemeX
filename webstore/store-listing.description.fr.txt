@@ -1,0 +1,42 @@
+X (anciennement Twitter) proposait autrefois deux thèmes sombres :
+・Lights Out (noir) — un fond noir pur
+・Dim (DarkBlue) — un fond bleu foncé apaisant
+
+Aujourd’hui, cependant, le thème Dim (DarkBlue) a été supprimé et le noir est le seul thème sombre.
+
+« Le retour du thème DarkBlue pour X » est une extension qui convertit le thème sombre noir de X en l’apaisant thème DarkBlue (Dim) d’autrefois.
+
+■ Fonctionnalités principales
+・Convertit automatiquement le thème sombre (noir) de X en l’ancien thème DarkBlue
+・Activez ou désactivez le thème (ON/OFF) d’un seul geste grâce au commutateur de la fenêtre contextuelle qui s’ouvre depuis l’icône de l’extension (par défaut : ON)
+・Conception sûre qui n’affecte pas les utilisateurs du thème clair (rien n’est converti avec le thème clair)
+・Applique les couleurs aussi à la navigation dans la page et aux contenus chargés ensuite
+・Applique les couleurs DarkBlue à la chronologie, aux notifications, aux messages privés, à la recherche, aux paramètres et plus encore, ainsi qu’à l’écran d’appel et à l’écran de discussion (arrière-plan, menus et boîte de dialogue de nouvelle discussion)
+・Permet d’envoyer une demande depuis la fenêtre contextuelle de l’extension, si vous le souhaitez
+
+■ Palette de couleurs DarkBlue
+Arrière-plan principal : #15202B
+Arrière-plan des cartes : #192734
+Arrière-plan au survol : #22303C
+Bordure : #38444D
+Accent : #1D9BF0
+
+■ Utilisation
+1. Réglez X (x.com) sur le thème sombre (noir / Lights Out).
+2. Une fois l’extension installée, le thème DarkBlue est appliqué automatiquement (après l’installation ou une mise à jour, rechargez vos pages X).
+3. Cliquez sur l’icône de l’extension et utilisez le commutateur de la fenêtre contextuelle pour activer ou désactiver la conversion (ON/OFF).
+
+■ Fonction de contact
+Uniquement lorsque vous appuyez sur « Contacter le support » dans la fenêtre contextuelle, l’extension vous demande l’autorisation nécessaire pour se connecter à Kagayoi Support (https://support.kagayoi.com).
+Si vous ne l’accordez pas, le formulaire de contact ne s’ouvre pas, mais la conversion du thème continue de fonctionner normalement.
+
+■ Confidentialité
+・La conversion du thème s’effectue entièrement dans votre navigateur
+・Uniquement lorsque vous envoyez le formulaire de contact facultatif, l’extension transmet à Kagayoi Support l’adresse e-mail, le nom facultatif, la demande, le code de vérification et les autres informations que vous avez saisis
+・Une fois la demande vérifiée, l’adresse e-mail, le jeton d’accès et la date d’expiration ne sont conservés que pendant la session de la page du formulaire (ils ne sont pas synchronisés entre les navigateurs)
+・L’historique de navigation, les cookies, la position et les publications ou messages affichés sur X ne sont ni collectés ni transmis à des fins publicitaires, d’analyse ou de télémétrie
+・L’état ON/OFF du thème est enregistré dans le stockage synchronisé du navigateur
+
+■ Configuration requise
+・Google Chrome (fonctionne aussi avec les navigateurs basés sur Chromium, comme Edge et Brave)
+・Le thème sombre (noir) de X doit être activé

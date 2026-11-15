@@ -1,0 +1,42 @@
+X (antes Twitter) ofrecía antes dos temas oscuros:
+・Lights Out (negro): un fondo negro puro
+・Dim (DarkBlue): un fondo azul oscuro y sereno
+
+Sin embargo, el tema Dim (DarkBlue) ha sido retirado y ahora el negro es el único tema oscuro.
+
+«El regreso del tema DarkBlue para X» es una extensión que convierte el tema oscuro negro de X en el sereno tema DarkBlue (Dim) de antes.
+
+■ Funciones principales
+・Convierte automáticamente el tema oscuro (negro) de X en el antiguo tema DarkBlue
+・Active o desactive el tema (ON/OFF) con un solo toque mediante el interruptor del menú emergente que se abre desde el icono de la extensión (valor predeterminado: ON)
+・Diseño seguro que no afecta a quienes usan el tema claro (en el tema claro no se convierte nada)
+・Aplica los colores también a la navegación dentro de la página y al contenido que se carga después
+・Aplica los colores DarkBlue a la cronología, las notificaciones, los mensajes directos, la búsqueda, los ajustes y más, así como a la pantalla de llamadas y a la de chat (fondo, menús y el cuadro de diálogo de nuevo chat)
+・Permite enviar una consulta desde el menú emergente de la extensión, si lo desea
+
+■ Paleta de colores DarkBlue
+Fondo principal: #15202B
+Fondo de tarjeta: #192734
+Fondo al pasar el cursor: #22303C
+Borde: #38444D
+Acento: #1D9BF0
+
+■ Cómo usarla
+1. Configure X (x.com) con el tema oscuro (negro / Lights Out).
+2. Al instalar la extensión, el tema DarkBlue se aplica automáticamente (tras instalar o actualizar, recargue las páginas de X).
+3. Haga clic en el icono de la extensión y use el interruptor del menú emergente para activar o desactivar la conversión (ON/OFF).
+
+■ Función de contacto
+Solo cuando pulse «Contactar con soporte» en el menú emergente, la extensión le pedirá el permiso necesario para conectarse a Kagayoi Support (https://support.kagayoi.com).
+Si no lo concede, el formulario de contacto no se abrirá, pero la conversión del tema seguirá funcionando con normalidad.
+
+■ Privacidad
+・La conversión del tema se realiza por completo dentro del navegador
+・Solo cuando usted envía el formulario de contacto opcional, la extensión envía a Kagayoi Support la dirección de correo electrónico, el nombre opcional, la consulta, el código de verificación y otros datos que haya introducido
+・Una vez verificada la consulta, la dirección de correo electrónico, el token de acceso y la fecha de caducidad se guardan solo durante la sesión de la página del formulario (no se sincronizan entre navegadores)
+・No se recopilan ni se envían el historial de navegación, las cookies, la ubicación ni las publicaciones o los mensajes que se muestran en X con fines publicitarios, de análisis o de telemetría
+・El estado ON/OFF del tema se guarda en el almacenamiento de sincronización del navegador
+
+■ Requisitos
+・Google Chrome (también funciona en navegadores basados en Chromium, como Edge y Brave)
+・Debe estar activado el tema oscuro (negro) de X

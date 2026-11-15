@@ -1,0 +1,42 @@
+O X (antigo Twitter) já ofereceu dois temas escuros:
+・Lights Out (preto) — um fundo preto puro
+・Dim (DarkBlue) — um fundo azul-escuro tranquilo
+
+Atualmente, porém, o tema Dim (DarkBlue) foi descontinuado e o preto é o único tema escuro.
+
+"O retorno do tema DarkBlue para X" é uma extensão que converte o tema escuro preto do X no tranquilo tema DarkBlue (Dim) de antes.
+
+■ Principais recursos
+・Converte automaticamente o tema escuro (preto) do X no antigo tema DarkBlue
+・Ative ou desative o tema (ON/OFF) com um toque, usando o interruptor do pop-up aberto pelo ícone da extensão (padrão: ON)
+・Projetado para ser seguro: não afeta quem usa o tema claro (no tema claro, nada é convertido)
+・Aplica as cores também à navegação dentro da página e ao conteúdo carregado depois
+・Aplica as cores DarkBlue à linha do tempo, às notificações, às mensagens diretas, à busca, às configurações e mais, além da tela de chamada e da tela de chat (fundo, menus e a caixa de diálogo de novo chat)
+・Permite enviar uma mensagem de contato pelo pop-up da extensão, se você quiser
+
+■ Paleta de cores DarkBlue
+Fundo principal: #15202B
+Fundo do cartão: #192734
+Fundo ao passar o mouse: #22303C
+Borda: #38444D
+Destaque: #1D9BF0
+
+■ Como usar
+1. Defina o X (x.com) com o tema escuro (preto / Lights Out).
+2. Ao instalar a extensão, o tema DarkBlue é aplicado automaticamente (depois de instalar ou atualizar, recarregue as páginas do X).
+3. Clique no ícone da extensão e use o interruptor do pop-up para ativar ou desativar a conversão (ON/OFF).
+
+■ Recurso de contato
+Somente quando você clica em "Falar com o suporte" no pop-up, a extensão pede a permissão necessária para se conectar ao Kagayoi Support (https://support.kagayoi.com).
+Se você não a conceder, o formulário de contato não será aberto, mas a conversão do tema continuará funcionando normalmente.
+
+■ Privacidade
+・A conversão do tema é feita inteiramente dentro do navegador
+・Somente quando você envia o formulário de contato opcional, a extensão envia ao Kagayoi Support o endereço de e-mail, o nome opcional, a mensagem, o código de verificação e outras informações que você digitou
+・Após a verificação da mensagem, o endereço de e-mail, o token de acesso e o prazo de validade são guardados apenas durante a sessão da página do formulário (não são sincronizados entre navegadores)
+・Não coletamos nem enviamos histórico de navegação, cookies, localização, nem as publicações e mensagens exibidas no X para fins de publicidade, análise ou telemetria
+・O estado ON/OFF do tema é salvo no armazenamento de sincronização do navegador
+
+■ Requisitos
+・Google Chrome (também funciona em navegadores baseados em Chromium, como Edge e Brave)
+・O tema escuro (preto) do X deve estar ativado

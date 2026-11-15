@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_appName__",
-  "version": "1.0.57",
+  "version": "1.0.58",
   "description": "__MSG_appDescriptionFirefox__",
   "default_locale": "en",
   "browser_specific_settings": {

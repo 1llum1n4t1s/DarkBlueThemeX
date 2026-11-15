@@ -1,0 +1,42 @@
+X (formerly Twitter) once offered two dark themes:
+・Lights Out — a pure black background
+・Dim (DarkBlue) — a calm dark-blue background
+
+Today, however, the Dim (DarkBlue) theme has been discontinued and black is the only dark theme.
+
+"DarkBlue Theme for X Returns" is an extension that converts X's black dark theme into the calm DarkBlue (Dim) theme of the past.
+
+■ Main features
+・Automatically converts X's dark theme (black) into the old DarkBlue theme
+・Turn it ON or OFF with one tap using the switch in the popup that opens from the extension icon (default: ON)
+・Designed to be safe: it does not affect users of the light theme (nothing is converted in the light theme)
+・Applies the colors to in-page navigation and to content that loads later
+・Applies the DarkBlue colors to the timeline, notifications, DMs, search, settings and more, as well as the call screen and the chat screen (background, menus and the new chat dialog)
+・Lets you send an inquiry from the extension popup, if you wish
+
+■ DarkBlue color palette
+Main background: #15202B
+Card background: #192734
+Hover background: #22303C
+Border: #38444D
+Accent: #1D9BF0
+
+■ How to use
+1. Set X (x.com) to the dark theme (black / Lights Out).
+2. Install the extension and the DarkBlue theme is applied automatically (after installing or updating, reload your X pages).
+3. Click the extension icon and use the switch in the popup to turn the conversion ON or OFF.
+
+■ Contact feature
+Only when you press "Contact support" in the popup does the extension ask for the permission needed to connect to Kagayoi Support (https://support.kagayoi.com).
+If you do not grant it, the contact form does not open, but theme conversion keeps working as usual.
+
+■ Privacy
+・Theme conversion is performed entirely inside your browser.
+・Only when you submit the optional contact form does the extension send the email address, the optional name, the inquiry, the verification code and similar information you entered to Kagayoi Support.
+・After the inquiry is verified, your email address, access token and expiration time are stored only for the page session of the form (they are not synchronized between browsers).
+・The extension does not collect or transmit your browsing history, cookies, location, or the posts and messages displayed on X for advertising, analytics or telemetry purposes.
+・The ON/OFF state of the theme is stored in the browser's sync storage.
+
+■ Requirements
+・Google Chrome (also works in Chromium-based browsers such as Edge and Brave)
+・X's dark theme (black) must be enabled

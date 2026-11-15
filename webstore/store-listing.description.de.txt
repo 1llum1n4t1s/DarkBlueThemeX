@@ -1,0 +1,42 @@
+X (früher Twitter) bot früher zwei dunkle Designs an:
+・Lights Out (Schwarz) – ein rein schwarzer Hintergrund
+・Dim (DarkBlue) – ein ruhiger dunkelblauer Hintergrund
+
+Inzwischen wurde das Design Dim (DarkBlue) jedoch eingestellt, und Schwarz ist das einzige dunkle Design.
+
+„DarkBlue-Design für X ist zurück“ ist eine Erweiterung, die das schwarze dunkle Design von X in das ruhige DarkBlue-Design (Dim) von früher umwandelt.
+
+■ Hauptfunktionen
+・Wandelt das dunkle Design (Schwarz) von X automatisch in das frühere DarkBlue-Design um
+・Mit dem Schalter im Popup, das Sie über das Erweiterungssymbol öffnen, schalten Sie das Design mit einem Klick ein oder aus (ON/OFF; Standard: ON)
+・Sicher ausgelegt: Nutzer des hellen Designs sind nicht betroffen (im hellen Design wird nichts umgewandelt)
+・Wendet die Farben auch auf Seitenwechsel innerhalb der Seite und auf später nachgeladene Inhalte an
+・Wendet die DarkBlue-Farben auf Timeline, Benachrichtigungen, Direktnachrichten, Suche, Einstellungen und mehr sowie auf den Anrufbildschirm und den Chatbildschirm (Hintergrund, Menüs und Dialog für neue Chats) an
+・Auf Wunsch können Sie im Popup der Erweiterung eine Anfrage senden
+
+■ DarkBlue-Farbpalette
+Haupthintergrund: #15202B
+Kartenhintergrund: #192734
+Hover-Hintergrund: #22303C
+Rahmen: #38444D
+Akzent: #1D9BF0
+
+■ So verwenden Sie die Erweiterung
+1. Stellen Sie X (x.com) auf das dunkle Design (Schwarz / Lights Out) ein.
+2. Nach der Installation der Erweiterung wird das DarkBlue-Design automatisch angewendet (laden Sie nach der Installation oder einem Update Ihre X-Seiten neu).
+3. Klicken Sie auf das Erweiterungssymbol und schalten Sie die Umwandlung mit dem Schalter im Popup ein oder aus (ON/OFF).
+
+■ Kontaktfunktion
+Nur wenn Sie im Popup auf „Support kontaktieren“ klicken, bittet die Erweiterung um die Berechtigung, die für die Verbindung mit Kagayoi Support (https://support.kagayoi.com) erforderlich ist.
+Wenn Sie sie nicht erteilen, wird das Kontaktformular nicht geöffnet, die Designumwandlung funktioniert aber weiterhin wie gewohnt.
+
+■ Datenschutz
+・Die Designumwandlung erfolgt vollständig in Ihrem Browser
+・Nur wenn Sie das optionale Kontaktformular absenden, sendet die Erweiterung die von Ihnen eingegebene E-Mail-Adresse, den optionalen Namen, die Anfrage, den Bestätigungscode und ähnliche Angaben an Kagayoi Support
+・Nach der Bestätigung der Anfrage werden E-Mail-Adresse, Zugriffstoken und Ablaufzeit nur für die Dauer der Seitensitzung des Formulars gespeichert (sie werden nicht zwischen Browsern synchronisiert)
+・Browserverlauf, Cookies, Standort sowie auf X angezeigte Beiträge und Nachrichten werden weder für Werbe-, Analyse- noch Telemetriezwecke erfasst oder übertragen
+・Der ON/OFF-Zustand des Designs wird im Synchronisierungsspeicher des Browsers gespeichert
+
+■ Voraussetzungen
+・Google Chrome (funktioniert auch in Chromium-basierten Browsern wie Edge und Brave)
+・Das dunkle Design (Schwarz) von X muss aktiviert sein
