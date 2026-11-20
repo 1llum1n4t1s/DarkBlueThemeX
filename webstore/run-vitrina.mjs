@@ -3,7 +3,7 @@
 // 撮影用の作業コピー（debug/vitrina-ext/、空の Service Worker 入り）を作る。
 // （キットは Service Worker の無い拡張へ拡張ページ経由で言語を書けるようになったので、store-assets.json の extensionDir を
 //   "." に戻して撮影確認ができたら、このラッパーと prepare-extension.mjs は不要になる。）
-// --work-dir は未指定ならキットの既定値（Windows は D:\tmp\vitrina-<リポジトリ名>、それ以外は OS の一時フォルダー配下）。
+// --work-dir は未指定ならキットの既定値（OS の一時フォルダー %TEMP% = os.tmpdir() 配下の vitrina-<リポジトリ名>）。
 //   bun webstore/run-vitrina.mjs [generate|verify|sheet] [vitrina のオプション...]
 import path from "node:path";
 import { fileURLToPath } from "node:url";

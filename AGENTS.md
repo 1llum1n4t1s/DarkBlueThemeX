@@ -56,7 +56,7 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 - **Chrome / Edge / Brave**: `chrome://extensions`（Edge は `edge://extensions`、Brave は `brave://extensions`）でデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」からプロジェクトフォルダを選択
 - **Firefox**: `bash zip.sh firefox` でビルドした `DarkBlueThemeX-firefox.xpi` を `about:debugging#/runtime/this-firefox` で「一時的なアドオンとして読み込む」(セッションごとに再読み込みが必要)
 
-- **Chrome を起動するスクリプトを足すときはシード必須**: puppeteer.launch・chrome-launcher・Chrome の直接起動は、起動前に user-data-dir の `Local State` へ `{"password_manager":{"os_password_blank":false,"os_password_last_changed":"9223372036854775000"}}` を書く。Windows の Chromium は新規プロファイルごとに空パスワードで LogonUser を呼び（`password_manager_util_win.cc` の `CheckBlankPasswordWithPrefs`）、ログオン失敗（Security 4625）として数えられるため、並列・連続起動で Windows アカウントがロックされる（2026-11-15 実害）。userDataDir 未指定の起動は作らず、`webstore/vitrina/lib/capture.mjs` の `seedChromeProfile`（および一時プロファイルは D:\tmp 配下）と同等の処理を先に呼ぶ。`webstore/vitrina/` は逐語コピーで対策済み。
+- **Chrome を起動するスクリプトを足すときはシード必須**: puppeteer.launch・chrome-launcher・Chrome の直接起動は、起動前に user-data-dir の `Local State` へ `{"password_manager":{"os_password_blank":false,"os_password_last_changed":"9223372036854775000"}}` を書く。Windows の Chromium は新規プロファイルごとに空パスワードで LogonUser を呼び（`password_manager_util_win.cc` の `CheckBlankPasswordWithPrefs`）、ログオン失敗（Security 4625）として数えられるため、並列・連続起動で Windows アカウントがロックされる（2026-11-15 実害）。userDataDir 未指定の起動は作らず、`webstore/vitrina/lib/capture.mjs` の `seedChromeProfile`（および一時プロファイルは %TEMP% 配下）と同等の処理を先に呼ぶ。`webstore/vitrina/` は逐語コピーで対策済み。
 
 ## Release & CI (自動公開ワークフロー)
 
@@ -129,9 +129,9 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 ストア掲載画像は vitrina（9言語・実拡張の実UI）で生成する。Windows は release（実拡張を読み込み、9言語とタイルを生成）、それ以外（CI）は smoke（en のみ・実UI枠は代替板）になる。
 
 ```powershell
-bun --bun run generate-screenshots        # = bun webstore/run-vitrina.mjs generate（作業物は D:\tmp\vitrina-DarkBlueThemeX）
+bun --bun run generate-screenshots        # = bun webstore/run-vitrina.mjs generate（作業物は %TEMP%\vitrina-DarkBlueThemeX）
 bun webstore/vitrina/vitrina.mjs verify   # 枚数・寸法・アルファ無し・命名・言語間の同一画像を検査
-bun webstore/run-vitrina.mjs sheet --sheet-dir D:\tmp\<作業名>\sheet   # スライドごとに9言語を並べた確認用シート
+bun webstore/run-vitrina.mjs sheet --sheet-dir $env:TEMP\<作業名>\sheet   # スライドごとに9言語を並べた確認用シート
 ```
 
 - 本拡張は background（Service Worker）を持たないが、vitrina は Service Worker 経由で言語と状態を `storage` へ書く。そのため `webstore/prepare-extension.mjs` が `debug/vitrina-ext/`（Git 管理外）へ拡張の作業コピーを作り、その manifest にだけ空の Service Worker を足す。`store-assets.json` の `extensionDir` はこの作業コピーを指す。製品本体の manifest・配布物は変えない。
