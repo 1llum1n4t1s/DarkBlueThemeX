@@ -60,9 +60,10 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 
 ## Release & CI (自動公開ワークフロー)
 
-`.github/workflows/publish.yml` は `release/**` ブランチに push されると起動し、**Chrome Web Store と Firefox AMO に同時に**自動アップロード＆申請する。
+`.github/workflows/publish.yml` は main のコミットに付けた軽量タグ `v<x.y.z>` が push されると起動し、**Chrome Web Store と Firefox AMO に同時に**自動アップロード＆申請する。release branch と GitHub Release は使わない。入力なしの `workflow_dispatch` は、push で run が出なかったときの再実行専用（一部 job の失敗は `gh run rerun <run-id> --failed`）。
 
-- ブランチ名と `manifest.json` の `version` が **完全一致必須**（例: `release/1.0.40` ⇔ `"version": "1.0.40"`）。不一致なら CI が失敗する。
+- タグ名と `manifest.json` の `version` が **完全一致必須**（例: `v1.0.40` ⇔ `"version": "1.0.40"`）。guard は Secrets を使う step より前に、タグであること・`v<版>` の厳密な形・軽量タグが push commit を指すこと・既定ブランチの祖先であることも確認し、不一致なら CI が失敗する。
+- 版タグは動かさず、消さない（ルールセット `release-tags` で作成・更新・削除は管理者のみ）。一時的な失敗は同じタグで再実行し、コード修正が要るなら patch を上げて新しいタグを付ける。
 - `package.json` / `manifest.json` / `manifest.firefox.json` の version 三者同期も `bun --bun run check-version` で検証される（不一致なら CI 失敗）。
 - zip は `bash zip.sh both` を CI 内で直接呼び出す形に統一済み（過去はインラインコマンドだったが、パッケージ内容物定義を 1 箇所に集約するため）。
 - Chrome Web Store は `scripts/Publish-Cws.ps1` で既存OAuth認証とpublisher/item IDを使い、同期upload応答の成功・ID・版を確認してアップロードする（申請は `cws-submit.yml`）。非同期・重複・不明な応答は停止する。
@@ -74,9 +75,9 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 - Firefox AMO ジョブは `needs: package` のみで `publish-chrome` に依存しないため、Chrome 公開が失敗しても独立して submit される（sibling job の失敗は波及しない）。`if: success() || failure()` は付けない（付けると `package` の `bun --bun run check` 失敗時にも firefox が走り、壊れた拡張を AMO に submit してしまうため。既定の「package 成功時のみ実行」ゲートに委ねる）。
 - CI の Bun は `package.json` の固定値を参照し、ローカル開発環境と一致させる。
 - AMOは提出受付応答まで確認し、承認待ちはしない。timeoutや重複を成功扱いにせず、ストア状態を確認してから再開する。
-- リリース手順は `vava` スキル（`/vava`）が自動化: バージョン +1 → main に push → `release/x.y.z` ブランチ作成 → 古いリリースブランチ削除。
+- リリース手順は `vava` スキル（`/vava`）が自動化: バージョン +1 → main に `--no-follow-tags` で push → 軽量タグ `vx.y.z` を作成して1本だけ push。
 - GitHub Actions は `actions/*` を含めすべて commit SHA で固定（サプライチェーン対策）。`# vN` コメントを手掛かりに Dependabot が SHA を追従更新する。
-- ワークフローはリポジトリ共通の `concurrency`（`group: publish-${{ github.repository }}`、`cancel-in-progress: false`、`queue: max`）で直列化する。異なる `release/**` ブランチへの push も同じキューに入り、CWS の upload／publish の競合や実行中の中断による部分公開を避ける。
+- ワークフローはリポジトリ共通の `concurrency`（`group: publish-${{ github.repository }}`、`cancel-in-progress: false`、`queue: max`）で直列化する。異なる版タグの push も同じキューに入り、CWS の upload／publish の競合や実行中の中断による部分公開を避ける。
 - Chrome と Firefox の公開スクリプトは、各ストアの認証情報が欠けていればストアとの通信前に停止する。Secrets を扱う publish 2 ジョブは job レベルで `permissions: contents: read` を明示する。
 
 ### 公開後のロールバック / ロールフォワード（インシデント時 runbook）
@@ -111,7 +112,7 @@ No compilation step — パッケージ処理は同期済みのソースをそ�
 | `scripts/check-shared-literals.js` | 実行コンテキストを跨ぐ共有リテラル値の一致を検証 (CI 実行)。content↔popup: `STORAGE_KEY` / `MSG_GET_STATE`、content↔intercept: `LOCATION_CHANGE_EVENT` / 3つの `THEME_*_EVENT` |
 | `scripts/check-support-permissions.js` | Chrome の任意ホスト権限、Firefox の任意データ収集権限、許可／拒否時の popup 分岐と設定読込時の操作制御を Bun の Node.js 互換機能だけで検証 (`bun --bun run check`) |
 | `scripts/check-theme-state.js` | MAIN / isolated world を分離した VM で storage 未解決・競合、BFCache 再取得、light／normal 遷移と dark 復帰、Dim の由来別復元契約を検証 (`bun --bun run check`) |
-| `.github/workflows/publish.yml` | `release/**` push で Chrome Web Store へアップロード + Firefox AMO へ提出（CWS の申請は `cws-submit.yml`） |
+| `.github/workflows/publish.yml` | 版タグ `v<x.y.z>` の push で Chrome Web Store へアップロード + Firefox AMO へ提出（CWS の申請は `cws-submit.yml`） |
 | `zip.ps1` / `zip.sh` | Chrome/Firefox 両対応のパッケージ生成 (`-Target chrome|firefox|both` / `bash zip.sh chrome|firefox|both`) |
 | `.github/dependabot.yml` | GitHub Actions と npm 依存の週次自動更新 |
 | `webstore/store-assets.json` | ストア掲載画像（スクリーンショット・タイル）の設定。画像の文言は `_locales` の参照か9言語の直書き |
@@ -176,11 +177,11 @@ bun "$HOME/.agents/skills/vava/scripts/update-amo-listing.mjs" --slug 'darkblue-
 
 `publish.yml` は検証済みZIPを `-Stage Upload` で下書きとしてアップロードするだけで、審査へは申請しない。新ロケールの掲載画像欄はアップロード後でないと Dashboard に出ないため、申請は別workflow `.github/workflows/cws-submit.yml`（手動実行、`-Stage Publish`）で行う。
 
-1. `release/x.y.z` を push する（publish.yml がアップロードする）
+1. 版タグ `vx.y.z` を push する（publish.yml がアップロードする）
 2. Dashboard（Edictora）でロケール別の掲載画像などを整えて下書き保存する
-3. `gh workflow run cws-submit.yml -f version=x.y.z --ref release/x.y.z` で申請する
+3. `gh workflow run cws-submit.yml -f version=x.y.z --ref vx.y.z` で申請する
 
-- API v2 は未申請の下書き版を返さないため、下書きの版そのものは確認できない。`cws-submit.yml` は次を満たす場合だけ `:publish` する: 実行 ref が `release/<version>` で manifest の版が入力と一致する。`publish.yml` の直近のアップロード成功 run（固定ステップ名 `Chrome Web Store にアップロード（下書き）`。`actions: read` で履歴を参照）が同じ commit である。fetchStatus で item identity・直近アップロード状態・公開/審査中の版を確認できる。
+- API v2 は未申請の下書き版を返さないため、下書きの版そのものは確認できない。`cws-submit.yml` は次を満たす場合だけ `:publish` する: 実行 ref が軽量タグ `v<version>` で既定ブランチの祖先にあり、manifest の版が入力と一致する。`publish.yml` の直近のアップロード成功 run（固定ステップ名 `Chrome Web Store にアップロード（下書き）`。`actions: read` で履歴を参照）が同じ commit である。fetchStatus で item identity・直近アップロード状態・公開/審査中の版を確認できる。
 - 同版が申請済み・公開済み（PENDING_REVIEW / STAGED / PUBLISHED / PUBLISHED_TO_TESTERS）なら再送せず成功終了する。別版の審査中、より新しい版の存在、直近アップロードの進行中・失敗、状態不明は申請せず停止する。
 - Dashboard で手動アップロードした下書きなど、同じ commit のアップロード成功 run が無い場合は申請されない。その場合は Dashboard から手動で申請する。
 - 両workflowは同じ concurrency group で直列化する。申請中は Dashboard の操作を並行しない。
