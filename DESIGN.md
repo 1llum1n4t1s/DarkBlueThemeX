@@ -26,7 +26,7 @@ DarkBlueThemeX は、X（旧Twitter）の黒（Lights Out）テーマを旧DarkB
 | `_locales/`、`src/shared/ui-localizer.js` | 9言語（`en ja zh_CN zh_TW ko es fr de pt_BR`）のUI文言と、popupの表示言語の決定・切替を提供する | 既定ロケールは`en`。言語選択はテーマの有効状態と分離し、`chrome.storage.local`へ端末内だけで保存する |
 | `src/shared/`（Support部品） | Kagayoi Supportの問い合わせポップアップと共通フッターを提供する | `@kagayoi/support-extension`から同期した配布用コードであり、テーマエンジンとは状態を共有せず、API通信は`support.kagayoi.com`に限定する |
 | `scripts/`、`zip.ps1`、`zip.sh` | バージョン／共有リテラル検証、アイコン生成、ブラウザ別パッケージ作成を担う | 製品実行時には同梱しない |
-| `.github/workflows/publish.yml` | `release/**`を検証し、Chrome Web StoreとFirefox AMOへ提出する | ストア認証情報はGitHub Secretsからのみ受け取る |
+| `.github/workflows/publish.yml` | 版タグ`v<x.y.z>`のpushを契機に検証し、Chrome Web StoreとFirefox AMOへ提出する | ストア認証情報はGitHub Secretsからのみ受け取る |
 | `../vps-web/deploy/caddy-sites/lp-darkblue.caddy` | 許可した静的パスをセキュリティヘッダー付きで返す | 未知のパスは404、許可パスでGET／HEAD以外は405 |
 
 ## 実行時データフロー
@@ -148,7 +148,7 @@ Firefox固有設定だけを別manifestに分離し、JavaScriptとCSSは共通�
 
 ## 検証と配布の境界
 
-ローカル検証とパッケージコマンドは[AGENTS.md](AGENTS.md)を参照する。CIは`release/**`でversion整合、共有リテラル、問い合わせ権限、テーマ復元契約を検証し、packageジョブで両ブラウザのアーカイブを作成する。ChromeジョブはZIP artifactを使用し、FirefoxジョブはXPI artifactを`firefox-build/`へ展開してネイティブarchive builderで最終XPIにし、既存verifierのreceipt SHA-256を `scripts/Publish-Amo.ps1`へ渡す。アイコン生成と梱包対象の選択はpackageジョブに集約し、保存した配布物と提出用ソースの内容を一致させる。両公開ジョブはpackage成功を条件とする独立ジョブである。公開処理はrepository単位で最大100件をキューに保持して直列化し、進行中の提出をキャンセルしない。同期生成物の一致確認はローカル必須検証とCIのパッケージ作成前に実行する。ランディングページの配備はこのストア公開ワークフローに含まれない。
+ローカル検証とパッケージコマンドは[AGENTS.md](AGENTS.md)を参照する。CIは版タグ`v<x.y.z>`のpushでversion整合、共有リテラル、問い合わせ権限、テーマ復元契約を検証し、packageジョブで両ブラウザのアーカイブを作成する。ChromeジョブはZIP artifactを使用し、FirefoxジョブはXPI artifactを`firefox-build/`へ展開してネイティブarchive builderで最終XPIにし、既存verifierのreceipt SHA-256を `scripts/Publish-Amo.ps1`へ渡す。アイコン生成と梱包対象の選択はpackageジョブに集約し、保存した配布物と提出用ソースの内容を一致させる。両公開ジョブはpackage成功を条件とする独立ジョブである。公開処理はrepository単位で最大100件をキューに保持して直列化し、進行中の提出をキャンセルしない。同期生成物の一致確認はローカル必須検証とCIのパッケージ作成前に実行する。ランディングページの配備はこのストア公開ワークフローに含まれない。
 
 ## 製品ページの配信先
 
