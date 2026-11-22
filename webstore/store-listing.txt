@@ -90,4 +90,4 @@ X（旧Twitter）のダークテーマ（黒）をDarkBlue（Dim）テーマに�
   X（x.com, twitter.com）のページにテーマ変換用の CSS と JavaScript を適用するために必要です。テーマ変換はこれらのサイトでだけ動作します。任意のホスト権限 support.kagayoi.com は、ユーザーがポップアップの『お問い合わせ』を押したときにだけ許可を求め、お問い合わせフォームのメール確認と送信の通信にだけ使用します。
 
 ■ プライバシーポリシー URL
-https://darkblue.kagayoi.com/privacy
+https://privacy.kagayoi.com/darkblue
